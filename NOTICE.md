@@ -15,8 +15,8 @@ licensed (see [LICENSE](LICENSE)). That covers `platform/`, `tools/`, `tests/`, 
 the files under `.github/`, `CMakeLists.txt`, and the Markdown documents at the top level.
 
 **The rest is a reconstruction of someone else's program**:
-- `src/`, imported from mapedit-decomp and converted for modern compilers;
-- `import/`, the record of that import.
+- `src/`, converted from mapedit-decomp for modern compilers and maintained here
+  ([docs/origin.md](docs/origin.md)).
 
 Each function compiles to bytes identical to part of the shipped binary. That is the point of
 it, and it is also why this project cannot grant a license over it. No license is offered for

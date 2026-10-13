@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/keys_3 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/keys_3 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE keys_3: MAPEDIT.EXE segment 0bb2 (keys_3.c), file 0xd12e-0xd240, 1 functions in source order.
@@ -12,10 +11,7 @@
  * ALT+LETTER KEYS. keys_fix_alt(key) (_fastcall) maps an Alt+letter key code (0x100 + the
  * scan code) to its upper-case letter, and any other key to itself with a-z upper-cased.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 /* keys_fix_alt -- 0bb2:000e, 274 bytes */
-// MSC: #pragma optimize("elg", on)
 i16 keys_fix_alt(i16 key)
 {
     switch (key) {

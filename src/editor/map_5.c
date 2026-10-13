@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/map_5 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/map_5 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE map_5: MAPEDIT.EXE segment 08a2 (map_5.obj), file 0xa02a-0xa0d0, 2 functions in source order.
@@ -14,8 +13,6 @@
  * draw_map_2 clears the work screen (buffer_draw_box over scr_work, colour 0) and does the same
  * for the whole view.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern void conform_to_view_size(i16 *x, i16 *y, i16 *w, i16 *h);

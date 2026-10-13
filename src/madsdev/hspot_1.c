@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/hspot_1 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/hspot_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE hspot_1: MAPEDIT.EXE segment 0ba3 (hspot_1.c), file 0xd030-0xd0a2, 1 functions in source order.
@@ -17,9 +16,6 @@
  * 0x1c, with v1 and v2 as the data words) and returns 0.
  */
 
-// MSC: #pragma optimize("elg", on)
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2);

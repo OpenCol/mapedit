@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/xms_7 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/xms_7 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE xms_7: MAPEDIT.EXE segment 1343 (XMS_7.C), file 0x14a34-0x14a5a, 1 functions in source order.
@@ -15,8 +14,6 @@
  * conventional memory. ds:si points at the structure (the `mov si,6; add si,bp` is the
  * programmer's own asm). 0 on success, -1 with no driver or a failed move.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern i16 xms_exists;                      /* DS:0x3c68 (xms_1.c) */
 extern void (*xms_controller)(void);    /* DS:0x3c6c (xms_1.c) */

@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/xms_6 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/xms_6 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE xms_6: MAPEDIT.EXE segment 128b (xms_6.c), file 0x13eb4-0x13f06, 2 functions in source order.
@@ -19,8 +18,6 @@
  *     never gets an XMS directory.
  *   - xms_free(handle) releases a handle (function 0Ah) when there is a driver.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern i16 xms_exists;                      /* DS:0x3c68 (xms_1.c) */
 extern void (*xms_controller)(void);    /* DS:0x3c6c (xms_1.c) */

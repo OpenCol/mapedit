@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/map_2 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/map_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE map_2: MAPEDIT.EXE segment 087b (map_2.obj), file 0x9db4-0xa02a, 7 functions in source order.
@@ -27,13 +26,10 @@
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern i16 map_corner_x;                         /* DS:0x8328 */
 extern i16 map_corner_y;                         /* DS:0x832e */
 extern i16 map_corner_x2;                         /* DS:0x8804 */
-extern i16 pad_1, pad_2, pad_3, pad_4, pad_5, pad_6, pad_7;
 extern i16 map_corner_y2;                         /* DS:0x8806 */
 /* conform_to_view -- 087b:0004, 70 bytes */
 /* Clips a corner pair to the visible map squares. */
@@ -62,21 +58,14 @@ void conform_to_view_size(i16 *x, i16 *y, i16 *w, i16 *h)
     *h = max(0, *h);
 }
 /* update_terrain_region -- 087b:00c0, 106 bytes */
-extern i16 pad_8, pad_9, pad_10, pad_11, pad_12, pad_13, pad_14, pad_15;
-extern i16 pad_16, pad_17, pad_18, pad_19, pad_20, pad_21, pad_22;
 extern i16 map_tile_size_x;                          /* DS:0x5ad4 */
 extern i16 map_tile_size_y;                          /* DS:0x8326 */
-extern i16 pad_23, pad_24, pad_25, pad_26, pad_27, pad_28, pad_29, pad_30;
-extern i16 pad_31, pad_32, pad_33, pad_34, pad_35, pad_36, pad_37, pad_38;
 extern i16 map_tile_inset_x;                       /* DS:0x832a, screen square of map_corner_x */
 extern i16 map_tile_inset_y;                       /* DS:0x832c */
-extern i16 pad_39, pad_40, pad_41, pad_42, pad_43, pad_44, pad_45;
 extern DosPort scr_orig;                 /* DS:0x839e, the backdrop port */
 extern DosPort scr_work;                 /* DS:0x2da8 */
 extern void buffer_rect_copy_2(i16 sx, i16 sy, i16 dx, DosPort src, DosPort dst, i16 dy, i16 w, i16 h);
 
-extern i16 pad_46, pad_47, pad_48, pad_49, pad_50, pad_51, pad_52, pad_53;
-extern i16 pad_54, pad_55, pad_56, pad_57, pad_58;
 void update_terrain_region(i16 x, i16 y, i16 w, i16 h)
 {
     i16 px;

@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/fileio_8 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/fileio_8 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE fileio_8: MAPEDIT.EXE segment 0bca (fileio_8.c), file 0xd2a0-0xd4a8, 1 functions in source order.
@@ -16,12 +15,8 @@
  * with it set it goes through fread and a 256-byte buffer instead.
  */
 
-// MSC: #pragma optimize("elg", on)
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
-extern i16 pad_g0;                       /* moves fileio_suppress_unbuffering one position (mod 17) */
 i16 fileio_suppress_unbuffering = 0;                          /* DS:0x0718 (defined here) */
 /* fileio_fread_f -- 0bca:0000, 520 bytes */
 i32 fileio_fread_f(char *p, i32 size, i32 n, MSC_FILE *fp)

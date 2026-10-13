@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/popup by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/popup (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE popup: MAPEDIT.EXE segment 033d (popup.obj), file 0x49de-0x8378, 64 functions in source order.
@@ -197,8 +196,6 @@
 #include "msc.h"
 #include "msc.h"
 #include "records.h"
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 typedef struct { u8 height; } DosFont;
 
@@ -234,47 +231,6 @@ i16 popup_no_draw = 0;                  /* DS:0x056a */
 DosPort *popup_tile = 0;                /* DS:0x056c */
 i16 king_active = 0;                    /* DS:0x056e */
 i16 sprite_tight = 0;                   /* DS:0x0570 */
-extern i16 pad_pdata_0;
-extern i16 pad_pdata_1;
-extern i16 pad_pdata_2;
-extern i16 pad_pdata_3;
-extern i16 pad_pdata_4;
-extern i16 pad_pdata_5;
-extern i16 pad_pdata_6;
-extern i16 pad_pdata_7;
-extern i16 pad_pdata_8;
-extern i16 pad_pdata_9;
-extern i16 pad_pdata_10;
-extern i16 pad_pdata_11;
-extern i16 pad_pdata_12;
-extern i16 pad_pdata_13;
-extern i16 pad_pdata_14;
-extern i16 pad_pdata_15;
-extern i16 pad_pdata_16;
-extern i16 pad_pdata_17;
-extern i16 pad_pdata_18;
-extern i16 pad_pdata_19;
-extern i16 pad_pdata_20;
-extern i16 pad_pdata_21;
-extern i16 pad_pdata_22;
-extern i16 pad_pdata_23;
-extern i16 pad_pdata_24;
-extern i16 pad_pdata_25;
-extern i16 pad_pdata_26;
-extern i16 pad_pdata_27;
-extern i16 pad_pdata_28;
-extern i16 pad_pdata_29;
-extern i16 pad_pdata_30;
-extern i16 pad_pdata_31;
-extern i16 pad_pdata_32;
-extern i16 pad_pdata_33;
-extern i16 pad_pdata_34;
-extern i16 pad_pdata_35;
-extern i16 pad_pdata_36;
-extern i16 pad_pdata_37;
-extern i16 pad_pdata_38;
-extern i16 pad_pdata_39;
-extern i16 pad_pdata_40;
 /* A text style: the extra spacing after each character, the plain colour, the colour of a
  * highlighted line, the colour of a {}-marked span, two more colours font_set_colors takes, the font. */
 typedef struct { i16 spacing; i16 color; i16 hi_color; i16 alt_color; i16 c8; i16 ca; DosFont *font; } TextStyle;
@@ -319,11 +275,7 @@ typedef struct {
 } DosPopup;
 
 extern void * heap_get(i32 n, void *arena);
-extern i16 pad_was_popup_indian;     /* was this global's first declaration; it is now defined at the top */
-extern i16 pad_was_popup_messenger;     /* was this global's first declaration; it is now defined at the top */
-extern i16 pad_was_popup_foreign;     /* was this global's first declaration; it is now defined at the top */
 extern GameState game;
-extern i16 pad_was_king_active;     /* was this global's first declaration; it is now defined at the top */
 extern i16 king_frame;
 extern i32 king_clock;
 extern i32 timer_read(void);
@@ -374,7 +326,6 @@ void popup_dude_myr(DosPopup *p)
 /* popup_load_dude -- 033d:0124, 550 bytes */
 extern i16 cycling_active;                     /* DS:0x3c64 */
 extern char *put_palette;            /* DS:0x3ae0 */
-extern i16 pad_was_sprite_tight;     /* was this global's first declaration; it is now defined at the top */
 extern void cycle_save(i16 on);
 extern void reset_sprite_memory(void);
 extern void * sprite_load(char *name, i16 a);
@@ -441,7 +392,6 @@ void popup_load_dude(DosPopup *p)
     cycling_active = old;
 }
 /* popup_fill -- 033d:034a, 148 bytes */
-extern i16 pad_was_popup_tile;     /* was this global's first declaration; it is now defined at the top */
 i16 orig_flag = 0;                       /* DS:0x1f8a (defined here: lands after popup_load_dude's literals) */
 extern DosPort scr_orig;               /* DS:0x3afc */
 extern void buffer_rect_copy(i16 x, i16 y, i16 w, DosPort src, DosPort dst, i16 h);
@@ -534,7 +484,6 @@ void style_color(i16 hi, i16 alt, TextStyle *st)
         font_set_colors(-1, st->color, st->c8, st->ca);
 }
 /* style_draw_text -- 033d:0546, 266 bytes */
-extern i16 pad_was_popup_hiliting;     /* was this global's first declaration; it is now defined at the top */
 extern DosPort scr_work;               /* DS:0x3af4 */
 extern i16 font_write(DosPort *port, i16 x, i16 y, DosFont *font, char *s, i16 flags);
 
@@ -593,19 +542,6 @@ i16 hotkey_of(u8 *s)
     return r;
 }
 /* popup_create -- 033d:06de, 458 bytes */
-extern i16 pad_was_popup_background_color_0;     /* was this global's first declaration; it is now defined at the top */
-extern i16 pad_was_popup_background_color_1;
-extern i16 pad_was_popup_select_color_0;
-extern i16 pad_was_popup_select_color_1;
-extern i16 pad_was_popup_border_color;
-extern i16 pad_was_popup_font_main_color;     /* was this global's first declaration; it is now defined at the top */
-extern i16 pad_was_popup_font_grey_color;
-extern i16 pad_was_popup_font_hilite_color;
-extern i16 pad_was_popup_enhance_color;
-extern i16 pad_was_popup_shadow_color;
-extern i16 pad_was_popup_flags;     /* was this global's first declaration; it is now defined at the top */
-extern i16 pad_was_popup_x;     /* was this global's first declaration; it is now defined at the top */
-extern i16 pad_was_popup_y;
 extern i16 mouse_driver;                     /* DS:0x49c0 */
 extern void * mem_get(i32 n);
 extern void heap_declare(i16 kind, void *arena, void *base, i32 size);
@@ -684,22 +620,6 @@ skip:
 }
 /* Popup_find_item -- 033d:08a8, 96 bytes */
 /* 16 pads: popup_create's `skip:` label is one symbol (17 - 1). */
-extern i16 pad_pc_after_0;
-extern i16 pad_pc_after_1;
-extern i16 pad_pc_after_2;
-extern i16 pad_pc_after_3;
-extern i16 pad_pc_after_4;
-extern i16 pad_pc_after_5;
-extern i16 pad_pc_after_6;
-extern i16 pad_pc_after_7;
-extern i16 pad_pc_after_8;
-extern i16 pad_pc_after_9;
-extern i16 pad_pc_after_10;
-extern i16 pad_pc_after_11;
-extern i16 pad_pc_after_12;
-extern i16 pad_pc_after_13;
-extern i16 pad_pc_after_14;
-extern i16 pad_pc_after_15;
 DosItem * Popup_find_item(i16 key, DosPopup *p)
 {
     i16 found;
@@ -1084,30 +1004,12 @@ i16 popup_wrap_lines(i16 draw, DosPopup *p)
 }
 /* popup_layout -- 033d:14d4, 1398 bytes */
 extern DosFont *menu_font;                 /* DS:0x0080 */
-extern i16 pad_was_popup_help;     /* was this global's first declaration; it is now defined at the top */
 extern void error_report(i16 code, i16 a, i16 b, i32 c, i32 d);
 
 /* Sizes and places the popup: its box from the sprites, the wrapped text, the items and the
  * edit fields; centred on the 320x200 screen unless a position was given, then moved to make
  * room for the dude's portrait. Returns 1 when the popup is empty. */
 /* 16 pads here (14 before the data was defined at the top) and 16 before popup_exec (15). */
-extern i16 pad_popup_layout_0, pad_popup_layout_1, pad_popup_layout_2, pad_popup_layout_3, pad_popup_layout_4, pad_popup_layout_5, pad_popup_layout_6, pad_popup_layout_7, pad_popup_layout_8, pad_popup_layout_9;
-extern i16 pad_popup_xa0;
-extern i16 pad_popup_xa1;
-extern i16 pad_popup_xa2;
-extern i16 pad_popup_xa3;
-extern i16 pad_popup_xa4;
-extern i16 pad_popup_xa5;
-extern i16 pad_popup_xa6;
-extern i16 pad_popup_xa7;
-extern i16 pad_popup_xa8;
-extern i16 pad_popup_xa9;
-extern i16 pad_popup_xa10;
-extern i16 pad_popup_xa11;
-extern i16 pad_popup_xa12;
-extern i16 pad_popup_xa13;
-extern i16 pad_popup_xa14;
-extern i16 pad_popup_xa15;
 i16 popup_layout(DosPopup *p)
 {
     i16 a14;
@@ -1128,29 +1030,10 @@ i16 popup_layout(DosPopup *p)
     /* Block-scope externs: symbols with no frame slot. 11 here put dh (and everything
      * after) where `max(nhv, dh)` loads dh first; 8 more put eh_ where `eh_ + ih9 + th`
      * starts from eh_. See the module header. */
-    extern i16 pad_pl_dh_0;
-    extern i16 pad_pl_dh_1;
-    extern i16 pad_pl_dh_2;
-    extern i16 pad_pl_dh_3;
-    extern i16 pad_pl_dh_4;
-    extern i16 pad_pl_dh_5;
-    extern i16 pad_pl_dh_6;
-    extern i16 pad_pl_dh_7;
-    extern i16 pad_pl_dh_8;
-    extern i16 pad_pl_dh_9;
-    extern i16 pad_pl_dh_10;
     i16 dh;
     i16 left1;
     i16 bottom7;
     i16 dw1;
-    extern i16 pad_pl_eh_0;
-    extern i16 pad_pl_eh_1;
-    extern i16 pad_pl_eh_2;
-    extern i16 pad_pl_eh_3;
-    extern i16 pad_pl_eh_4;
-    extern i16 pad_pl_eh_5;
-    extern i16 pad_pl_eh_6;
-    extern i16 pad_pl_eh_7;
     i16 eh_;
     i16 rightn;
 
@@ -1311,26 +1194,7 @@ out:
 }
 /* popup_show -- 033d:1a4a, 60 bytes */
 /* 15 pads: popup_layout's 19 block-scope externs are 19 symbols (19 + 15 = 34 = 2 x 17). */
-extern i16 pad_pl_after_0;
-extern i16 pad_pl_after_1;
-extern i16 pad_pl_after_2;
-extern i16 pad_pl_after_3;
-extern i16 pad_pl_after_4;
-extern i16 pad_pl_after_5;
-extern i16 pad_pl_after_6;
-extern i16 pad_pl_after_7;
-extern i16 pad_pl_after_8;
-extern i16 pad_pl_after_9;
-extern i16 pad_pl_after_10;
-extern i16 pad_pl_after_11;
-extern i16 pad_pl_after_12;
-extern i16 pad_pl_after_13;
-extern i16 pad_pl_after_14;
-extern i16 pad_popup_xb0;
-extern i16 pad_popup_xb1;
-extern i16 pad_popup_xb2;
 
-extern i16 pad_was_popup_no_draw;     /* was this global's first declaration; it is now defined at the top */
 extern void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 
 void popup_show(DosPopup *p)
@@ -1381,21 +1245,6 @@ void popup_big_sprite(DosPopup *p)
     }
 }
 /* popup_draw_items -- 033d:1b8a, 664 bytes */
-extern i16 pad_popup_xa0;
-extern i16 pad_popup_xa1;
-extern i16 pad_popup_xa2;
-extern i16 pad_popup_xa3;
-extern i16 pad_popup_xa4;
-extern i16 pad_popup_xa5;
-extern i16 pad_popup_xa6;
-extern i16 pad_popup_xa7;
-extern i16 pad_popup_xa8;
-extern i16 pad_popup_xa9;
-extern i16 pad_popup_xa10;
-extern i16 pad_popup_xa11;
-extern i16 pad_popup_xa12;
-extern i16 pad_popup_xa13;
-extern i16 pad_popup_xa14;
 void popup_draw_items(i16 full, DosPopup *p)
 {
     i16 bwx;
@@ -1445,8 +1294,6 @@ void popup_draw_items(i16 full, DosPopup *p)
     }
 }
 /* popup_draw_edits -- 033d:1e22, 522 bytes */
-extern i16 pad_popup_xb0;
-extern i16 pad_popup_xb1;
 
 extern void buffer_draw_box(u16 x0, i16 y0, i16 x1, DosPort port, i16 y1, char color);
 
@@ -1556,8 +1403,6 @@ void popup_draw_sprites(i16 labels, i16 full, i16 hilite, DosPopup *p)
     }
 }
 /* popup_box_draw -- 033d:2286, 534 bytes */
-extern i16 pad_was_popup_border_color_up;     /* was this global's first declaration; it is now defined at the top */
-extern i16 pad_was_popup_border_color_down;
 extern void buffer_vline(i16 x, i16 y0, i16 y1, DosPort port, char color);
 extern void buffer_hline(i16 x0, i16 x1, i16 y, DosPort port, char color);
 
@@ -1640,7 +1485,6 @@ void popup_set_active_sprite(DosPopup *p, DosSprite *spr)
 }
 /* popup_exec -- 033d:258e, 2820 bytes */
 extern Unit unit[];                      /* DS:0x521e */
-extern i16 pad_was_popup_checkbox;     /* was this global's first declaration; it is now defined at the top */
 extern char popup_text_buffer[];                /* DS:0x4b64 */
 extern i16 mouse_x, mouse_y;            /* DS:0x0724, 0x07ea */
 extern i16 mouse_button;                   /* DS:0x0720 */
@@ -1649,8 +1493,6 @@ extern i16 mouse_changed;                    /* DS:0x072c */
 extern i16 mouse_stop_stroke;                 /* DS:0x0730 */
 extern i16 mouse_any_stroke;                    /* DS:0x0732 */
 extern i16 automate;                      /* DS:0x008a */
-extern i16 pad_was_popup_pal;     /* was this global's first declaration; it is now defined at the top */
-extern i16 pad_was_popup_help_me;     /* was this global's first declaration; it is now defined at the top */
 extern void text_close(void);
 extern i16 keys_any(void);
 extern i16 keys_get(void);
@@ -1669,22 +1511,6 @@ extern void load_main_sprites(void);
 /* The popup's event loop: draws it, then polls the mouse and the keyboard until an item is
  * chosen, Escape is pressed or (in autoplay) two seconds pass. Returns the chosen key, -1 for
  * Escape. Check-box popups load their states from and save them to popup_checkbox. */
-extern i16 pad_Popup_xa0;
-extern i16 pad_Popup_xa1;
-extern i16 pad_Popup_xa2;
-extern i16 pad_Popup_xa3;
-extern i16 pad_Popup_xa4;
-extern i16 pad_Popup_xa5;
-extern i16 pad_Popup_xa6;
-extern i16 pad_Popup_xa7;
-extern i16 pad_Popup_xa8;
-extern i16 pad_Popup_xa9;
-extern i16 pad_Popup_xa10;
-extern i16 pad_Popup_xa11;
-extern i16 pad_Popup_xa12;
-extern i16 pad_Popup_xa13;
-extern i16 pad_Popup_xa14;
-extern i16 pad_Popup_xa15;
 i16 popup_exec(DosPopup *p)
 {
     i16 redraw;
@@ -2051,8 +1877,6 @@ done:
     return p->f0;
 }
 /* popup_init -- 033d:3092, 24 bytes */
-extern i16 pad_Popup_xb0;
-extern i16 pad_Popup_xb1;
 
 DosFont *popup_font = 0;           /* DS:0x1f9e (defined here: lands after popup_draw_edits' literals) */
 i16 popup_heap = 0x0c00;             /* DS:0x1fa2 */

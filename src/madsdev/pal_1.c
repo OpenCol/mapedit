@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/pal_1 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/pal_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE pal_1: MAPEDIT.EXE segment 1074 (pal_1.c), file 0x11d4e-0x12742, 13 functions in source order.
@@ -65,9 +64,6 @@
  */
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 #define max(a, b) ((a) >= (b) ? (a) : (b))
-// MSC: #pragma optimize("elg", on)
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 typedef struct { u8 r, g, b, index, extra, flags; } PalEntry;
 typedef struct { i16 n; PalEntry e[1]; } PalList;
@@ -284,10 +280,6 @@ extern void sort_insertion_8(i16 n, u8 *order, u8 *keys);
 typedef struct { u8 r, g, b; } Rgb;
 /* 4 pads: the limit compares load the global into ax (`mov ax,[g]; cmp ax,[lo8]`); 0..3 pads
  * compare the other way round (position mod 17). */
-extern i16 pad_a0;
-extern i16 pad_a1;
-extern i16 pad_a2;
-extern i16 pad_a3;
 i16 pal_allocate(i16 flags, PalList *list, Shadow *sh)
 {
     i16 best2;

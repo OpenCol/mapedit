@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/compass by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/compass (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE compass: MAPEDIT.EXE data only (compass.obj), data at DS:0x06b4.

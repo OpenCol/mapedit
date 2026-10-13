@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/keys_1 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/keys_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE keys_1: MAPEDIT.EXE segment 0baf (KEYS_1.C), file 0xd0f4-0xd12e, 3 functions in source order.
@@ -19,8 +18,6 @@
  * The first two are inline assembly that falls into C labels for the second return.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 /* keys_any -- 0baf:0004, 20 bytes */
 /* PORT: keys_any is in port/ (inline assembly) */
 i16 keys_any(void);

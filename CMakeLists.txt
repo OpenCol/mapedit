@@ -38,7 +38,7 @@ if(NOT MSVC)
   target_compile_options(msc PUBLIC -fsigned-char)
 endif()
 
-# The imported editor (tools/import.py). Its warnings policy: the leftovers of byte-matching
+# The editor (src/, from mapedit-decomp: docs/origin.md). Its warnings policy: the leftovers of byte-matching
 # (stand-in declarations, unused locals that fixed MSC's stack layout) are not reported;
 # everything that can change behaviour is.
 file(GLOB EDITOR_SOURCES CONFIGURE_DEPENDS src/editor/*.c src/madsdev/*.c)

@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/sort_1 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/sort_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE sort_1: MAPEDIT.EXE segment 12c7 (SORT_1.C), file 0x1427e-0x14408, 1 functions in source order.
@@ -17,8 +16,6 @@
  * in; a pass that moved something is followed by another. The scan keeps byte offsets into
  * both arrays by hand (koffj, voff, bytesj) rather than indexing.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 /* sort_insertion -- 12c7:000e, 394 bytes */
 void sort_insertion(i16 n, i16 *vals, i32 *keys)

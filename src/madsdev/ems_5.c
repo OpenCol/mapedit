@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/ems_5 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/ems_5 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE ems_5: MAPEDIT.EXE segment 12fb (EMS_5.C), file 0x145b6-0x1462a, 1 functions in source order.
@@ -15,8 +14,6 @@
  * success, -1 without paging or when a mapping fails (the rest stay unmapped). The early
  * exit is `goto out` (an inline epilogue copy); a second `return status;` is merged into it.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern i16 ems_map_page(i16 physical, i16 logical);            /* 112d:00d4 */
 extern i16 ems_next_handle_page(i16 handle, i16 page); /* 1145:01c4 */

@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/fileio_9 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/fileio_9 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE fileio_9: MAPEDIT.EXE segment 0bea (fileio_9.c), file 0xd4a8-0xd5b0, 1 functions in source order.
@@ -30,13 +29,9 @@
  * (the only working cell of a 17 x 16 sweep of pads x unused locals).
  */
 
-// MSC: #pragma optimize("elg", on)
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 
-extern i16 pad_1, pad_2, pad_3, pad_4, pad_5, pad_6, pad_7, pad_8, pad_9, pad_10;
 /* fileio_fwrite_f -- 0bea:0008, 264 bytes */
 i32 fileio_fwrite_f(char *p, i32 size, i32 n, MSC_FILE *fp)
 {

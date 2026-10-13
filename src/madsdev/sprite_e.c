@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/sprite_e by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/sprite_e (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE sprite_e: MAPEDIT.EXE segment 0ddb (sprite_e.c), file 0xf3b8-0xfd1c, 1 functions in source order.
@@ -44,8 +43,6 @@
  *     four master entries is written INTO the master palette at its spare slot.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 typedef struct {                /* one directory entry, 10 bytes */
@@ -160,24 +157,7 @@ SpriteSeries *sprite_series_load(char *name, i16 flags)
     FrameSize *sizes7;
     i16 idx;
     FrameEntry *table3;
-    extern i16 pad_series_before_0;
-    extern i16 pad_series_before_1;
-    extern i16 pad_series_before_2;
     SpriteSeries *series;
-    extern i16 pad_series_after_0;
-    extern i16 pad_series_after_1;
-    extern i16 pad_series_after_2;
-    extern i16 pad_series_after_3;
-    extern i16 pad_series_after_4;
-    extern i16 pad_series_after_5;
-    extern i16 pad_series_after_6;
-    extern i16 pad_series_after_7;
-    extern i16 pad_series_after_8;
-    extern i16 pad_series_after_9;
-    extern i16 pad_series_after_10;
-    extern i16 pad_series_after_11;
-    extern i16 pad_series_after_12;
-    extern i16 pad_series_after_13;
     i32 size1;
     SpriteHeader hdrn;
     char *cur2;
@@ -194,7 +174,6 @@ SpriteSeries *sprite_series_load(char *name, i16 flags)
     FileIO fh;
     i16 hdrsize6;
     i16 j5;
-    extern i16 pad_total_before;
     i32 totalk;
     SpriteSeries *result;
 

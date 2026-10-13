@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/loader_1 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/loader_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE loader_1: MAPEDIT.EXE segment 121a (loader_1.c), file 0x137a0-0x13b82, 3 functions in source order.
@@ -135,9 +134,6 @@
  * (`fh->x8 = unused` after or before `fh->x18 = 0`: 338/161, real code survives).
  */
 
-// MSC: #pragma optimize("elg", on)
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 typedef struct {                /* one directory entry, 10 bytes */

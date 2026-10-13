@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/ems_2 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/ems_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE ems_2: MAPEDIT.EXE segment 1145 (ems_2.c), file 0x12a5c-0x12c86, 7 functions in source order.
@@ -39,10 +38,7 @@
  * the functions. Compiled with the global optimiser on (/Ox or /Oe, the pragma): the loop
  * counters live in bx/cx and globals are cached across the loops.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-// MSC: #pragma optimize("elg", on)
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 

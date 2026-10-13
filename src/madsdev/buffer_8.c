@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/buffer_8 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/buffer_8 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE buffer_8: MAPEDIT.EXE segment 0c78 (buffer_8.c), file 0xdd80-0xdd96, 1 functions in source order.
@@ -12,8 +11,6 @@
  * READING ONE BYTE FROM A PORT (root code, frame 0bbb). buffer_get(x, y, port) (_fastcall).
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern char *buffer_pointer(DosPort *port, i16 x, i16 y);

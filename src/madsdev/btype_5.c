@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/btype_5 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/btype_5 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE btype_5: MAPEDIT.EXE segment 0d12 (btype_5.c), file 0xe72c-0xe786, 1 functions in source order.
@@ -14,9 +13,6 @@
  * else through atoi.
  */
 
-// MSC: #pragma optimize("elg", on)
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern u8 _ctype[];           /* DS:0x27ec: the runtime's character classes; ctype.h indexes _ctype+1 */
 extern i16 xtoi(char *s);

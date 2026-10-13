@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/cycle_1 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/cycle_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE cycle_1: MAPEDIT.EXE segment 0f1a (cycle_1.c), file 0x107aa-0x1096a, 2 functions in source order.
@@ -22,8 +21,6 @@
  *     entry (inline assembly, through a 3-byte temp) and uploads the cycled part with
  *     mcga_setpal_range once cycling_delay reaches the threshold.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 typedef struct { u8 count, pos, start, speed; } CycleRange;
 typedef struct { i16 n; CycleRange r[8]; } ColorCycle;
@@ -63,18 +60,6 @@ extern i16 mcga_palette_update;          /* DS:0x3ab6 */
 static u8 cycle_rgb[3];       /* DS:0x49a6: module static (no public) */
 extern void mcga_setpal_range(i16 first, i16 count, char *pal);
 
-extern i16 pad_cycle_xa0;
-extern i16 pad_cycle_xa1;
-extern i16 pad_cycle_xa2;
-extern i16 pad_cycle_xa3;
-extern i16 pad_cycle_xa4;
-extern i16 pad_cycle_xa5;
-extern i16 pad_cycle_xa6;
-extern i16 pad_cycle_xa7;
-extern i16 pad_cycle_xa8;
-extern i16 pad_cycle_xa9;
-extern i16 pad_cycle_xa10;
-extern i16 pad_cycle_xa11;
 /* PORT: cycle_colors is in port/ (inline assembly) */
 void cycle_colors(void);
 

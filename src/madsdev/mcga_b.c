@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/mcga_b by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/mcga_b (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE mcga_b: MAPEDIT.EXE segment 1061 (mcga_b.c), file 0x11c1a-0x11c96, 2 functions in source order.
@@ -17,8 +16,6 @@
  *     mcga_palette_update is -1 while it runs (VICEROY's set_palette_range raises 1).
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern i16 mcga_retrace_max_bytes;               /* DS:0x3ab4: DAC bytes per retrace */
 extern i16 mcga_palette_update;                  /* DS:0x3ab6: the palette is being written */

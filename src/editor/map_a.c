@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/map_a by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/map_a (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE map_a: MAPEDIT.EXE segment 0a47 (map_a.obj), file 0xba76-0xcb64, 19 functions in source order.
@@ -107,8 +106,6 @@
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern i16 map_scale;                         /* DS:0x04d0, the zoom level */
 extern i16 map_view_size_x;                   /* DS:0x52d4 */
@@ -267,7 +264,6 @@ out:
     return scan_index;
 }
 /* nb_mask_p0 -- 0a47:030e, 96 bytes */
-extern i16 pad_10;
 i16 nb_mask_p0(i16 mask, i16 maxzoom)
 {
     i16 n;
@@ -287,8 +283,6 @@ out:
     return n;
 }
 /* nb_match_p0 -- 0a47:036e, 112 bytes */
-extern i16 pad_11, pad_12, pad_13, pad_14, pad_15, pad_16, pad_17, pad_18;
-extern i16 pad_19, pad_20, pad_21, pad_22, pad_23, pad_24, pad_25, pad_26;
 i16 nb_match_p0(i16 val, i16 maxzoom)
 {
     i16 n;
@@ -457,7 +451,6 @@ extern u8 gen_site_tile;           /* DS:0x6988 */
 extern i16 on_map(i16 x, i16 y);
 extern i16 on_colony_map(i16 dx, i16 dy, i16 mode);
 extern i16 map_get(i16 x, i16 y);
-extern i16 pad_36, pad_37, pad_38, pad_39, pad_40, pad_41;
 
 /* The seams between this square and its four orthogonal neighbours. */
 void draw_seams(i16 hidden_only, i16 no_scan, i16 always)
@@ -535,10 +528,7 @@ void draw_seams(i16 hidden_only, i16 no_scan, i16 always)
     gen_variation = save;
 }
 /* draw_square -- 0a47:0932, 1076 bytes */
-extern i16 pad_42, pad_43, pad_44, pad_45;
 extern u8 gen_feature_tile;        /* DS:0x4c6a */
-extern i16 pad_27, pad_28, pad_29, pad_30, pad_31, pad_32, pad_33, pad_34;
-extern i16 pad_35;
 extern i16 map_view_base_terrain;             /* DS:0x04da */
 extern i16 resource_at(i16 x, i16 y);
 extern i16 lost_city_at(i16 x, i16 y);
@@ -685,7 +675,6 @@ extern u8 *site;               /* DS:0x04b4 */
 extern u8 *map_loc(i16 x, i16 y);
 extern u8 *feature_loc(i16 x, i16 y);
 extern u8 *site_loc(i16 x, i16 y);
-extern i16 pad_53, pad_54, pad_55, pad_56, pad_57, pad_58, pad_59;
 
 void generate_terrain_map_region(i16 x, i16 y, i16 w, i16 h, i16 nation)
 {
@@ -705,8 +694,6 @@ void generate_terrain_map_region(i16 x, i16 y, i16 w, i16 h, i16 nation)
     i16 ry_b;
     /* nine block-scope pads: they move y1_d's symbol position (mod 17) without moving its
      * slot, so `min(map_corner_y2, y1_d)` loads the global first; 10 would do as well */
-    extern i16 pad_gty_0, pad_gty_1, pad_gty_2, pad_gty_3, pad_gty_4;
-    extern i16 pad_gty_5, pad_gty_6, pad_gty_7, pad_gty_8;
     i16 y1_d;
     u8 *p3_l;
 
@@ -812,8 +799,6 @@ void generate_colony_map(i16 nation, i16 mode)
 }
 /* map_init -- 0a47:10b8, 60 bytes */
 extern void owner_set(i16 x, i16 y, i16 owner);
-extern i16 pad_1, pad_2, pad_3, pad_4, pad_5, pad_6, pad_7, pad_8, pad_9;
-extern i16 pad_46, pad_47, pad_48;
 
 void map_init(void)
 {

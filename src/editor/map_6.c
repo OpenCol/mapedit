@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/map_6 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/map_6 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE map_6: MAPEDIT.EXE segment 09c4 (map_6.obj), file 0xb242-0xb59a, 1 functions in source order.
@@ -12,8 +11,6 @@
  */
 #include "records.h"
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern MapSize map_file;                    /* DS:0x4b12 */
@@ -31,7 +28,6 @@ extern void load_main_sprites(void);
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 
-extern i16 pad_0, pad_1, pad_2, pad_3, pad_4;
 /* map_find_continents -- 09c4:0002, 856 bytes */
 i16 map_find_continents(void)
 {

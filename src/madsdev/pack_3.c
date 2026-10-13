@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/pack_3 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/pack_3 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE pack_3: MAPEDIT.EXE segment 1367 (PACK_3.C), file 0x14c78-0x14cf2, 1 functions in source order.
@@ -15,8 +14,6 @@
  * capped by pack_read_size when that is not negative (unlimited), and counts them into pack_read_count.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern i32 pack_read_size;                /* DS:0xa630 */

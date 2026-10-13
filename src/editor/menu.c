@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/menu by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/menu (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE menu: MAPEDIT.EXE segment 06d7 (menu.obj), file 0x8378-0x9a20, 24 functions in source order.
@@ -249,14 +248,10 @@
  *     block's first test threaded into it). `redraw7 = found = 1` stores found first.
  */
 
-// MSC: #pragma optimize("w", off)
-// MSC: #pragma optimize("aelg", on)
 #include "msc.h"
 #include "msc.h"
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 typedef struct { u8 height; } DosFont;
 /* A text style: the extra spacing after each character, the plain colour, the highlighted
@@ -456,16 +451,6 @@ Menu *menu_create(i16 size, DosFont *font)
 /* menu_bar_item -- 06d7:0446, 70 bytes */
 /* 10 pads: the later functions' mod-17 symbol positions (every other count 0-16 breaks
  * menu_add_bar_item, menu_draw_bar, menu_draw_menu, menu_bar_run or menu_bar_mouse_parse) */
-extern i16 pad_mc0;
-extern i16 pad_mc1;
-extern i16 pad_mc2;
-extern i16 pad_mc3;
-extern i16 pad_mc4;
-extern i16 pad_mc5;
-extern i16 pad_mc6;
-extern i16 pad_mc7;
-extern i16 pad_mc8;
-extern i16 pad_mc9;
 
 MenuSub *menu_bar_item(Menu *m, i16 id)
 {
@@ -698,7 +683,6 @@ void menu_compute_size(MenuSub *sub, i16 *px, i16 *py, i16 *pw, i16 *ph, i16 *ix
 /* menu_draw_menu -- 06d7:0b82, 538 bytes */
 extern void buffer_draw_box(u16 x0, i16 y0, i16 x1, DosPort port, i16 y1, char color);
 
-extern i16 pad_1, pad_2, pad_3, pad_4, pad_5, pad_6, pad_7, pad_8;
 
 void menu_draw_menu(MenuSub *sub, MenuItem *sel)
 {
@@ -764,9 +748,6 @@ extern void buffer_restore(DosPort *port, i16 handle, i16 flag, i16 x, i16 y, i1
  * keys (and keypad 8/2) move the bar, left/right switch submenu, Enter takes the bar, Esc
  * cancels, a letter picks its ~hotkey item, and releasing Alt closes the menu. The chosen
  * item's id (0 for none) is left in the menu's f0. */
-extern i16 pad_menu_oxa0;
-extern i16 pad_menu_oxa1;
-extern i16 pad_menu_oxa2;
 void menu_bar_run(MenuSub *sub)
 {
     i16 row_h1;
@@ -992,20 +973,6 @@ done:
     menu_draw_bar(m4, 0, 1);
 }
 /* menu_bar_mouse_parse -- 06d7:13b4, 158 bytes */
-extern i16 pad_menu_oxb0;
-extern i16 pad_menu_oxb1;
-extern i16 pad_menu_oxb2;
-extern i16 pad_menu_oxb3;
-extern i16 pad_menu_oxb4;
-extern i16 pad_menu_oxb5;
-extern i16 pad_menu_oxb6;
-extern i16 pad_menu_oxb7;
-extern i16 pad_menu_oxb8;
-extern i16 pad_menu_oxb9;
-extern i16 pad_menu_oxb10;
-extern i16 pad_menu_oxb11;
-extern i16 pad_menu_oxb12;
-extern i16 pad_menu_oxb13;
 
 /* A mouse press on the bar opens that title's drop-down (when mode is set); 1 if it hit one. */
 i16 menu_bar_mouse_parse(Menu *m, i16 mode)

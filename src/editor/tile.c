@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/tile by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/tile (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE tile: MAPEDIT.EXE segment 030b (tile.obj), file 0x46b6-0x494a, 6 functions in source order.
@@ -27,8 +26,6 @@
  *     also named for the slot buckets.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern char *mem_get(i32 size);

@@ -4,7 +4,7 @@ Copyright (c) 2026 Daniel Derevjanik
 
 This license covers ONLY the original work in this repository: platform/, tools/, tests/,
 docs/, .github/, CMakeLists.txt and the Markdown documents at the top level. It does NOT
-cover src/ or import/, which are a reconstruction of a copyrighted work and not the
+cover src/, which is a reconstruction of a copyrighted work and not the
 copyright holder's to license -- see NOTICE.md.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

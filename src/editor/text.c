@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/text by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/text (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE text: MAPEDIT.EXE segment 0842 (text.obj), file 0x9a20-0x9c5e, 10 functions in source order.
@@ -56,7 +55,6 @@
  * module's _DATA, followed by its literals "TXT" (0x2016) and "rt" (0x201a).
  */
 
-// MSC: #pragma optimize("elg", on)
 #include "msc.h"
 #include "msc.h"
 

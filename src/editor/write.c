@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/write by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/write (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE write: MAPEDIT.EXE segment 08ad (write.obj), file 0xa0d0-0xa594, 30 functions in source order.
@@ -86,10 +85,7 @@
  *     PARAMETER and x a register LOCAL, but its load sinks to the call) do not either.
  */
 
-// MSC: #pragma optimize("el", on)
 #define max(a, b) ((a) >= (b) ? (a) : (b))
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern char *strings(i16 word);                    /* 0000:0062 */
@@ -231,7 +227,6 @@ i16 string_width_2(char *s)
     return font_string_width(0, font_inter, s) - 1;
 }
 /* write_string -- 08ad:024e, 58 bytes */
-// MSC: #pragma optimize("el", off)   /* the drawing helpers: register locals, no global optimiser */
 
 i16 write_string(char *s, register i16 x, i16 y)
 {
@@ -252,7 +247,6 @@ i16 write_in_color(char *s, i16 x, i16 y, i16 color)
     return font_write(&scr_work, xr, y, menu_font, s, 0);
 }
 /* write_right -- 08ad:02c2, 86 bytes */
-// MSC: #pragma optimize("el", on)
 i16 write_right(char *s, i16 x, i16 y, i16 color)
 {
     font_set_colors(-1, color, color, color);
@@ -261,7 +255,6 @@ i16 write_right(char *s, i16 x, i16 y, i16 color)
     return x;
 }
 /* write_centered -- 08ad:0318, 68 bytes */
-// MSC: #pragma optimize("el", on)
 void write_centered(char *s, i16 x, i16 w, i16 y, i16 color)
 {
     i16 left;
@@ -271,7 +264,6 @@ void write_centered(char *s, i16 x, i16 w, i16 y, i16 color)
     write_in_color(s, left, y, color);
 }
 /* write_big_string -- 08ad:035c, 62 bytes */
-// MSC: #pragma optimize("el", off)
 void write_big_string(char *s, register i16 x, i16 y)
 {
     font_set_colors(-1, basic_color, enhance_color, 0);
@@ -284,7 +276,6 @@ void write_big_in_color(char *s, register i16 x, i16 y, i16 color, i16 shadow)
     font_write(&scr_work, x, y, font_inter, s, 0);
 }
 /* write_big_right -- 08ad:03d2, 94 bytes */
-// MSC: #pragma optimize("el", on)
 i16 write_big_right(char *s, i16 x, i16 y, i16 color, i16 shadow)
 {
     font_set_colors(-1, color, shadow, 0);

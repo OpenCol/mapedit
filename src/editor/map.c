@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/map by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/map (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE map: MAPEDIT.EXE segment 02ab (map.obj), file 0x40be-0x46b6, 26 functions in source order.
@@ -48,8 +47,6 @@
 
 #define ABS(x) ((x) > 0 ? (x) : ~(x) + 1)
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern MapSize map_file;                  /* DS:0x4b12: the .MP header, w then h */
 /* on_map -- 02ab:000e, 50 bytes */
@@ -91,8 +88,6 @@ out:
 /* Fifteen unused declarations set on_screen's operand order (mod 17): the last compare is
  * `cmp ax,[map_corner_y2]`, the other three `cmp [g],ax`. Sixteen more after it keep the rest
  * of the module where fourteen had it. */
-extern i16 pad_os_1, pad_os_2, pad_os_3, pad_os_4, pad_os_5, pad_os_6, pad_os_7, pad_os_8;
-extern i16 pad_os_9, pad_os_10, pad_os_11, pad_os_12, pad_os_13, pad_os_14, pad_os_15;
 extern i16 map_corner_x;                  /* DS:0x49f2 */
 extern i16 map_corner_x2;                 /* DS:0x6026 */
 extern i16 map_corner_y;                  /* DS:0x49f4 */
@@ -111,8 +106,6 @@ i16 on_screen(i16 x, i16 y)
     return r;
 }
 /* map_loc -- 02ab:00fa, 24 bytes */
-extern i16 pad_os_16, pad_os_17, pad_os_18, pad_os_19, pad_os_20, pad_os_21, pad_os_22, pad_os_23;
-extern i16 pad_os_24, pad_os_25, pad_os_26, pad_os_27, pad_os_28, pad_os_29, pad_os_30, pad_os_31;
 
 /* The map module's data, defined here (the 23 land at DS:0x049e-0x0518 in this order, ahead of
  * owner_set's "Illegal entry into village": MSC emits a global after the literals of the
@@ -122,23 +115,9 @@ char map_ext[4] = "mp";                   /* DS:0x04a0 */
 i16 map_error = 0;                        /* DS:0x04a4 */
 i16 map_high_memory_mode = 0;             /* DS:0x04a6 */
 /* 13 unused declarations restore the symbol count (mod 17) the four definitions above moved. */
-extern i16 pad_d1_0;
-extern i16 pad_d1_1;
-extern i16 pad_d1_2;
-extern i16 pad_d1_3;
-extern i16 pad_d1_4;
-extern i16 pad_d1_5;
-extern i16 pad_d1_6;
-extern i16 pad_d1_7;
-extern i16 pad_d1_8;
-extern i16 pad_d1_9;
-extern i16 pad_d1_10;
-extern i16 pad_d1_11;
-extern i16 pad_d1_12;
 u8 *map = 0;               /* DS:0x04a8, plane 0: terrain */
 
 /* 2 unused declarations set map_loc's operand order (mod 17). */
-extern i16 pad_map_loc_0, pad_map_loc_1;
 u8 *map_loc(i16 x, i16 y)
 {
     u8 *p;
@@ -208,8 +187,6 @@ i16 resource_index[TERRAIN_COUNT] = {                /* DS:0x04de: the resource 
     7, -1, 12, 13
 };
 /* 2 unused declarations restore the count the definitions above moved (mod 17). */
-extern i16 pad_d2_0;
-extern i16 pad_d2_1;
 
 u8 *continent_loc(i16 x, i16 y)
 {
@@ -284,7 +261,6 @@ i16 land_region_at(i16 x, i16 y)
 }
 /* site_loc -- 02ab:02e4, 24 bytes */
 /* 4 unused declarations set site_loc's operand order (mod 17). */
-extern i16 pad_site_loc_0, pad_site_loc_1, pad_site_loc_2, pad_site_loc_3;
 u8 *site_loc(i16 x, i16 y)
 {
     u8 *p;

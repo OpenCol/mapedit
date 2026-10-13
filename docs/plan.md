@@ -20,24 +20,16 @@ The program has three layers, and the port treats each one differently:
 
 | Layer | Modules | In the port |
 | --- | --- | --- |
-| The editor | `mapedit`, `map*`, `popup`, `menu`, `text`, `write`, `tile`, `terrain`, `me_mini`, ... | imported, mechanically converted |
-| MicroProse's library, C | `buffer_*`, `sprite_*`, `font_*`, `pal_*`, `pack_*`, `loader_*`, `fileio_*`, `hspot_*`, ... | imported, converted; inline `_asm` rewritten in C |
+| The editor | `mapedit`, `map*`, `popup`, `menu`, `text`, `write`, `tile`, `terrain`, `me_mini`, ... | converted from the decomp, maintained here |
+| MicroProse's library, C | `buffer_*`, `sprite_*`, `font_*`, `pal_*`, `pack_*`, `loader_*`, `fileio_*`, `hspot_*`, ... | converted; inline `_asm` rewritten in C (`port/lib`) |
 | The machine | the 13 asm modules (`mouse_1`, `keys_4`, `timer_3`, `video_1/2`, `sound_1/2`, `stack_1`, `fileio_c`, PKWARE's `pfab*`), the memory managers (`mem_*`, `ems_*`, `xms_*`, `himem_*`), and every DOS/BIOS call | replaced by `platform/`, under the same names |
 
-## The conversion (tools/import.py)
+## The conversion
 
-The import takes mapedit-decomp at a pinned commit (`import/SOURCE`), never a working tree, and
-writes `src/`. It is run once per source update. Edits made by hand are marked `PORT:` and
-survive re-imports as a three-way merge.
-- **16-bit semantics, explicitly.** `int` becomes `int16_t`, `unsigned` becomes `uint16_t`,
-  `long` becomes `int32_t`, and `char` stays signed (`-fsigned-char`). Arithmetic that wrapped
-  at 16 bits in 1994 must still wrap; modern C promotes to 32 bits and silently stops wrapping.
-  This is the port's main risk. Every fix is a cast, logged.
-- **Pointers.** `far`, `near`, `huge`, `_fastcall`, `pascal` and `cdecl` go. Segment arithmetic
-  (`mem_normalize`, `FP_SEG`/`FP_OFF`, huge-pointer walks) becomes flat-pointer arithmetic.
-  Records that are read from files keep their 1994 layout (`#pragma pack(1)`, 16-bit fields).
-- **Inline assembly.** About 40 `_asm` blocks (pixel copies, palette ports, DOS calls) are
-  rewritten as C by hand, each one checked against the original (gate 2).
+`src/` was converted once from mapedit-decomp (16-bit types kept, `far`/`near` and calling
+conventions dropped, inline assembly rewritten in C under `port/lib/`) and is maintained
+here since: [origin.md](origin.md) has the details. 16-bit arithmetic that wrapped in 1994
+must still wrap; that remains the main thing to watch when changing it.
 
 ## The platform layer (platform/)
 

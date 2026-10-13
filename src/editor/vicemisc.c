@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/vicemisc by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/vicemisc (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE vicemisc: MAPEDIT.EXE segment 08f9 (vicemisc.obj), file 0xa594-0xb176, 3 functions in source order.
@@ -31,8 +30,6 @@
  */
 
 #include "records.h"
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 typedef struct { i16 id; i16 kind; } MenuItemHead;
 
@@ -47,7 +44,6 @@ extern i16 text_open(char *file, char *section);
 extern char *text_get(void);
 extern void text_close(void);
 /* construct_main_menu -- 08f9:0004, 2826 bytes */
-// MSC: #pragma optimize("elg", on)
 i16 construct_main_menu(void)
 {
     MenuItemHead *p;

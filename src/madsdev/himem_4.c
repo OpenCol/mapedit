@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/himem_4 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/himem_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE himem_4: MAPEDIT.EXE segment 1345 (himem_4.c), file 0x14a5a-0x14b7e, 1 functions in source order.
@@ -22,10 +21,7 @@
  * the two tests materialises a boolean instead. The module's data
  * (DS:0x4522-0x452d) is the literal and the two counters, which nothing here reads.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-// MSC: #pragma optimize("elg", on)
 
 typedef struct {
     char kind;                  /* 3: in EMS, 4: in XMS, -1: free */

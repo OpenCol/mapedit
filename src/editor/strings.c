@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/strings by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/strings (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE strings: MAPEDIT.EXE segment 0334 (strings.obj), file 0x494a-0x49de, 4 functions in source order.
@@ -23,8 +22,6 @@
  *     Unlike Windows, it has no bounds check.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern i16 heap_create(i16 kind, Arena *a, i32 size, char *tag);
@@ -44,7 +41,6 @@ void strings_shrink(void)
     heap_shrink(&strings_heap);
 }
 /* strings_store -- 0334:0036, 54 bytes */
-// MSC: #pragma optimize("e", on)    /* strings_store keeps s in si (global register allocation) */
 i16 strings_store(char *s)
 {
     msc__fstrcpy(heap_get((i16)msc__fstrlen(s) + 1, &strings_heap), s);

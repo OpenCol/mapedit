@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/xms_1 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/xms_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE xms_1: MAPEDIT.EXE segment 0f36 (xms_1.c), file 0x1096a-0x109ec, 1 functions in source order.
@@ -19,15 +18,12 @@
  * MSC's: it would load -1 into ax once for both words); the allocation is C.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern i16 xms_exists;                     /* DS:0x26e4 */
 extern i16 xms_disabled;                  /* DS:0x26e6: main sets it, so no XMS */
 extern void (*xms_controller)(void);    /* DS:0x26e8 */
 extern u16 xms_chain_seg;              /* DS:0x26ec */
 extern i32 umb_max_free;                /* DS:0x2666 (ovl31_78856) */
-extern i16 pad_108c_1;                   /* keeps the symbol count of the two word names it replaces */
 extern char umb_max_free_set;              /* DS:0x264e (ovl31_78856) */
 extern u16 xms_version;           /* DS:0xa668 */
 extern void *xms_umb_get(i32 n);

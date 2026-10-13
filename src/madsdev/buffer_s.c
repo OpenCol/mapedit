@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/buffer_s by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/buffer_s (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE buffer_s: MAPEDIT.EXE segment 103d (buffer_s.c), file 0x119da-0x11af2, 2 functions in source order.
@@ -35,8 +34,6 @@
  *     and buffer_from_ems only with "e" and `DosPort * volatile port`).
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern i16 ems_get_page_handle(i16 pages);
@@ -47,7 +44,6 @@ extern void ems_free_page_handle(i16 handle);
 extern i16 buffer_rect_copy_2(i16 sx, i16 sy, i16 dx, DosPort src, DosPort dst, i16 dy, i16 w, i16 h);
 extern char *ems_page;                       /* DS:0x445c */
 
-// MSC: #pragma optimize("e", on)
 /* buffer_to_ems -- 103d:000a, 148 bytes */
 i16 buffer_to_ems(DosPort *port, i16 handle, i16 src, i16 x, i16 y, i16 w, i16 h)
 {

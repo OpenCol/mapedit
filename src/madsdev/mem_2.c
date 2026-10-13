@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/mem_2 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/mem_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE mem_2: MAPEDIT.EXE segment 0cc9 (mem_2.c), file 0xe294-0xe68e, 11 functions in source order.
@@ -55,8 +54,6 @@
  */
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern i32 mem_conv_get_avail(void);                       /* 0d08:0068 */
@@ -93,8 +90,6 @@ void mem_check_chain(void);
 /* The hook arrives as its two words: shipped tests `off | seg` offset first, which no
  * single far-pointer symbol gives (MSC always loads the segment half first). The pads set
  * the two symbols' order. */
-extern i16 pad_cg0;
-extern i16 pad_cg1;
 void mem_call_hook(u16 off, u16 seg)
 {
     if (off | seg) {
@@ -104,21 +99,6 @@ void mem_call_hook(u16 off, u16 seg)
     }
 }
 /* mem_set_block_name -- 0cc9:010c, 42 bytes */
-extern i16 pad_cg2;
-extern i16 pad_cg3;
-extern i16 pad_cg4;
-extern i16 pad_cg5;
-extern i16 pad_cg6;
-extern i16 pad_cg7;
-extern i16 pad_cg8;
-extern i16 pad_cg9;
-extern i16 pad_cg10;
-extern i16 pad_cg11;
-extern i16 pad_cg12;
-extern i16 pad_cg13;
-extern i16 pad_cg14;
-extern i16 pad_cg15;
-extern i16 pad_cg16;
 
 /* PORT: mem_set_block_name is in port/ (inline assembly) */
 void mem_set_block_name(void *block, char *name);
@@ -126,19 +106,6 @@ void mem_set_block_name(void *block, char *name);
 /* mem_get_name -- 0cc9:0136, 428 bytes */
 /* 13 pads: the heapfree-vs-size compares load heapfree (cx:bx) into ax:dx and test the
  * spilled size against it; 0-12 pads give the reverse. */
-extern i16 pad_gn0;
-extern i16 pad_gn1;
-extern i16 pad_gn2;
-extern i16 pad_gn3;
-extern i16 pad_gn4;
-extern i16 pad_gn5;
-extern i16 pad_gn6;
-extern i16 pad_gn7;
-extern i16 pad_gn8;
-extern i16 pad_gn9;
-extern i16 pad_gn10;
-extern i16 pad_gn11;
-extern i16 pad_gn12;
 /* PORT: mem_get_name is in port/ (inline assembly) */
 void *mem_get_name(i32 size, char *tag);
 

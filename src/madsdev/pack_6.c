@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/pack_6 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/pack_6 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE pack_6: MAPEDIT.EXE segment 1309 (pack_6.c), file 0x1469a-0x149ea, 4 functions in source order.
@@ -37,8 +36,6 @@
  *     `to_file != 1 && to_file != 2` spelling puts the 0x820 arm first, as shipped.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 void (*pack_special_buffer)(void) = 0;          /* DS:0x4512 (defined here: before pack_data's "$pack$") */
 void (*pack_special_function)(void) = 0;        /* DS:0x4516 */
@@ -57,7 +54,6 @@ void pack_set_special_buffer(void (*a)(void), void (*b)(void))
     pack_special_function = b;
 }
 /* pack_data -- 1309:004a, 784 bytes */
-// MSC: #pragma optimize("elg", on)
 typedef u16 (*FFIO)(void *buf, u16 *n);
 typedef i16 (*FFPACK)(FFIO rd, FFIO wr, void *work, i16 *type, u16 *dsize);
 typedef i16 (*FFUNPACK)(FFIO rd, FFIO wr, void *work);

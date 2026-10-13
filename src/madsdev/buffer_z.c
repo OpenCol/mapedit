@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/buffer_z by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/buffer_z (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE buffer_z: MAPEDIT.EXE segment 0cb9 (buffer_z.c), file 0xe190-0xe294, 1 functions in source order.
@@ -44,23 +43,12 @@
  * without the term 204-237, "egt"/"egz" equal to "eg".
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern i16 buffer_rect_copy_2(i16 sx, i16 sy, i16 dx, DosPort src, DosPort dst, i16 dy, i16 w,
                                   i16 h);
 
-extern i16 pad_0;
-extern i16 pad_1;
-extern i16 pad_2;
-extern i16 pad_3;
-extern i16 pad_4;
-extern i16 pad_5;
-extern i16 pad_6;
-extern i16 pad_7;
 /* buffer_tile -- 0cb9:0000, 260 bytes */
-// MSC: #pragma optimize("eg", on)
 void buffer_tile(DosPort dst, DosPort src, i16 x, i16 y, i16 w, i16 h, i16 sx, i16 sy)
 {
     i16 tw3;

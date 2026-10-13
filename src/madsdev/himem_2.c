@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/himem_2 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/himem_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE himem_2: MAPEDIT.EXE segment 1292 (HIMEM_2.C), file 0x13f2a-0x13f7e, 1 functions in source order.
@@ -17,12 +16,9 @@
  * at. 0 on success, -1 when the mapping or the copy failed.
  * Compiled with the global optimiser on (/Ox or /Oe): see the pragma.
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 /* The global register allocator: n goes straight to di and result to si with no frame
  * (plain /Ot homes n to the stack). Any of "e", "el", "eg", "elg", "aelg" matches. */
-// MSC: #pragma optimize("elg", on)
 
 typedef struct {
     char kind;                  /* 3: in EMS, 4: in XMS, -1: free */

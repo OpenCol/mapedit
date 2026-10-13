@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/mapedit by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/mapedit (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE mapedit: MAPEDIT.EXE segment 0000 (mapedit.obj), file 0x1600-0x3f7c, 64 functions in source order.
@@ -80,8 +79,6 @@
  * (video_mode .. country_names) after the last function.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 typedef struct { u8 height; } DosFont;
 typedef struct { i16 w, h; } MapSize;
@@ -248,24 +245,7 @@ i16 undo_active = 0;                            /* DS:0x0052 */
 i16 create_me_now = 0;                          /* DS:0x0054 */
 /* 11 unused declarations before selected_terrain and 6 after it set its own position (mod 17)
  * for parse_spot's `cmp [bp-0xa],al` without moving any other symbol. */
-extern i16 pad_selected_terrain_0;
-extern i16 pad_selected_terrain_1;
-extern i16 pad_selected_terrain_2;
-extern i16 pad_selected_terrain_3;
-extern i16 pad_selected_terrain_4;
-extern i16 pad_selected_terrain_5;
-extern i16 pad_selected_terrain_6;
-extern i16 pad_selected_terrain_7;
-extern i16 pad_selected_terrain_8;
-extern i16 pad_selected_terrain_9;
-extern i16 pad_selected_terrain_10;
 char selected_terrain = 0x19;                   /* DS:0x0056 */
-extern i16 pad_selected_terrain_11;
-extern i16 pad_selected_terrain_12;
-extern i16 pad_selected_terrain_13;
-extern i16 pad_selected_terrain_14;
-extern i16 pad_selected_terrain_15;
-extern i16 pad_selected_terrain_16;
 u8 selected_physical_and_mask = 0x40;/* DS:0x0057 */
 u8 selected_physical_or_mask = 0;    /* DS:0x0058 */
 char selected_right_mouse_change = 0;           /* DS:0x0059 */
@@ -297,8 +277,6 @@ u8 notice_color = 0x95;              /* DS:0x0098 */
 u8 border0 = 0x86;                   /* DS:0x0099 */
 u8 border1 = 0x80;                   /* DS:0x009a */
 u8 border2 = 0x8a;                   /* DS:0x009b */
-extern i16 pad_medata_0;
-extern i16 pad_medata_1;
 
 i16 shift_key(void)
 {
@@ -306,8 +284,6 @@ i16 shift_key(void)
 }
 /* construct_mapedit_menu -- 0000:0196, 980 bytes */
 typedef struct { i16 f0; } MenuHead;
-extern i16 pad_was_menu_bar;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_menu_font;     /* was this global's first declaration; it is defined above shift_key */
 extern void *menu_create(i16 size, DosFont *font);
 extern i16 text_open(char *name, char *key);
 extern char *text_get(void);
@@ -450,9 +426,6 @@ out:
     return choice;
 }
 /* make_undo -- 0000:0750, 46 bytes */
-extern i16 pad_was_undo_available;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_undo_active;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_map_undo_memory;     /* was this global's first declaration; it is defined above shift_key */
 extern void *map;                                           /* DS:0x4a8 */
 
 /* Copies the terrain plane (0x2ee0 bytes) into the undo buffer. Both have a dead
@@ -481,7 +454,6 @@ void perform_undo(void)
         msc__fmemcpy(map, map_undo_memory, 0x2ee0);
 }
 /* info_window_clear -- 0000:07a6, 134 bytes */
-extern i16 pad_was_main_tile;     /* was this global's first declaration; it is defined above shift_key */
 extern DosPort scr_work;                                        /* DS:0x3af4 */
 extern void buffer_rect_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, char color);
 extern void buffer_tile(DosPort dst, DosPort src, i16 x, i16 y, i16 w, i16 h, i16 sx, i16 sy);
@@ -547,16 +519,8 @@ extern void *tiles;                                         /* DS:0x4c0 */
 extern void *terrain_1;                                     /* DS:0x4b8 */
 extern void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
 extern void tile_draw(void *tiles, i16 tile, DosPort *port, i16 x, i16 y);
-extern i16 pad_was_selected_terrain;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_selected_physical_and_mask;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_selected_physical_or_mask;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_selected_right_mouse_change;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_fill_radius;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_coastline_protect;     /* was this global's first declaration; it is defined above shift_key */
 
 /* 2 pads: the operand order of the `selected_terrain != terr` byte compare (mod 17) */
-extern i16 pad_iw0;
-extern i16 pad_iw1;
 /* The info window: map size, cursor, the terrain under the cursor (with its hills/mountains),
  * the selected terrain or feature with its tile and the shift-click legend, the fill radius
  * and the coastline protect state. */
@@ -927,7 +891,6 @@ void selection_screen(void)
     main_screen_refresh();
 }
 /* cursor_update -- 0000:1310, 244 bytes */
-// MSC: #pragma optimize("e", on)
 extern i16 cursor_on;                                           /* DS:0x6972 */
 extern i16 map_corner_x;                                        /* DS:0x49f2 */
 extern i16 map_corner_y;                                        /* DS:0x49f4 */
@@ -939,7 +902,6 @@ extern i16 map_tile_size_x;                                     /* DS:0x4e8a */
 extern i16 map_tile_size_y;                                     /* DS:0x4e8c */
 extern i16 map_scale;                                           /* DS:0x4d0 */
 extern DosPort scr_orig;                                        /* DS:0x3afc */
-extern i16 pad_was_icons;     /* was this global's first declaration; it is defined above shift_key */
 extern void buffer_rect_copy_2(i16 sx, i16 sy, i16 dx, DosPort src, DosPort dst, i16 dy, i16 w, i16 h);
 
 /* Toggles the cursor: redraws the info window, restores the square from the backdrop and
@@ -969,7 +931,6 @@ void cursor_update(void)
 extern i16 on_map(i16 x, i16 y);
 extern i16 map_center_x;                                        /* DS:0x4c8 */
 extern i16 map_center_y;                                        /* DS:0x4ca */
-extern i16 pad_was_game_mode;     /* was this global's first declaration; it is defined above shift_key */
 
 /* Centres the view on (x, y); in the editor (game_mode 1) the cursor goes there too, with
  * the cursor toggled off and on around the move when flag is set. */
@@ -999,7 +960,6 @@ extern i16 map_corner_y2;                                       /* DS:0x603e */
 
 /* Re-centres on (x, y) when the rectangle (x, y)-(x2, y2) comes within 2 squares of the
  * view's edge and the view can still move that way. Returns 1 when it did. */
-// MSC: #pragma optimize("e", off)
 i16 possibly_center(i16 x, i16 y, i16 x2, i16 y2, i16 flag)
 {
     i16 need;
@@ -1030,7 +990,6 @@ i16 possibly_center(i16 x, i16 y, i16 x2, i16 y2, i16 flag)
     return result;
 }
 /* move_cursor -- 0000:1514, 102 bytes */
-// MSC: #pragma optimize("e", on)
 /* Moves the cursor by (dx, dy) when that stays inside the map's border. */
 void move_cursor(i16 dx, i16 dy)
 {
@@ -1092,9 +1051,7 @@ extern char popup_text_buffer[];                                /* DS:0x4b64 */
 extern void fileio_new_ext(char *dst, char *src, char *ext);
 extern char map_name[];                                         /* DS:0x4a18 */
 extern i16 create_blank_map(i16 w, i16 h);
-extern i16 pad_was_map_changes;     /* was this global's first declaration; it is defined above shift_key */
 
-// MSC: #pragma optimize("e", off)
 /* A new blank map: asks for its name (UNTITLED.MP), 0x3a x 0x48. 0 when created. Plain flags
  * (the dead wide/high stores stay, as volatile stores; the call takes the literals). */
 i16 create_me(void)
@@ -1119,8 +1076,6 @@ i16 create_me(void)
     return result;
 }
 /* continent_check -- 0000:1670, 368 bytes */
-// MSC: #pragma optimize("e", on)
-extern i16 pad_was_sprite_base;     /* was this global's first declaration; it is defined above shift_key */
 extern u8 *continent;                            /* DS:0x4b0 */
 extern DosPort scr_video;                                       /* DS:0x3b1c */
 extern void * mem_get(i32 n);
@@ -1129,7 +1084,6 @@ extern i16 buffer_init(DosPort *port, u16 w, u16 h);
 extern i16 buffer_free(DosPort *port);
 extern void buffer_rect_copy(i16 x, i16 y, i16 w, DosPort src, DosPort dst, i16 h);
 
-// MSC: #pragma optimize("elg", on)
 /* Find Continents: numbers the land masses and oceans (map_find_continents, with a 0xfde8
  * byte scratch block in sprite_base), warns when there are more than 15 of either, and shows
  * the continent plane (low nibble, oceans black) on the screen until a key or click.
@@ -1173,8 +1127,6 @@ void continent_check(void)
     }
 }
 /* execute_menu_event -- 0000:17e0, 932 bytes */
-// MSC: #pragma optimize("elg", off)
-// MSC: #pragma optimize("e", on)
 typedef struct { char pad[0x42]; i16 game_in_progress; char rest[0x4a]; } GameState_;   /* 142 bytes: game's BSS extent */
 extern GameState_ game;                                          /* DS:0x5e2c */
 extern char popup_subst_string[][0x40];                         /* DS:0x634e */
@@ -1412,7 +1364,6 @@ void change_map(register i16 x, register i16 y, i16 pickup)
 /* fill_map -- 0000:1d28, 142 bytes */
 extern void draw_map_region_2(i16 x, i16 y, i16 w, i16 h);
 
-// MSC: #pragma optimize("elg", on)
 /* Paints (or picks up) a square of fill_radius around (x, y) and redraws it. */
 void fill_map(i16 x, i16 y, i16 pickup)
 {
@@ -1432,8 +1383,6 @@ void fill_map(i16 x, i16 y, i16 pickup)
     draw_map_region_2(x0 - 1, y0 - 1, size + 2, size + 2);
 }
 /* parse_main_keys -- 0000:1db6, 456 bytes */
-// MSC: #pragma optimize("elg", off)
-// MSC: #pragma optimize("e", on)
 #include "msc.h"
 extern i16 mykey;                                               /* DS:0x526c */
 
@@ -1726,7 +1675,6 @@ void turn_control_loop(void)
 }
 /* load_terrain -- 0000:22e4, 82 bytes */
 typedef struct { i16 name; char f2; char f3; char f4; char pad[2]; char v[9]; } TerrainRow;
-extern i16 pad_terrain_view;      /* where a second view of `terrain` was declared: keeps the symbol count */
 extern i16 text_item_string(void);
 extern i16 text_item_number(void);
 
@@ -1744,7 +1692,6 @@ void load_terrain(register i16 n)
         terrain[n].v[i] = text_item_number();
 }
 /* load_data -- 0000:2336, 324 bytes */
-// MSC: #pragma optimize("elg", on)
 /* The terrain table from NAMES.TXT: 8 unforested rows, 8 forested (copied to rows 16-23),
  * 5 others, the 5 feature words, and the editor's colours from COLORS. */
 void load_data(void)
@@ -1788,13 +1735,8 @@ void load_data(void)
     popups_normal();
 }
 /* start_new_game -- 0000:247a, 156 bytes */
-// MSC: #pragma optimize("elg", off)
-// MSC: #pragma optimize("e", on)
-extern i16 pad_was_map_selected;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_create_me_now;     /* was this global's first declaration; it is defined above shift_key */
 extern i16 map_force;                                           /* DS:0x4d8 */
 extern i16 map_error;                                           /* DS:0x4a4 */
-extern i16 pad_was_exit_value;     /* was this global's first declaration; it is defined above shift_key */
 extern i16 map_startup(i16 big);
 
 /* Picks the map to edit (MAPTOEDIT, or -m:file; Esc creates one), allocates the map and
@@ -1851,7 +1793,6 @@ extern void popup_init(void *font, i16 size);
 extern void mcga_setpal(char *pal);
 extern i16 load_terrain_tiles(void);
 extern void *sprite_series_load(char *name, i16 flags);
-extern i16 pad_was_cursor;     /* was this global's first declaration; it is defined above shift_key */
 extern void *tiles2;                                        /* DS:0x4c4 */
 extern DosPort *menu_tile;                                      /* DS:0x632 */
 extern i16 menu_select_color_0, menu_bar_select_color_0;        /* DS:0x61c, 0x620 */
@@ -1999,7 +1940,6 @@ i16 scan_past(char **p, char c)
     return r;
 }
 /* flag_parse -- 0000:2872, 102 bytes */
-// MSC: #pragma optimize("e", off)
 /* A command-line flag: C creates a new map, M:file names the map to edit. */
 void flag_parse(char **p)
 {
@@ -2024,10 +1964,7 @@ extern i16 xms_disabled;                                        /* DS:0x3c6a */
 extern void pack_enable_pfab(void);
 extern void himem_startup(void);
 extern void himem_shutdown(void);
-extern i16 pad_was_mads_mode;     /* was this global's first declaration; it is defined above shift_key */
-extern i16 pad_was_file_set;     /* was this global's first declaration; it is defined above shift_key */
 
-// MSC: #pragma optimize("elg", on)
 void editor_main(i16 argc, char **argv)
 {
     register i16 i;

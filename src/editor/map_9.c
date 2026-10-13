@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/map_9 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/map_9 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE map_9: MAPEDIT.EXE segment 09f9 (map_9.obj), file 0xb59a-0xba76, 8 functions in source order.
@@ -25,8 +24,6 @@
 #include "records.h"
 
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern MapSize map_file;                  /* DS:0x853a */
 extern DosPort scr_map;               /* DS:0x85a8 */

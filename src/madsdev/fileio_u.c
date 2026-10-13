@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/fileio_u by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/fileio_u (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE fileio_u: MAPEDIT.EXE segment 0c1a (FILEIO_U.C), file 0xd7a2-0xd810, 1 functions in source order.
@@ -15,9 +14,6 @@
  * segment and reloads DGROUP afterwards: MSC's code for a far pointer walked in a loop.
  */
 
-// MSC: #pragma optimize("elg", on)
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern void fileio_purge_trailing_spaces(char *s);
 /* fileio_purge_all_spaces -- 0c1a:0002, 110 bytes */

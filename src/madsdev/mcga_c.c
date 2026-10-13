@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/mcga_c by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/mcga_c (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE mcga_c: MAPEDIT.EXE segment 0d75 (mcga_c.c), file 0xed5e-0xeef0, 2 functions in source order.
@@ -27,8 +26,6 @@
  *     Its frame is 0x60a bytes: a second, unused 768-byte buffer (VICEROY's copy has only
  *     the one, frame 0x30a).
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern i16 mcga_retrace_computed;           /* DS:0x3aae */
 extern u16 mcga_retrace_ticks;         /* DS:0x3ab0 */
@@ -43,22 +40,6 @@ i16 mcga_time_palette_swap(i16 first, i16 count, char *pal);
 /* mcga_compute_retrace_parameters -- 0d75:0074, 300 bytes */
 /* 16 pads: the `spent > mcga_retrace_ticks` compare loads the global into ax (position mod 17);
  * at 0..13 pads ours is `cmp [ticks],ax`. */
-extern i16 pad_0;
-extern i16 pad_1;
-extern i16 pad_2;
-extern i16 pad_3;
-extern i16 pad_4;
-extern i16 pad_5;
-extern i16 pad_6;
-extern i16 pad_7;
-extern i16 pad_8;
-extern i16 pad_9;
-extern i16 pad_10;
-extern i16 pad_11;
-extern i16 pad_12;
-extern i16 pad_13;
-extern i16 pad_14;
-extern i16 pad_15;
 /* PORT: mcga_compute_retrace_parameters is in port/ (inline assembly) */
 void mcga_compute_retrace_parameters(void);
 

@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/error_1 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/error_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE error_1: MAPEDIT.EXE segment 0ed0 (error_1.c), file 0x10308-0x1076e, 4 functions in source order.
@@ -41,8 +40,6 @@
 #include "msc.h"
 #include "msc.h"
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern MSC_FILE *env_open(char *name, char *mode);    /* 0297:0104 */
 extern void echo(i16 kind, char *text);           /* 127b:0000 */
@@ -133,7 +130,6 @@ void error_dump_file(char *name)
 void error_shutdown_report(char *errtext, char *modtext, char *numtext, char *extra, i32 memfree, i16 code);
 
 /* error_report -- 0ed0:03d6, 152 bytes */
-// MSC: #pragma optimize("e", on)
 void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2)
 {
     volatile i16 unused;

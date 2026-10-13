@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/editor/me_mini by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/editor/me_mini (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE me_mini: MAPEDIT.EXE segment 0b56 (me_mini.obj), file 0xcb64-0xd030, 10 functions in source order.
@@ -27,14 +26,11 @@
  * replaced by a pixel pointer.
  */
 
-// MSC: #pragma optimize("elg", on)
 #include "units.h"
 #include "terrain.h"
 #include "records.h"
 
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 extern void *tiles;            /* DS:0x04c0, the icon sheet */
 extern void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
@@ -113,7 +109,6 @@ extern u8 *continent_loc(i16 x, i16 y);
 extern u8 * buffer_pointer(DosPort *port, i16 x, i16 y);
 extern DosPort scr_work;           /* DS:0x3af4 */
 
-extern i16 pad_1, pad_2, pad_3;
 
 /* VICEROY's BlastMiniRegion without the settlement and unit colours (the editor has neither):
  * one pixel per square into scr_work at (0xfc, 9), white when `white`, black where `viewer`

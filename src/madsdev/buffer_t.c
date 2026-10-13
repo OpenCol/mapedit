@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/buffer_t by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/buffer_t (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE buffer_t: MAPEDIT.EXE segment 0c9d (buffer_t.c), file 0xdfde-0xe190, 2 functions in source order.
@@ -39,8 +38,6 @@
  *     subtract-chain dispatch at the top with the EMS arm right after it.
  *   - `~(handle + 10) + 1` for buffer_from_disk's lea/not/inc (the twin's spelling).
  */
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern i16 buffer_conform(DosPort *port, i16 *x, i16 *y, i16 *w, i16 *h);
@@ -56,7 +53,6 @@ extern i16 buffer_free(DosPort *port);
 i16 buffer_restore_keep_flag = 0;          /* DS:0x746 */
 static DosPort preserve_port;              /* DS:0x499e (this module's _BSS) */
 
-// MSC: #pragma optimize("e", on)
 /* buffer_preserve -- 0c9d:000e, 222 bytes */
 i16 buffer_preserve(DosPort *port, i16 mode, i16 src, i16 x, i16 y, i16 w, i16 h)
 {

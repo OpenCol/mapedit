@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/mouse_4 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/mouse_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE mouse_4: MAPEDIT.EXE segment 0c34 (mouse_4.c), file 0xd94c-0xd9ca, 2 functions in source order.
@@ -17,9 +16,6 @@
  *     from the screen port to video memory, and shows the mouse again if it was visible.
  */
 
-// MSC: #pragma optimize("elg", on)
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
 extern DosPort scr_work;            /* DS:0x2da8 */

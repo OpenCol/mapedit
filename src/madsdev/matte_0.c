@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/matte_0 by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/matte_0 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE matte_0: MAPEDIT.EXE data only (matte_0.c), data at DS:0x3aec.

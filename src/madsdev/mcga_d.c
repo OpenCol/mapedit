@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/mcga_d by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/mcga_d (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE mcga_d: MAPEDIT.EXE segment 12ad (mcga_d.c), file 0x140dc-0x14100, 1 functions in source order.
@@ -16,8 +15,6 @@
  * last shake lands within the first 256 bytes. Entirely inline assembly.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 i16 MCGA_SHAKES = 0;                             /* DS:0x450e: shakes left (defined here) */
 static i16 shake_seed = 1234;                    /* DS:0x4510: module static (no public) */

@@ -1,5 +1,4 @@
-/* Imported from mapedit-decomp src/madsdev/sprite_m by tools/import.py. Do not edit; mark a
- * deliberate change with PORT: (docs/plan.md). */
+/* From mapedit-decomp src/madsdev/sprite_m (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 /* MODULE sprite_m: MAPEDIT.EXE segment 0e92 (sprite_m.c), file 0xff2a-0x1020a, 1 functions in source order.
@@ -15,8 +14,6 @@
  * port bounds is inline assembly.
  */
 
-extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
-extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 typedef struct { u8 *data; i16 x0; i16 y0; i16 w; i16 h; } IconRec;
 typedef struct { char hdr[0x36]; IconRec icon[1]; } IconSheet;
