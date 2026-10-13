@@ -622,11 +622,33 @@ u16 msc__dos_findnext(struct find_t *f)
 
 /* ---- strings ------------------------------------------------------------------------------ */
 
-char *msc_strcat(char *d, const char *s) { return strcat(d, s); }
-char *msc_strncat(char *d, const char *s, u16 n) { return strncat(d, s, n); }
+/* MSC's copies measure the source first, then move it forward (rep movsw): defined when the
+   two overlap, which the editor relies on (menu_string_width shifts a string down a byte
+   with strcpy). The host's are not, so every copy here is a forward move. */
+static void fwd(char *d, const char *s, size_t n)
+{
+    while (n--)
+        *d++ = *s++;
+}
+
+char *msc_strcat(char *d, const char *s) { fwd(d + strlen(d), s, strlen(s) + 1); return d; }
+char *msc_strncat(char *d, const char *s, u16 n)
+{
+    size_t k = strnlen(s, n);
+    char *e = d + strlen(d);
+    fwd(e, s, k);
+    e[k] = 0;
+    return d;
+}
 i16 msc__fmemcmp(const void *a, const void *b, u16 n) { int r = memcmp(a, b, n); return (i16)(r < 0 ? -1 : r > 0); }
-char *msc_strcpy(char *d, const char *s) { return strcpy(d, s); }
-char *msc_strncpy(char *d, const char *s, u16 n) { return strncpy(d, s, n); }
+char *msc_strcpy(char *d, const char *s) { fwd(d, s, strlen(s) + 1); return d; }
+char *msc_strncpy(char *d, const char *s, u16 n)
+{
+    size_t k = strnlen(s, n);
+    fwd(d, s, k);
+    memset(d + k, 0, n - k);
+    return d;
+}
 u16 msc_strlen(const char *s) { return (u16)strlen(s); }
 i16 msc_strcmp(const char *a, const char *b) { int r = strcmp(a, b); return (i16)(r < 0 ? -1 : r > 0); }
 i16 msc_strncmp(const char *a, const char *b, u16 n) { int r = strncmp(a, b, n); return (i16)(r < 0 ? -1 : r > 0); }
@@ -644,15 +666,15 @@ i16 msc_strnicmp(const char *a, const char *b, u16 n)
 char *msc_strchr(const char *s, i16 c) { return strchr(s, (char)c); }
 char *msc_strupr(char *s) { char *p; for (p = s; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 0x20; return s; }
 char *msc_strlwr(char *s) { char *p; for (p = s; *p; p++) if (*p >= 'A' && *p <= 'Z') *p += 0x20; return s; }
-char *msc__fstrcat(char *d, const char *s) { return strcat(d, s); }
-char *msc__fstrcpy(char *d, const char *s) { return strcpy(d, s); }
-char *msc__fstrncpy(char *d, const char *s, u16 n) { return strncpy(d, s, n); }
+char *msc__fstrcat(char *d, const char *s) { return msc_strcat(d, s); }
+char *msc__fstrcpy(char *d, const char *s) { return msc_strcpy(d, s); }
+char *msc__fstrncpy(char *d, const char *s, u16 n) { return msc_strncpy(d, s, n); }
 u16 msc__fstrlen(const char *s) { return (u16)strlen(s); }
 i16 msc__fstrncmp(const char *a, const char *b, u16 n) { return msc_strncmp(a, b, n); }
 char *msc__fstrchr(const char *s, i16 c) { return strchr(s, (char)c); }
 char *msc__fstrrchr(const char *s, i16 c) { return strrchr(s, (char)c); }
 char *msc__fstrupr(char *s) { return msc_strupr(s); }
-void *msc__fmemcpy(void *d, const void *s, u16 n) { return memcpy(d, s, n); }
+void *msc__fmemcpy(void *d, const void *s, u16 n) { fwd(d, s, n); return d; }
 void *msc__fmemset(void *d, i16 c, u16 n) { return memset(d, (unsigned char)c, n); }
 void *msc__fmemmove(void *d, const void *s, u16 n) { return memmove(d, s, n); }
 i16 msc__fstricmp(const char *a, const char *b)

@@ -42,6 +42,7 @@ static struct {
     HostKeyHook key_hook;
     FILE *script;
     uint32_t script_due;            /* the next command runs at this host_ms() */
+    int script_held;                /* shift flags `hold` keeps down */
 } H;
 
 /* ---- keyboard ---------------------------------------------------------------------------- */
@@ -191,6 +192,7 @@ static void shift_from(SDL_Keymod m)
  *     move X Y                 the mouse to screen pixel X,Y
  *     down [left|right]        press a button; up releases it
  *     click X Y [left|right]   move, press, wait 50 ms, release
+ *     hold [shift|ctrl|alt ...]  keep those keys down (for clicks); hold alone releases them
  *     shot FILE                the screen as it is now, a 320x200 BMP
  *     exit                     end the program
  *
@@ -209,7 +211,7 @@ static void script_key(SDL_Scancode sc, int shift, int ctrl, int alt)
 {
     const KeyDef *k = keydef(sc);
     uint16_t code;
-    H.shift = (shift ? HOST_SHIFT_LEFT : 0) | (ctrl ? HOST_CTRL : 0) | (alt ? HOST_ALT : 0);
+    H.shift = (shift ? HOST_SHIFT_LEFT : 0) | (ctrl ? HOST_CTRL : 0) | (alt ? HOST_ALT : 0) | H.script_held;
     if (!(k && H.key_hook && H.key_hook(k->scan, 1, is_keypad(sc)))) {
         code = host_key_translate(sc, shift, ctrl, alt);
         if (code)
@@ -217,7 +219,7 @@ static void script_key(SDL_Scancode sc, int shift, int ctrl, int alt)
     }
     if (k && H.key_hook)
         H.key_hook(k->scan, 0, is_keypad(sc));
-    H.shift = 0;
+    H.shift = H.script_held;
 }
 
 static void write_bmp(const char *path)
@@ -321,6 +323,10 @@ static void script_step(void)
             script_mouse(x, y, H.buttons);
             script_mouse(x, y, H.buttons | clicking);
             H.script_due = host_ms() + 50;
+        } else if (!strcmp(cmd, "hold")) {
+            H.script_held = (strstr(arg, "shift") ? HOST_SHIFT_LEFT : 0) | (strstr(arg, "ctrl") ? HOST_CTRL : 0)
+                          | (strstr(arg, "alt") ? HOST_ALT : 0);
+            H.shift = H.script_held;
         } else if (!strcmp(cmd, "shot"))
             write_bmp(arg);
         else if (!strcmp(cmd, "exit"))
