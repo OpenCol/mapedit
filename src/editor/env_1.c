@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/editor/env_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "fileio.h"
+#include "loader.h"
+#include "mapedit.h"
+#include "units.h"
 /* MODULE env_1: MAPEDIT.EXE segment 0297 (env_1.obj), file 0x3f7c-0x40be, 5 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -48,10 +52,6 @@
 
 
 
-extern void fileio_join_path(char *dst, char *dir, char *name);
-extern i16 fileio_exist(void);          /* assembly: takes the name in bx */
-extern i16 env_special_path;                  /* DS:0x036c */
-extern char env_path[];               /* DS:0x84fe */
 /* env_catint -- 0297:000c, 174 bytes */
 char *env_catint(char *s, i16 value, i16 digits)
 {
@@ -107,7 +107,6 @@ i32 env_get_file_size(MSC_FILE *fp)
 }
 /* env_exist -- 0297:0142, 12 bytes */
 /* PORT: env_exist is in port/ (inline assembly) */
-i16 env_exist(char *name);
 
 
 /* DGROUP data (DS:0x036a-0x036d), after env_catint's "0", in address order after the last function (so no

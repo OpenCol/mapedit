@@ -1,6 +1,24 @@
 /* From mapedit-decomp src/editor/popup (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "error.h"
+#include "font.h"
+#include "hspot.h"
+#include "keys.h"
+#include "loader.h"
+#include "map.h"
+#include "mapedit.h"
+#include "mcga.h"
+#include "mem.h"
+#include "mouse.h"
+#include "pal.h"
+#include "popup.h"
+#include "screen.h"
+#include "text.h"
+#include "timer.h"
+#include "units.h"
+#include "w16types.h"
 #include "sprite.h"
 /* MODULE popup: MAPEDIT.EXE segment 033d (popup.obj), file 0x49de-0x8378, 64 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
@@ -198,7 +216,6 @@
 #include "msc.h"
 #include "records.h"
 
-typedef struct { u8 height; } DosFont;
 
 /* The popup module's initialised data, defined here (the 27 land at DS:0x053c-0x0572 in this
  * order, ahead of the "KING" literal: MSC emits a global after the literals of the function
@@ -234,48 +251,15 @@ i16 king_active = 0;                    /* DS:0x056e */
 i16 sprite_tight = 0;                   /* DS:0x0570 */
 /* A text style: the extra spacing after each character, the plain colour, the colour of a
  * highlighted line, the colour of a {}-marked span, two more colours font_set_colors takes, the font. */
-typedef struct { i16 spacing; i16 color; i16 hi_color; i16 alt_color; i16 c8; i16 ca; DosFont *font; } TextStyle;
 /* A popup item: flags (1 grey, 2 hilite, 4 checked), the ~ hotkey, its key and value, its
  * own copy of the text out of the popup's arena, and the list links. 0x18 bytes. */
-typedef struct DosItem {
-    i16 flags; i16 hotkey; i16 key; i16 value; char *text; i16 fc; i16 fe;
-    struct DosItem *next; struct DosItem *prev;
-} DosItem;
 /* A text line: flags (1 centred, 2 ...), the text, the next line. 10 bytes. */
-typedef struct DosLine { i16 flags; char *text; struct DosLine *next; } DosLine;
 /* An edit field: flags (0x80 has text), the label's width, the field's width, the length,
  * the label (with a space added), the buffer, the next field. 0x14 bytes. */
-typedef struct DosEdit {
-    i16 flags; i16 label_w; i16 field_w; i16 len; char *label; char *buf;
-    struct DosEdit *next;
-} DosEdit;
 /* A sprite item: its x, the x after it, the icon index, the key, the label, the icon sheet,
  * the next sprite. 0x14 bytes. */
 
-typedef struct DosSprite {
-    i16 x; i16 x2; i16 idx; i16 key; char *label; SpriteSeries *sheet;
-    struct DosSprite *next;
-} DosSprite;
-typedef struct { i16 f0; i16 f2; i16 b; i16 f6; i16 f8; i16 fa; void *a; } DosAttach;
-typedef struct {
-    i16 f0; i16 n_items; i16 n_lines; i16 n_sprites; i16 n_edits; i16 flags; i16 pos_x; i16 pos_y;
-    i16 x; i16 y; i16 w; i16 h; i16 r_x; i16 r_y; i16 r_w; i16 r_h;
-    i16 item_w; i16 list_rows; i16 f24; i16 f26; i16 width; i16 f2a; i16 f2c; i16 spr_h;
-    i16 spr_lw; i16 f32; i16 edit_w; i16 f36; i16 f38; i16 f3a; i16 col0; i16 col1;
-    i16 col2; i16 col3; i16 col4; i16 f46; i16 f48; i16 f4a;
-    DosItem *sel_item; DosSprite *first_sprite; DosItem *items; DosLine *lines;
-    DosSprite *sprites; DosEdit *edits; DosAttach *attach;
-    DosSprite *dude; char *dude_name; void *f70;
-    TextStyle style; Arena arena[1];   /* PORT: the port's Arena (0x12 bytes in 1994) */
-} DosPopup;
 
-extern void * heap_get(i32 n, void *arena);
-extern GameState game;
-extern i16 king_frame;
-extern i32 king_clock;
-extern i32 timer_read(void);
-extern i16 pissed(i16 tribe, i16 nation);
-extern i16 piss_factor(i16 tension);
 /* popup_set_dude_name -- 033d:000e, 66 bytes */
 void popup_set_dude_name(char *name, DosPopup *p)
 {
@@ -319,13 +303,6 @@ void popup_dude_myr(DosPopup *p)
     popup_set_dude_name(name, p);
 }
 /* popup_load_dude -- 033d:0124, 550 bytes */
-extern i16 cycling_active;                     /* DS:0x3c64 */
-extern char *put_palette;            /* DS:0x3ae0 */
-extern void cycle_save(i16 on);
-extern void reset_sprite_memory(void);
-extern void * sprite_load(char *name, i16 a);
-extern void mem_free(void *p);
-extern void mcga_setpal(char *pal);
 
 void popup_load_dude(DosPopup *p)
 {
@@ -387,10 +364,6 @@ void popup_load_dude(DosPopup *p)
 }
 /* popup_fill -- 033d:034a, 148 bytes */
 i16 orig_flag = 0;                       /* DS:0x1f8a (defined here: lands after popup_load_dude's literals) */
-extern DosPort scr_orig;               /* DS:0x3afc */
-extern void buffer_rect_copy(i16 x, i16 y, i16 w, DosPort src, DosPort dst, i16 h);
-extern void buffer_tile(DosPort dst, DosPort src, i16 dx, i16 dy, i16 w, i16 h, i16 sx, i16 sy);
-extern void buffer_rect_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, char color);
 
 void popup_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 sx, i16 sy, i16 c,
                                char color, char color2, i16 d, i16 e)
@@ -406,10 +379,6 @@ void popup_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 sx, i16 sy, i16 c,
     buffer_rect_fill(x, y, w, port, h, color);
 }
 /* popup_say_string -- 033d:03de, 28 bytes */
-extern char popup_subst_string[][0x40];     /* DS:0x634e */
-extern i32 popup_subst_number[];           /* DS:0x698a */
-extern char *strings(i16 n);
-extern void say_country(i16 nation, i16 flag, char *s);
 
 void popup_say_string(i16 slot, char *s)
 {
@@ -447,7 +416,6 @@ void popup_set_font(TextStyle *st, DosFont *font, i16 spacing, i16 color, i16 hi
     st->font = font;
 }
 /* style_text_width -- 033d:0494, 112 bytes */
-extern i16 font_string_width(i16 flags, DosFont *font, char *s);
 
 i16 style_text_width(TextStyle *st, char *s)
 {
@@ -466,7 +434,6 @@ i16 style_text_width(TextStyle *st, char *s)
     return w;
 }
 /* style_color -- 033d:0504, 66 bytes */
-extern void font_set_colors(i16 a, i16 b, i16 c, i16 d);
 
 void style_color(i16 hi, i16 alt, TextStyle *st)
 {
@@ -478,8 +445,6 @@ void style_color(i16 hi, i16 alt, TextStyle *st)
         font_set_colors(-1, st->color, st->c8, st->ca);
 }
 /* style_draw_text -- 033d:0546, 266 bytes */
-extern DosPort scr_work;               /* DS:0x3af4 */
-extern i16 font_write(DosPort *port, i16 x, i16 y, DosFont *font, char *s, i16 flags);
 
 i16 style_draw_text(i16 x, i16 y, i16 flags, TextStyle *st, char *s)
 {
@@ -536,9 +501,6 @@ i16 hotkey_of(u8 *s)
     return r;
 }
 /* popup_create -- 033d:06de, 458 bytes */
-extern i16 mouse_driver;                     /* DS:0x49c0 */
-extern void * mem_get(i32 n);
-extern void heap_declare(i16 kind, void *arena, void *base, i32 size);
 
 DosPopup *popup_create(i16 size, DosFont *font)
 {
@@ -997,8 +959,6 @@ i16 popup_wrap_lines(i16 draw, DosPopup *p)
     return hv;
 }
 /* popup_layout -- 033d:14d4, 1398 bytes */
-extern DosFont *menu_font;                 /* DS:0x0080 */
-extern void error_report(i16 code, i16 a, i16 b, i32 c, i32 d);
 
 /* Sizes and places the popup: its box from the sprites, the wrapped text, the items and the
  * edit fields; centred on the 320x200 screen unless a position was given, then moved to make
@@ -1189,7 +1149,6 @@ out:
 /* popup_show -- 033d:1a4a, 60 bytes */
 /* 15 pads: popup_layout's 19 block-scope externs are 19 symbols (19 + 15 = 34 = 2 x 17). */
 
-extern void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 
 void popup_show(DosPopup *p)
 {
@@ -1197,11 +1156,8 @@ void popup_show(DosPopup *p)
         mouse_video_update(p->r_x, p->r_y, p->r_x, p->r_y, p->r_w, p->r_h);
 }
 /* popup_help_draw -- 033d:1a86, 112 bytes */
-extern i16 spot[];                          /* DS:0x530a (hspot_1.c's HotSpot spot[121]): the help word is
+/* DS:0x530a (hspot_1.c's HotSpot spot[121]): the help word is
                                              * read from DS:0x53b4, spot[10].v2 -- no public lies there */
-extern u8 hilite_color;          /* DS:0x0093 */
-extern void say_string(char *buf, i16 word);
-extern void write_right(char *s, i16 x, i16 y, i16 color);
 
 void popup_help_draw(DosPopup *p)
 {
@@ -1215,7 +1171,7 @@ void popup_help_draw(DosPopup *p)
         if (p->style.font == menu_font)
             yv -= 2;
         buf[0] = 0;
-        say_string(buf, spot[0x55]);
+        say_string(buf, spot[10].v2);   /* DS:0x53b4: 1994 read it as word 0x55 of the table */
         write_right(buf, x, yv, hilite_color);
     }
 }
@@ -1288,7 +1244,6 @@ void popup_draw_items(i16 full, DosPopup *p)
 }
 /* popup_draw_edits -- 033d:1e22, 522 bytes */
 
-extern void buffer_draw_box(u16 x0, i16 y0, i16 x1, DosPort port, i16 y1, char color);
 
 void popup_draw_edits(i16 full, DosPopup *p)
 {
@@ -1341,7 +1296,6 @@ void popup_draw_edits(i16 full, DosPopup *p)
     }
 }
 /* popup_draw_sprites -- 033d:202c, 602 bytes */
-extern void piece_draw(i16 u, i16 flags, i16 x, i16 y, i16 span, i16 scale);
 
 void popup_draw_sprites(i16 labels, i16 full, i16 hilite, DosPopup *p)
 {
@@ -1396,8 +1350,6 @@ void popup_draw_sprites(i16 labels, i16 full, i16 hilite, DosPopup *p)
     }
 }
 /* popup_box_draw -- 033d:2286, 534 bytes */
-extern void buffer_vline(i16 x, i16 y0, i16 y1, DosPort port, char color);
-extern void buffer_hline(i16 x0, i16 x1, i16 y, DosPort port, char color);
 
 void popup_box_draw(DosPopup *p, i16 x, i16 y, i16 w, i16 h)
 {
@@ -1477,29 +1429,10 @@ void popup_set_active_sprite(DosPopup *p, DosSprite *spr)
     popup_draw_sprites(0, 1, 1, p);
 }
 /* popup_exec -- 033d:258e, 2820 bytes */
-extern Unit unit[];                      /* DS:0x521e */
-extern char popup_text_buffer[];                /* DS:0x4b64 */
-extern i16 mouse_x, mouse_y;            /* DS:0x0724, 0x07ea */
-extern i16 mouse_button;                   /* DS:0x0720 */
-extern i16 mouse_stroke_going;                      /* DS:0x072a */
-extern i16 mouse_changed;                    /* DS:0x072c */
-extern i16 mouse_stop_stroke;                 /* DS:0x0730 */
-extern i16 mouse_any_stroke;                    /* DS:0x0732 */
-extern i16 automate;                      /* DS:0x008a */
-extern void text_close(void);
-extern i16 keys_any(void);
-extern i16 keys_get(void);
-extern void mouse_init_cycle(void);
-extern void check_music(void);
-extern void mouse_begin_cycle(i16 a);
-extern void mouse_end_cycle(i16 a, i16 hold);
 /* buffer_preserve is (port, int mode, int src, x, y, w, h): -8L below is mode -8 and src -1 in
    ax:dx. Spelled as the two ints, MSC orders an unrelated addition differently; a modern
    compiler needs the two ints (the port patches this call). */
 /* PORT: mode and src as the two ints they are (MSC passed -8L in ax:dx) */
-extern i16 buffer_preserve(DosPort *port, i16 mode, i16 src, i16 x, i16 y, i16 w, i16 h);
-extern void buffer_restore(DosPort *port, i16 handle, i16 flag, i16 x, i16 y, i16 w, i16 h);
-extern void load_main_sprites(void);
 
 /* The popup's event loop: draws it, then polls the mouse and the keyboard until an item is
  * chosen, Escape is pressed or (in autoplay) two seconds pass. Returns the chosen key, -1 for
@@ -1931,12 +1864,7 @@ void popup_parse_string(char *src, char *dst)
     } while (mark != 0);
 }
 /* popup_start_box -- 033d:32b2, 1062 bytes */
-extern char error_string[];                 /* DS:0x3b32 */
 i16 popup_start_ask = 0;                      /* DS:0x2008 (defined here: lands after popup_start_box's literals) */
-extern char *popup_start_string;              /* DS:0x5e2a */
-extern i16 popup_start_max_len;                 /* DS:0x5ad0 */
-extern i16 text_open(char *name, char *key);
-extern char *text_get(void);
 
 /* Builds a popup from the @-section `key` of the text file `txt`: the text lines, then the
  * options (or an edit field when popup_start_ask is set), with item `sel` preselected. */
@@ -2115,7 +2043,6 @@ i16 pop_get(i16 n)
     return (1 << n) & popup_checkbox;
 }
 /* pop -- 033d:3752, 14 bytes */
-extern char game_text_name[];             /* DS:0x0084 */
 
 i16 pop(char *key)
 {
@@ -2193,7 +2120,6 @@ i16 popup_ask(char *txt, char *key, char *dflt, i16 max)
     return r;
 }
 /* popup_ask_number -- 033d:3856, 66 bytes */
-extern i16 popup_number;                  /* DS:0x5ad4 */
 
 i16 popup_ask_number(char *txt, char *key, i16 dflt)
 {

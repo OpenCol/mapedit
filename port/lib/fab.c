@@ -20,8 +20,10 @@
 #include <string.h>
 
 #include "msc.h"
+#include "pack.h"
+#include "records.h"
+#include "units.h"
 
-typedef u16 (*FFIO)(void *buf, u16 *n);
 
 #define WINDOW 0x10000u
 #define CHUNK 0x200u

@@ -86,3 +86,15 @@ These were inline assembly in 1994 (or the assembly modules), and have C of thei
 | `madsdev/mem_3` | `mem_check_overflow` |
 | `madsdev/pack_1` | `pack_read_memory` |
 | `madsdev/pack_2` | `pack_write_memory` |
+
+## After the fork
+
+- Shared headers (`src/include/*.h`, one per subsystem: `buffer.h`, `sprite.h`, `popup.h`,
+  `map.h`, ...) declare every function, global and record once, from its definition. The 1994
+  modules each declared what they used themselves -- about 1,400 such declarations -- and the
+  compiler could not see where they disagreed: an argument order (fastcall), a record seen
+  through a byte array, a global read as another type. Those now fail to compile; the ones
+  found when the headers went in are fixed (`game` is records.h's GameState, `unit` a Unit,
+  the font functions take a DosFont, the editor's own TerrainInfo and MenuEntry no longer
+  share names with the game's records).
+

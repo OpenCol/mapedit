@@ -10,14 +10,16 @@
  * cursor by them: 4 pixels, 8 with shift, 1 with scroll lock on.
  */
 #include "msc.h"
+#include "keys.h"
+#include "machine.h"
+#include "mcga.h"
+#include "mouse.h"
+#include "records.h"
+#include "timer.h"
+#include "units.h"
 #include "host.h"
 
-void timer_sync(void);
-void mouse_keypad_move(i16 x, i16 y);
 
-extern i16 MOUSE_KNOWN_MODE, MOUSE_FORCE_BUTTON, MOUSE_X_TEMP, MOUSE_Y_TEMP;
-extern i16 MCGA_SHAKES;
-void MCGA_SHAKE(void);
 
 i16 KEYS_SPECIAL_BUTTON;
 

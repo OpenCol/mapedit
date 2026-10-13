@@ -1,6 +1,13 @@
 /* From mapedit-decomp src/madsdev/error_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "loader.h"
+#include "mapedit.h"
+#include "mem.h"
+#include "records.h"
+#include "units.h"
+#include "w16types.h"
 /* MODULE error_1: MAPEDIT.EXE segment 0ed0 (error_1.c), file 0x10308-0x1076e, 4 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -41,22 +48,7 @@
 #include "msc.h"
 
 
-extern MSC_FILE *env_open(char *name, char *mode);    /* 0297:0104 */
-extern void echo(i16 kind, char *text);           /* 127b:0000 */
-extern i16 sound_initialized(void);                              /* 1115:0119 */
-extern void sound_queue(i16 on);                                 /* 1127:0004 */
-extern void sound_system_shutdown(void);                         /* 1127:0059 */
-extern void timer_remove(void);                                  /* 0d1c:01f3 */
-extern void keys_remove(void);                                   /* 0ffe:01c7 */
-extern void mouse_init(i16 a, i16 b);                            /* 0f65:0086 */
-extern void screen_dominant_mode(i16 mode);            /* 0c3c:000a */
-extern i32 mem_get_avail(void);                       /* 0d08:0082 */
-extern i16 stack_check();                                        /* 12aa:001b */
-extern char mem_last_alloc_failed;                               /* DS:0x74b */
-extern i32 mem_last_alloc_size;                                 /* DS:0x74e */
-extern i32 mem_last_alloc_avail;                                /* DS:0x752 */
 /* errno (DS:0x4568) comes from <stdlib.h>: the runtime's */
-void error_dump_file(char *name);
 
 /* Defined BEFORE error_read_line: MSC emits initialised data after the next function's string
  * literals, so this lands after error_read_line's "rt" as shipped. */
@@ -126,7 +118,6 @@ void error_dump_file(char *name)
 }
 /* error_shutdown_report -- 0ed0:0156, 640 bytes */
 /* PORT: error_shutdown_report is in port/ (inline assembly) */
-void error_shutdown_report(char *errtext, char *modtext, char *numtext, char *extra, i32 memfree, i16 code);
 
 /* error_report -- 0ed0:03d6, 152 bytes */
 void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2)

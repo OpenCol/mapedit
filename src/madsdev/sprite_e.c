@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/sprite_e (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "mem.h"
+#include "pal.h"
+#include "records.h"
+#include "units.h"
 #include "loader.h"
 #include "sprite.h"
 /* MODULE sprite_e: MAPEDIT.EXE segment 0ddb (sprite_e.c), file 0xf3b8-0xfd1c, 1 functions in source order.
@@ -65,21 +69,11 @@ typedef struct {
    pointer */
 #include <stddef.h>
 #define PACKED_INFO(size_b) ((((u32)(size_b) + 0xfc) + 7u) & ~7u)
-typedef struct { u8 r, g, b, index, extra, flags; } PalEntry;
-typedef struct { i16 n; PalEntry e[1]; } PalList;
 /* colour i of a list as bytes: +2 its r, g, b; +5 its index (a CSE temp in the shipped code) */
 #define COLOR(pal, i) ((char *)(pal) + (i) * 6)
-typedef struct { i16 n; i16 idx[3]; } Shadow;
 
 
-extern void *mem_get_name(i32 size, char *tag);
-extern i16 mem_free(void *p);
-extern char *mem_normalize(char *p);
-extern i16 pal_allocate(i16 flags, PalList *list, Shadow *sh);
 
-extern Shadow *master_shadow;                  /* DS:0x4404 */
-extern u8 master_palette[0x300];        /* DS:0x5b20 */
-extern i16 mem_last_alloc_loader;                  /* DS:0x74c */
 
 i16 sprite_error = 0;                              /* DS:0x3ade */
 char *put_palette = 0;                         /* DS:0x3ae0 */

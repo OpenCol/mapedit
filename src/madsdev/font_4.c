@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/font_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
 /* MODULE font_4: MAPEDIT.EXE segment 0d6c (font_4.c), file 0xecc2-0xed0a, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -17,9 +18,7 @@
  */
 
 
-extern void *font_main;               /* DS:0x3a9a (font_1.c); only its SEG (DGROUP) is used */
 /* font_string_width -- 0d6c:0002, 72 bytes */
 /* PORT: font_string_width is in port/ (inline assembly) */
-i16 font_string_width(i16 spacing, void *font, char *s);
 
 

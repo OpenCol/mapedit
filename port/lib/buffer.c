@@ -7,9 +7,12 @@
  * none of that; what is kept is every pixel each routine writes, and the order.
  */
 #include "msc.h"
+#include "buffer.h"
+#include "mem.h"
+#include "records.h"
+#include "units.h"
 #include "port_records.h"
 
-i16 buffer_conform(DosPort *port, i16 *x, i16 *y, i16 *w, i16 *h);
 
 /* buffer_pointer -- 0c91:0000: the address of pixel (x, y). The original multiplies w * y
    unsigned (MUL, 16 x 16 -> 32 bits) and adds x as an unsigned word (ADD, ADC 0). */

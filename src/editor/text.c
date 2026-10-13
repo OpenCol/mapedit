@@ -1,6 +1,13 @@
 /* From mapedit-decomp src/editor/text (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "btype.h"
+#include "fileio.h"
+#include "loader.h"
+#include "mapedit.h"
+#include "records.h"
+#include "text.h"
+#include "units.h"
 /* MODULE text: MAPEDIT.EXE segment 0842 (text.obj), file 0x9a20-0x9c5e, 10 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -59,15 +66,6 @@
 #include "msc.h"
 
 MSC_FILE *text_handle = NULL;               /* DS:0x2014 */
-extern char text_buffer[];               /* DS:0x833c */
-extern char *text_pointer;             /* DS:0xa608 */
-extern char text_item[];                  /* DS:0xa5b8 */
-extern void fileio_add_ext(char *path, char *ext);
-extern MSC_FILE *env_open(char *name, char *mode);
-extern void fileio_fix_lf_input(char *s);
-extern void fileio_purge_all_spaces(char *s);
-extern i16 stoi(char *s);
-extern i16 strings_store(char *s);
 /* text_close -- 0842:0000, 26 bytes */
 void text_close(void)
 {

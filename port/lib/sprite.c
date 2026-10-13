@@ -16,6 +16,8 @@
  * step.
  */
 #include "msc.h"
+#include "records.h"
+#include "units.h"
 
 #include "sprite.h"
 

@@ -1,6 +1,29 @@
 /* From mapedit-decomp src/editor/mapedit (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "fileio.h"
+#include "font.h"
+#include "hspot.h"
+#include "keys.h"
+#include "loader.h"
+#include "machine.h"
+#include "map.h"
+#include "mapedit.h"
+#include "mcga.h"
+#include "mem.h"
+#include "menu.h"
+#include "mouse.h"
+#include "pack.h"
+#include "pal.h"
+#include "popup.h"
+#include "screen.h"
+#include "sprite.h"
+#include "text.h"
+#include "timer.h"
+#include "units.h"
+#include "video.h"
+#include "records.h"
 /* MODULE mapedit: MAPEDIT.EXE segment 0000 (mapedit.obj), file 0x1600-0x3f7c, 64 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -80,8 +103,6 @@
  */
 
 
-typedef struct { u8 height; } DosFont;
-typedef struct { i16 w, h; } MapSize;
 /* reset_sprite_memory -- 0000:0000, 2 bytes */
 void reset_sprite_memory(void)
 {
@@ -99,47 +120,49 @@ void build_check(void)
 {
 }
 /* piece_draw -- 0000:0008, 2 bytes */
-void piece_draw(void)
+void piece_draw(i16 piece, i16 nation, i16 x, i16 y, i16 size, i16 scale)
 {
+    (void)piece; (void)nation; (void)x; (void)y; (void)size; (void)scale;
 }
 /* sprite_load -- 0000:000a, 2 bytes */
-void sprite_load(void)
+void *sprite_load(char *name, i16 flags)
 {
+    (void)name; (void)flags;
+    return 0;   /* 1994 returned what AX held: only the game's portraits call it */
 }
 /* danger -- 0000:000c, 2 bytes */
-void danger(void)
+void danger(char *msg, i16 n, i16 x, i16 y)
 {
+    (void)msg; (void)n; (void)x; (void)y;
 }
 /* perform_save -- 0000:000e, 2 bytes */
-void perform_save(void)
+void perform_save(i16 slot)
 {
+    (void)slot;
 }
 /* piss_factor -- 0000:0010, 2 bytes */
-void piss_factor(void)
+i16 piss_factor(i16 anger)
 {
+    (void)anger;
+    return 0;   /* as sprite_load */
 }
 /* pissed -- 0000:0012, 2 bytes */
-void pissed(void)
+i16 pissed(i16 tribe, i16 nation)
 {
+    (void)tribe; (void)nation;
+    return 0;   /* as sprite_load */
 }
 /* say_country -- 0000:0014, 2 bytes */
-void say_country(void)
+void say_country(i16 nation, i16 flag, char *buf)
 {
+    (void)nation; (void)flag; (void)buf;
 }
 /* cycle_save -- 0000:0016, 2 bytes */
-void cycle_save(void)
+void cycle_save(i16 save)
 {
+    (void)save;
 }
 /* popups_normal -- 0000:0018, 72 bytes */
-extern u8 basic_color, hilite_color, grey_color, enhance_color, shadow_color;   /* DS:0x92.. */
-extern u8 select_color, notice_color, border0, border1, border2;                /* DS:0x97.. */
-extern i16 popup_select_color_0, popup_select_color_1;          /* DS:0x540, 0x542 */
-extern i16 popup_border_color, popup_border_color_up, popup_border_color_down;   /* DS:0x544.. */
-extern i16 popup_font_main_color, popup_font_grey_color, popup_font_hilite_color; /* DS:0x54a.. */
-extern i16 popup_enhance_color, popup_shadow_color;             /* DS:0x550, 0x552 */
-extern i16 popup_pal;                                           /* DS:0x564 */
-extern DosPort *popup_tile;                                     /* DS:0x56c */
-extern DosPort scr_back;                                        /* DS:0x49fa */
 
 /* The popup colours for the editor's screens, from the editor's colour bytes. */
 void popups_normal(void)
@@ -157,13 +180,6 @@ void popups_normal(void)
     popup_pal = 1;
 }
 /* event_wait -- 0000:0060, 86 bytes */
-extern i32 timer_read(void);
-extern void mouse_init_cycle(void);
-extern void mouse_begin_cycle(i16 a);
-extern i16 keys_any(void);
-extern i16 keys_get(void);
-extern void mouse_end_cycle(i16 a, i16 hold);
-extern i16 mouse_stop_stroke;                                   /* DS:0x730 */
 
 /* Waits for a key or a mouse stroke; returns the key (0 for the mouse). */
 i16 event_wait(void)
@@ -190,10 +206,6 @@ i16 event_wait(void)
     return key;
 }
 /* forest_fix -- 0000:00b6, 208 bytes */
-extern MapSize map_file;                                        /* DS:0x4b12 */
-extern DosPort scr_map;                                         /* DS:0x4e92 */
-extern u8 buffer_get(i16 x, i16 y, DosPort port);
-extern void buffer_put(i16 x, i16 y, i16 v, DosPort port);
 
 /* Old map files: a hills/mountain bit (0x20) on a forest square keeps only its base terrain
  * (bits 0xe0 and the low 3), and a plain forest (0x10-0x17) becomes its unforested type.
@@ -284,11 +296,6 @@ i16 shift_key(void)
 }
 /* construct_mapedit_menu -- 0000:0196, 980 bytes */
 typedef struct { i16 f0; } MenuHead;
-extern void *menu_create(i16 size, DosFont *font);
-extern i16 text_open(char *name, char *key);
-extern char *text_get(void);
-extern void *menu_add_bar_item(void *m, char *name, i16 id, i16 right);
-extern void *menu_add_item(void *m, i16 sub_id, char *name, i16 id);
 
 /* The menu bar from MAPMENU.TXT: Editor (1), View (2), Map (6), Help (7). 1 on failure. */
 i16 construct_mapedit_menu(void)
@@ -344,14 +351,6 @@ out:
     return result;
 }
 /* file_menu -- 0000:056a, 486 bytes */
-extern i16 num_names;                                           /* DS:0x521c */
-extern i16 num_screens;                                         /* DS:0x4e78 */
-extern char file_names[][13];                                   /* DS:0x64f0 */
-extern char *file_select;                                       /* DS:0x49ee */
-extern void * popup_start_box(char *txt, char *key, i16 sel);
-extern void *popup_add_item(void *p, char *s, i16 key);
-extern i16 popup_exec(void *p);
-extern void mem_free(void *p);
 
 /* The file picker (VICEROY's choose_file): the files matching pattern, ten per page with
  * (More) items at 0x62/0x63; the choice's name is left in file_select. Returns the index
@@ -426,7 +425,6 @@ out:
     return choice;
 }
 /* make_undo -- 0000:0750, 46 bytes */
-extern void *map;                                           /* DS:0x4a8 */
 
 /* Copies the terrain plane (0x2ee0 bytes) into the undo buffer. Both have a dead
  * `result = -1` (the `mov ax,-1`) and 6 more bytes of unused frame. */
@@ -454,11 +452,6 @@ void perform_undo(void)
         msc__fmemcpy(map, map_undo_memory, 0x2ee0);
 }
 /* info_window_clear -- 0000:07a6, 134 bytes */
-extern DosPort scr_work;                                        /* DS:0x3af4 */
-extern void buffer_rect_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, char color);
-extern void buffer_tile(DosPort dst, DosPort src, i16 x, i16 y, i16 w, i16 h, i16 sx, i16 sy);
-extern void buffer_draw_box(i16 x0, i16 y0, i16 x1, DosPort port, i16 y1, char color);
-extern void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 
 /* The info window at (0xf1, 0x32), 0x4f x 0x96: the backdrop tile or colour 0x22, framed. */
 void info_window_clear(void)
@@ -475,12 +468,6 @@ void info_window_update(void)
     mouse_video_update(0xf1, 0x32, 0xf1, 0x32, 0x4f, 0x96);
 }
 /* info_terrain -- 0000:0842, 160 bytes */
-typedef struct { i16 name; char f2; char f3; char f4; char pad[2]; char v[9]; } TerrainRec;   /* NAMES.TXT's terrain rows */
-extern TerrainRec terrain[];                                    /* DS:0x4ee6 */
-extern i16 terrain_names[];                                     /* DS:0x4b5a */
-extern char *strings(i16 n);
-extern void space_string(char *buf);
-extern i16 write_string(char *s, i16 x, i16 y);
 
 /* Writes "(terrain name)" at (*x, *y) and moves *y down a line. Forests (8-0x17) get the
  * word terrain_names[0] after the name. */
@@ -511,14 +498,6 @@ void info_terrain_2(i16 n, i16 *x, i16 *y)
     *y += menu_font->height + 1;
 }
 /* info_window_draw -- 0000:094e, 914 bytes */
-extern i16 cursor_x;                                            /* DS:0x4b52 */
-extern i16 cursor_y;                                            /* DS:0x4b54 */
-extern u8 map_get(i16 x, i16 y);
-extern i16 terrain_type(i16 b);
-extern void *tiles;                                         /* DS:0x4c0 */
-extern void *terrain_1;                                     /* DS:0x4b8 */
-extern void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
-extern void tile_draw(void *tiles, i16 tile, DosPort *port, i16 x, i16 y);
 
 /* 2 pads: the operand order of the `selected_terrain != terr` byte compare (mod 17) */
 /* The info window: map size, cursor, the terrain under the cursor (with its hills/mountains),
@@ -616,9 +595,6 @@ void info_window_draw(void)
     info_window_update();
 }
 /* main_screen_refresh -- 0000:0ce0, 74 bytes */
-extern void buffer_fill(char c, DosPort port);
-extern void menu_draw_bar(void *m, void *sel, i16 update);
-extern void draw_map_2(void);
 
 void main_screen_refresh(void)
 {
@@ -629,10 +605,6 @@ void main_screen_refresh(void)
     info_window_draw();
 }
 /* add_item -- 0000:0d2a, 116 bytes */
-extern i16 hspot_add(i16 x0, i16 y0, i16 x1, i16 y1, i16 v1, i16 v2, i16 id);
-extern i16 hspot_which(u16 x, u16 y, i16 id);
-extern i16 numspots;                                            /* DS:0x716 */
-extern HotSpot spot[];                                          /* DS:0x530a */
 i16 myspot = 1;                                                 /* DS:0x01ce (defined here: lands after info_window_draw's "Coast Protect: OFF") */
 
 /* A 16x16 icon on the selection screen with its hot spot (id 0x13, values 3 and n); the
@@ -817,9 +789,6 @@ void parse_spot(i16 n)
     }
 }
 /* selection_mouse -- 0000:11ee, 56 bytes */
-extern i16 mouse_x;                                             /* DS:0x724 */
-extern i16 mouse_y;                                             /* DS:0x726 */
-extern i16 mouse_any_stroke;                                    /* DS:0x732 */
 
 /* A mouse stroke on the selection screen; 0 once the stroke ended. */
 i16 selection_mouse(void)
@@ -891,18 +860,6 @@ void selection_screen(void)
     main_screen_refresh();
 }
 /* cursor_update -- 0000:1310, 244 bytes */
-extern i16 cursor_on;                                           /* DS:0x6972 */
-extern i16 map_corner_x;                                        /* DS:0x49f2 */
-extern i16 map_corner_y;                                        /* DS:0x49f4 */
-extern i16 map_view_size_x;                                     /* DS:0x52d4 */
-extern i16 map_view_size_y;                                     /* DS:0x52d8 */
-extern i16 map_tile_inset_x;                                    /* DS:0x5ad8 */
-extern i16 map_tile_inset_y;                                    /* DS:0x5af4 */
-extern i16 map_tile_size_x;                                     /* DS:0x4e8a */
-extern i16 map_tile_size_y;                                     /* DS:0x4e8c */
-extern i16 map_scale;                                           /* DS:0x4d0 */
-extern DosPort scr_orig;                                        /* DS:0x3afc */
-extern void buffer_rect_copy_2(i16 sx, i16 sy, i16 dx, DosPort src, DosPort dst, i16 dy, i16 w, i16 h);
 
 /* Toggles the cursor: redraws the info window, restores the square from the backdrop and
  * draws the cursor icon (0x13 + zoom) over it when it is on. */
@@ -928,9 +885,6 @@ void cursor_update(void)
     }
 }
 /* set_center -- 0000:1404, 90 bytes */
-extern i16 on_map(i16 x, i16 y);
-extern i16 map_center_x;                                        /* DS:0x4c8 */
-extern i16 map_center_y;                                        /* DS:0x4ca */
 
 /* Centres the view on (x, y); in the editor (game_mode 1) the cursor goes there too, with
  * the cursor toggled off and on around the move when flag is set. */
@@ -955,8 +909,6 @@ void set_center(register i16 x, register i16 y, i16 flag)
 /* possibly_center -- 0000:145e, 182 bytes */
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 #define min(a, b) ((a) <= (b) ? (a) : (b))
-extern i16 map_corner_x2;                                       /* DS:0x6026 */
-extern i16 map_corner_y2;                                       /* DS:0x603e */
 
 /* Re-centres on (x, y) when the rectangle (x, y)-(x2, y2) comes within 2 squares of the
  * view's edge and the view can still move that way. Returns 1 when it did. */
@@ -1021,7 +973,6 @@ void set_view_mode(void)
     game_mode = 1;
 }
 /* set_zoom_level -- 0000:1582, 74 bytes */
-extern void compute_view_parameters(void);
 
 void set_zoom_level(register i16 level)
 {
@@ -1034,9 +985,6 @@ void set_zoom_level(register i16 level)
 }
 /* memory_check -- 0000:15cc, 48 bytes */
 typedef struct { char pad[0x4a]; i32 avail; } MenuArena;
-extern i32 mem_get_avail(void);
-extern i32 popup_subst_number[];                               /* DS:0x698a */
-extern i16 popup_box(char *file, char *key, i16 sel);
 
 /* The free memory and the menu arena's free count, in DEBUG.TXT's MEMORY popup. */
 void memory_check(void)
@@ -1046,11 +994,6 @@ void memory_check(void)
     popup_box("DEBUG", "MEMORY", 0);
 }
 /* create_me -- 0000:15fc, 116 bytes */
-extern i16 popup_ask(char *txt, char *key, char *dflt, i16 max);
-extern char popup_text_buffer[];                                /* DS:0x4b64 */
-extern void fileio_new_ext(char *dst, char *src, char *ext);
-extern char map_name[];                                         /* DS:0x4a18 */
-extern i16 create_blank_map(i16 w, i16 h);
 
 /* A new blank map: asks for its name (UNTITLED.MP), 0x3a x 0x48. 0 when created. Plain flags
  * (the dead wide/high stores stay, as volatile stores; the call takes the literals). */
@@ -1076,13 +1019,6 @@ i16 create_me(void)
     return result;
 }
 /* continent_check -- 0000:1670, 368 bytes */
-extern u8 *continent;                            /* DS:0x4b0 */
-extern DosPort scr_video;                                       /* DS:0x3b1c */
-extern void * mem_get(i32 n);
-extern i16 map_find_continents(void);
-extern i16 buffer_init(DosPort *port, u16 w, u16 h);
-extern i16 buffer_free(DosPort *port);
-extern void buffer_rect_copy(i16 x, i16 y, i16 w, DosPort src, DosPort dst, i16 h);
 
 /* Find Continents: numbers the land masses and oceans (map_find_continents, with a 0xfde8
  * byte scratch block in sprite_base), warns when there are more than 15 of either, and shows
@@ -1127,12 +1063,6 @@ void continent_check(void)
     }
 }
 /* execute_menu_event -- 0000:17e0, 932 bytes */
-typedef struct { char pad[0x42]; i16 game_in_progress; char rest[0x4a]; } GameState_;   /* 142 bytes: game's BSS extent */
-extern GameState_ game;                                          /* DS:0x5e2c */
-extern char popup_subst_string[][0x40];                         /* DS:0x634e */
-extern i16 write_map_file(void);
-extern i16 load_map_file(void);
-extern void new_mini(void);
 
 /* The menu bar's commands by item id (MAPMENU.TXT): Editor 0x13 Save As, 0x14 Create,
  * 0x1a Save, 0x1b Load, 0x1f Exit; View 0x21 view mode, 0x24/0x25 zoom in/out, 0x26-0x29
@@ -1280,8 +1210,6 @@ void execute_menu_event(i16 id)
 out:;
 }
 /* mouse_area -- 0000:1b84, 92 bytes */
-extern i16 map_pixel_size_x;                                    /* DS:0x64ec */
-extern i16 map_pixel_size_y;                                    /* DS:0x64ee */
 
 /* Which screen area the mouse is in: 2 the minimap (0xfc, 9)-(0x134, 0x30), 3 the info window
  * (0xf1, 0x32)-(0x140, 0xc8), 1 the map (0, 8)-(map_pixel_size), else 0. The mouse position
@@ -1300,7 +1228,6 @@ i16 mouse_area(void)
     return r;
 }
 /* change_map -- 0000:1be0, 328 bytes */
-extern u8 *map_loc(i16 x, i16 y);
 
 /* Paints the selected terrain (and/or masks) onto square (x, y) inside the view, or with
  * pickup picks the square's terrain up as the selection. Ocean squares are left alone when
@@ -1362,7 +1289,6 @@ void change_map(register i16 x, register i16 y, i16 pickup)
     }
 }
 /* fill_map -- 0000:1d28, 142 bytes */
-extern void draw_map_region_2(i16 x, i16 y, i16 w, i16 h);
 
 /* Paints (or picks up) a square of fill_radius around (x, y) and redraws it. */
 void fill_map(i16 x, i16 y, i16 pickup)
@@ -1384,7 +1310,6 @@ void fill_map(i16 x, i16 y, i16 pickup)
 }
 /* parse_main_keys -- 0000:1db6, 456 bytes */
 #include "msc.h"
-extern i16 mykey;                                               /* DS:0x526c */
 
 /* The editor's keys: the keypad and arrows move the cursor (7/9/1/3 diagonally, Home and
  * PgUp/PgDn/End the same), Backspace picks up the square (or the fill area with a feature
@@ -1495,10 +1420,6 @@ i16 parse_viewing_keys(void)
     return r;
 }
 /* parse_area_map -- 0000:1f8e, 244 bytes */
-extern i16 mouse_stroke_type;                                   /* DS:0x4e8e */
-extern i16 mouse_current_area;                                  /* DS:0x5ace */
-extern i16 mouse_start_stroke;                                  /* DS:0x728 */
-extern i16 mouse_button;                                        /* DS:0x720 */
 
 /* A mouse stroke over the map: the cursor follows the mouse; a click centres the view, a
  * shifted click paints (left: the square, or the fill area for a feature; right: pick up). */
@@ -1540,9 +1461,6 @@ i16 parse_area_map(void)
     return 0;
 }
 /* parse_area_mini -- 0000:2082, 94 bytes */
-extern i16 mini_x;                                              /* DS:0x6982 */
-extern i16 mini_y;                                              /* DS:0x49c2 */
-extern i16 minimax(i16 v, i16 lo, i16 hi);
 
 /* A click on the minimap (at 0xfc, 9) centres the view there.
  * The sum is the same either way; a relink would swap the two operands' addresses.
@@ -1586,12 +1504,6 @@ i16 parse_mouse_stroke(void)
     return r;
 }
 /* human_interface_loop -- 0000:2124, 376 bytes */
-extern i32 game_clock;                                         /* DS:0x4a14 */
-extern i32 cursor_clock;                                       /* DS:0x4ea0 */
-extern i16 key_parsed;                                          /* DS:0x4a68 */
-extern i16 menu_bar_mouse_parse(void *m, i16 mode);
-extern i16 menu_bar_key_parse(void *m, i16 key);
-extern i16 menu_key_parse(void *m, i16 key);
 
 /* One pass of the editor's event loop: blinks the cursor every 20 ticks, runs the menu bar,
  * the keys (menu hotkeys, then the editor's, then viewing mode's) and the mouse, and the
@@ -1660,7 +1572,6 @@ void computer_turn(void)
 {
 }
 /* turn_control_loop -- 0000:22b0, 52 bytes */
-extern void generate_mini(void);
 
 void turn_control_loop(void)
 {
@@ -1675,8 +1586,6 @@ void turn_control_loop(void)
 }
 /* load_terrain -- 0000:22e4, 82 bytes */
 typedef struct { i16 name; char f2; char f3; char f4; char pad[2]; char v[9]; } TerrainRow;
-extern i16 text_item_string(void);
-extern i16 text_item_number(void);
 
 /* One terrain row from the text file: its name word, three numbers and nine values. */
 void load_terrain(register i16 n)
@@ -1699,7 +1608,7 @@ void load_data(void)
     char name[16] = "names";
     char labels[16] = "labels";
     i16 i;
-    TerrainRec *p;
+    TerrainInfo *p;
     i16 *q;
 
     text_open(name, "UNFORESTED");
@@ -1735,9 +1644,6 @@ void load_data(void)
     popups_normal();
 }
 /* start_new_game -- 0000:247a, 156 bytes */
-extern i16 map_force;                                           /* DS:0x4d8 */
-extern i16 map_error;                                           /* DS:0x4a4 */
-extern i16 map_startup(i16 big);
 
 /* Picks the map to edit (MAPTOEDIT, or -m:file; Esc creates one), allocates the map and
  * loads or creates it, cursor at the centre. 0 when ready, 1 to quit. */
@@ -1775,32 +1681,6 @@ i16 start_new_game(void)
     return result;
 }
 /* viceroy_game -- 0000:2516, 712 bytes */
-extern void strings_init(i32 size);
-extern void timer_install(void);
-extern void timer_remove(void);
-extern void screen_dominant_mode(i16 mode);
-extern void video_init(i16 mode, i16 flag);
-extern void mouse_init(i16 a, i16 b);
-extern void mouse_show(void);
-extern void mouse_hide(void);
-extern void mcga_compute_retrace_parameters(void);
-extern i16 pal_load_2(char *name, char *pal);
-extern void mouse_video_init(void);
-extern void video_update(DosPort *port, i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
-extern void *font_load(char *name);
-extern void *font_inter;                                    /* DS:0x3a96 */
-extern void popup_init(void *font, i16 size);
-extern void mcga_setpal(char *pal);
-extern i16 load_terrain_tiles(void);
-extern void *sprite_series_load(char *name, i16 flags);
-extern void *tiles2;                                        /* DS:0x4c4 */
-extern DosPort *menu_tile;                                      /* DS:0x632 */
-extern i16 menu_select_color_0, menu_bar_select_color_0;        /* DS:0x61c, 0x620 */
-extern i16 menu_font_main_color, menu_font_grey_color, menu_font_hilite_color;   /* DS:0x626.. */
-extern i16 menu_bar_font_main_color, menu_bar_font_grey_color, menu_bar_font_hilite_color;   /* DS:0x62c.. */
-extern void get_tile_colors(void);
-extern i16 initialize_map_memory(void);
-extern i16 video_mode;                                          /* DS:0x49c6 */
 
 /* The editor's main: video mode 0x13, the mouse, the palette, the screen buffers, the fonts,
  * the tile and icon sheets, the backdrop tile (WOODTILE), the data and the undo buffer; then
@@ -1960,7 +1840,6 @@ void flag_parse(char **p)
     }
 }
 /* main -- 0000:28d8, 164 bytes */
-extern void pack_enable_pfab(void);
 
 void editor_main(i16 argc, char **argv)
 {
@@ -2013,14 +1892,14 @@ i16 num_screens;                          /* DS:0x4e78 */
 i16 europe;                               /* DS:0x4e80: 2 bytes here (map.c reads it as Nation[]) */
 i16 mouse_stroke_type;                    /* DS:0x4e8e */
 i32 cursor_clock;                        /* DS:0x4ea0 */
-TerrainRec terrain[29];                   /* DS:0x4ee6: 464 bytes, NAMES.TXT's terrain rows */
+TerrainInfo terrain[29];                   /* DS:0x4ee6: 464 bytes, NAMES.TXT's terrain rows */
 i16 num_names;                            /* DS:0x521c */
-char unit[28];                            /* DS:0x521e: one 28-byte Unit record */
+Unit unit[1];                             /* DS:0x521e: one 28-byte Unit record */
 char label[50];                           /* DS:0x523a: 50 bytes, unused */
 i16 mykey;                                /* DS:0x526c */
 i16 mouse_current_area;                   /* DS:0x5ace */
 i16 order_names[13];                      /* DS:0x5ada: 26 bytes, unused */
-GameState_ game;                          /* DS:0x5e2c: 142 bytes */
+GameState game;                          /* DS:0x5e2c: 142 bytes */
 char file_names[10][13];                  /* DS:0x64f0: 130 bytes */
 i16 cursor_on;                            /* DS:0x6972 */
 i16 going;                                /* DS:0x6976 */

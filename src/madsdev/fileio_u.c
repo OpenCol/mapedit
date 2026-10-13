@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/fileio_u (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "fileio.h"
+#include "loader.h"
+#include "records.h"
 /* MODULE fileio_u: MAPEDIT.EXE segment 0c1a (FILEIO_U.C), file 0xd7a2-0xd810, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -15,7 +18,6 @@
  */
 
 
-extern void fileio_purge_trailing_spaces(char *s);
 /* fileio_purge_all_spaces -- 0c1a:0002, 110 bytes */
 void fileio_purge_all_spaces(char *s)
 {

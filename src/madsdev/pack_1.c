@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/pack_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "pack.h"
 /* MODULE pack_1: MAPEDIT.EXE segment 1359 (PACK_1.C), file 0x14b96-0x14c0a, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -16,13 +18,8 @@
  */
 
 
-extern i32 pack_read_size;                /* DS:0xa630 */
-extern i32 pack_read_count;                     /* DS:0xa634 */
-extern char *pack_read_memory_ptr;               /* DS:0xa648 */
-extern char * mem_normalize(char *p);
 /* pack_read_memory -- 1359:0006, 116 bytes */
 /* PORT: pack_read_memory is in port/ (inline assembly) */
-u16 pack_read_memory(char *buf, u16 *n);
 
 
 /* The module's uninitialised data (communal, BSS). */

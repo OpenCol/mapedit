@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/madsdev/buffer_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "loader.h"
+#include "mem.h"
+#include "records.h"
+#include "units.h"
 /* MODULE buffer_1: MAPEDIT.EXE segment 0c3e (buffer_1.c), file 0xd9ea-0xda66, 2 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -19,8 +24,6 @@
 
 
 
-extern void *mem_get(i32 size);
-extern void *mem_get_name(i32 size, char *tag);
 /* buffer_init -- 0c3e:000a, 58 bytes */
 i16 buffer_init(DosPort *port, u16 w, u16 h)
 {

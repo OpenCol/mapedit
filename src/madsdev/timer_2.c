@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/timer_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
 /* MODULE timer_2: MAPEDIT.EXE segment 105b (TIMER_2.C), file 0x11bb6-0x11bca, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -14,6 +15,5 @@
 
 /* TIMER_SET_RATE -- 105b:0006, 20 bytes */
 /* PORT: TIMER_SET_RATE is in port/ (inline assembly) */
-void TIMER_SET_RATE(u16 divisor);
 
 

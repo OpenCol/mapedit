@@ -1,6 +1,12 @@
 /* From mapedit-decomp src/madsdev/mouse_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "mouse.h"
+#include "records.h"
+#include "screen.h"
+#include "units.h"
+#include "video.h"
 /* MODULE mouse_4: MAPEDIT.EXE segment 0c34 (mouse_4.c), file 0xd94c-0xd9ca, 2 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -18,15 +24,6 @@
 
 
 
-extern DosPort scr_work;            /* DS:0x2da8 */
-extern void mouse_set_work_buffer(char *bits, i16 w);
-extern void mouse_set_view_port_loc(i16 x0, i16 y0, i16 x1, i16 y1);
-extern void mouse_set_view_port(i16 a, i16 b);
-extern void mouse_freeze(void);
-extern i16 mouse_refresh_view_port(void);
-extern void mouse_refresh_done(void);
-extern void mouse_thaw(void);
-extern void video_update(DosPort *port, i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 /* mouse_video_init -- 0c34:000c, 56 bytes */
 void mouse_video_init(void)
 {

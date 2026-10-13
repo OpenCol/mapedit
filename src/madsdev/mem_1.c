@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/mem_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
 /* MODULE mem_1: MAPEDIT.EXE segment 104f (MEM_1.C), file 0x11af2-0x11b0a, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -14,6 +15,5 @@
 
 /* mem_normalize -- 104f:0002, 24 bytes */
 /* PORT: mem_normalize is in port/ (inline assembly) */
-char * mem_normalize(char *p);
 
 

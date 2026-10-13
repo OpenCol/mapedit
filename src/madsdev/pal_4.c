@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/pal_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "pal.h"
+#include "records.h"
+#include "units.h"
 /* MODULE pal_4: MAPEDIT.EXE segment 12b0 (pal_4.c), file 0x14100-0x1427e, 3 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *

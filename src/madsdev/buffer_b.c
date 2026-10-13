@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/buffer_b (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "loader.h"
+#include "records.h"
+#include "units.h"
 /* MODULE buffer_b: MAPEDIT.EXE segment 0c86 (buffer_b.c), file 0xde6c-0xdf10, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -14,8 +18,6 @@
 
 
 
-extern void buffer_hline(i16 x0, i16 x1, i16 y, DosPort port, char color);
-extern void buffer_vline(i16 x, i16 y0, i16 y1, DosPort port, char color);
 /* buffer_draw_box -- 0c86:000c, 164 bytes */
 void buffer_draw_box(i16 x0, i16 y0, i16 x1, DosPort port, i16 y1, char color)
 {

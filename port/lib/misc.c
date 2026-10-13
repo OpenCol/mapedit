@@ -7,13 +7,15 @@
 #include <string.h>
 
 #include "msc.h"
+#include "error.h"
+#include "hspot.h"
+#include "pack.h"
+#include "pal.h"
+#include "records.h"
+#include "sort.h"
+#include "text.h"
+#include "units.h"
 
-extern Arena strings_heap;
-extern i16 numspots;
-extern HotSpot spot[];
-extern i32 pack_read_size, pack_read_count, pack_write_size, pack_write_count;
-extern char *pack_read_memory_ptr, *pack_write_memory_ptr;
-extern void (*pack_special_function)(void);
 
 /* strings -- 0334:006c: the n-th of the NUL-separated strings in the string heap */
 char *strings(i16 n)
@@ -69,8 +71,9 @@ void io_call_hook(void)
    no more than pack_read_size has left, counts them, returns how many. A size whose high
    word is FFFFh (any negative one) means no limit; only a size under 64 KB clamps. *n is not
    written back. */
-u16 pack_read_memory(char *buf, u16 *n)
+u16 pack_read_memory(void *data, u16 *n)
 {
+    char *buf = data;
     u16 c = *n;
     if (((u32)pack_read_size >> 16) != 0xffff) {
         if (pack_read_size == 0)
@@ -91,8 +94,9 @@ u16 pack_read_memory(char *buf, u16 *n)
    statement and returns what mem_normalize left in AX, the new pointer's offset after
    normalising (0-15), which depends on where DOS put the block; PKWARE's library, which calls
    it, ignores a writer's result. The port returns the count. */
-u16 pack_write_memory(char *buf, u16 *n)
+u16 pack_write_memory(void *data, u16 *n)
 {
+    char *buf = data;
     u16 c = *n;
     if (((u32)pack_write_size >> 16) != 0xffff) {
         if (pack_write_size == 0)
@@ -142,7 +146,8 @@ void sort_insertion_8(i16 n, char *payload, u8 *key)
 }
 
 /* magic_hash_color -- 133e:000a: 38 r + 76 g + 14 b, in 16 bits */
-i16 magic_hash_color(u8 *rgb)
+i16 magic_hash_color(const void *color)
 {
+    const u8 *rgb = color;
     return (i16)(u16)(38u * rgb[0] + 76u * rgb[1] + 14u * rgb[2]);
 }

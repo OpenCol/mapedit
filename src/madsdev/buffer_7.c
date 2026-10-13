@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/buffer_7 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "loader.h"
+#include "records.h"
 /* MODULE buffer_7: MAPEDIT.EXE segment 0c76 (buffer_7.c), file 0xdd64-0xdd80, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -13,7 +16,6 @@
 
 
 
-extern char *buffer_pointer(DosPort *port, i16 x, i16 y);
 /* buffer_put -- 0c76:0004, 28 bytes */
 void buffer_put(i16 x, i16 y, i16 v, DosPort port)
 {

@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/editor/terrain (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "map.h"
+#include "mapedit.h"
+#include "units.h"
 /* MODULE terrain: MAPEDIT.EXE segment 09b7 (terrain.obj), file 0xb176-0xb242, 4 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -21,8 +25,6 @@
  */
 
 
-extern i16 on_map(i16 x, i16 y);
-extern u8 map_get(i16 x, i16 y);
 /* terrain_type -- 09b7:0006, 44 bytes */
 i16 terrain_type(i16 b)
 {

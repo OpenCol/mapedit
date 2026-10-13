@@ -1,6 +1,8 @@
 /* sound.c -- sound_1.ASM and sound_2.ASM. The map editor loads no sound driver: every entry
  * goes through the driver's jump table to the dummy driver, which does nothing. */
 #include "msc.h"
+#include "records.h"
+#include "sound.h"
 
 i16 sound_initialized(void) { return 0; }
 

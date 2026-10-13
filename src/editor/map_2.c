@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/editor/map_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "loader.h"
+#include "map.h"
+#include "mouse.h"
+#include "screen.h"
 /* MODULE map_2: MAPEDIT.EXE segment 087b (map_2.obj), file 0x9db4-0xa02a, 7 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -27,10 +32,6 @@
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 
 
-extern i16 map_corner_x;                         /* DS:0x8328 */
-extern i16 map_corner_y;                         /* DS:0x832e */
-extern i16 map_corner_x2;                         /* DS:0x8804 */
-extern i16 map_corner_y2;                         /* DS:0x8806 */
 /* conform_to_view -- 087b:0004, 70 bytes */
 /* Clips a corner pair to the visible map squares. */
 void conform_to_view(i16 *x0, i16 *y0, i16 *x1, i16 *y1)
@@ -58,13 +59,6 @@ void conform_to_view_size(i16 *x, i16 *y, i16 *w, i16 *h)
     *h = max(0, *h);
 }
 /* update_terrain_region -- 087b:00c0, 106 bytes */
-extern i16 map_tile_size_x;                          /* DS:0x5ad4 */
-extern i16 map_tile_size_y;                          /* DS:0x8326 */
-extern i16 map_tile_inset_x;                       /* DS:0x832a, screen square of map_corner_x */
-extern i16 map_tile_inset_y;                       /* DS:0x832c */
-extern DosPort scr_orig;                 /* DS:0x839e, the backdrop port */
-extern DosPort scr_work;                 /* DS:0x2da8 */
-extern void buffer_rect_copy_2(i16 sx, i16 sy, i16 dx, DosPort src, DosPort dst, i16 dy, i16 w, i16 h);
 
 void update_terrain_region(i16 x, i16 y, i16 w, i16 h)
 {
@@ -80,23 +74,15 @@ void update_terrain_region(i16 x, i16 y, i16 w, i16 h)
     buffer_rect_copy_2(px, py, px, scr_orig, scr_work, py + 8, pw, ph);
 }
 /* update_terrain -- 087b:012a, 54 bytes */
-extern i16 map_pixel_size_x;                         /* DS:0x8550 */
-extern i16 map_pixel_size_y;                         /* DS:0x8552 */
 
 void update_terrain(void)
 {
     buffer_rect_copy_2(0, 0, 0, scr_orig, scr_work, 8, map_pixel_size_x, map_pixel_size_y);
 }
 /* show_map_gradually -- 087b:0160, 188 bytes */
-extern i16 map_view_size_y;                       /* DS:0x8546 */
-extern i16 map_view_size_x;                       /* DS:0x8544 */
-extern i32 timer_600_low;                      /* DS:0x8338 */
-extern i32 timer_read_600(void);
-extern void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 
 /* Reveals the map view square by square in a pseudo-random order (a 16-bit LFSR). */
 /* PORT: show_map_gradually is in port/ (inline assembly) */
-void show_map_gradually(void);
 
 /* show_map -- 087b:021c, 24 bytes */
 void show_map(void)

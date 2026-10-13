@@ -19,10 +19,12 @@
 #include <string.h>
 
 #include "msc.h"
+#include "mouse.h"
+#include "records.h"
+#include "units.h"
+#include "video.h"
 #include "host.h"
 
-void video_init(i16 mode, i16 set);
-char *VIDEO_ADDRESS(i16 x, i16 y);
 
 /* the public state, as named in MAPEDIT.EXE's symbol table */
 i16 mouse_driver;               /* -1: a mouse is there */
@@ -33,7 +35,7 @@ i8 MOUSE_SHOWING = -1;          /* 0: shown; -1, -2 ...: hidden that many times 
 i16 MOUSE_X_TEMP, MOUSE_Y_TEMP; /* where the cursor is */
 i16 MOUSE_VIDEO_MODE;
 
-static char cursor[256];        /* DS:42d8, the image */
+static char arrow[256];         /* DS:42d8, the image */
 /* DS:3cd0 the screen under the cursor, then DS:3dd0 the cursor composed over it: one block,
    because mouse_refresh_view_port reaches the second as the first + 100h */
 static char buffers[512];
@@ -75,7 +77,7 @@ static void overlay(void)
 {
     u16 i;
     for (i = 0; i < 256; i++)
-        composed[i] = (u8)cursor[i] == 0xff ? under[i] : cursor[i];
+        composed[i] = (u8)arrow[i] == 0xff ? under[i] : arrow[i];
 }
 
 /* MOUSE_DRAW -- 066f: save the screen under the cursor and draw it there */
@@ -189,18 +191,18 @@ static void cursor_image(void)
         if (ok) {
             at = (i32)((u8)hdr[8] | (u8)hdr[9] << 8) * 16 + EXE_CURSOR;
             ok = msc_filelength(f->_file) == EXE_SIZE && msc_fseek(f, at, SEEK_SET) == 0
-                 && msc_fread(cursor, 1, sizeof cursor, f) == sizeof cursor;
+                 && msc_fread(arrow, 1, sizeof arrow, f) == sizeof arrow;
         }
         msc_fclose(f);
         if (ok)
             return;
     }
     /* the port's own: black outline, white inside, FFh around it */
-    memset(cursor, 0xff, sizeof cursor);
+    memset(arrow, 0xff, sizeof arrow);
     for (y = 0; y < 13; y++)
         for (x = 0; x <= y && x < 10; x++) {
             int edge = x == 0 || x == y || y == 12 || (y >= 10 && x >= 9 - (y - 10));
-            cursor[y * 16 + x] = (char)(edge ? 0 : 15);
+            arrow[y * 16 + x] = (char)(edge ? 0 : 15);
         }
 }
 
@@ -216,7 +218,7 @@ i16 mouse_init(i16 on, i16 mode)
     video_init(mode, 0);
     MOUSE_CURSOR_BUFFER.h = 16;
     MOUSE_CURSOR_BUFFER.w = 16;
-    MOUSE_CURSOR_BUFFER.bits = cursor;
+    MOUSE_CURSOR_BUFFER.bits = arrow;
     MOUSE_VIDEO_MODE = mode;
     mouse_driver = 0;
     MOUSE_KNOWN_MODE = 0;

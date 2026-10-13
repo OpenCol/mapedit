@@ -7,12 +7,27 @@
 #include <string.h>
 
 #include "msc.h"
+#include "error.h"
+#include "font.h"
+#include "keys.h"
+#include "map.h"
+#include "mcga.h"
+#include "mem.h"
+#include "mouse.h"
+#include "pal.h"
+#include "records.h"
+#include "screen.h"
+#include "sound.h"
+#include "timer.h"
+#include "units.h"
+#include "w16types.h"
 
 /* font_string_width -- 0d6c:0002: the glyph widths of s, plus spacing after each glyph that
    has a width and is not the last character. (The original sign-extends the character, so a
    code from 80h up reads before the width table; the port reads it as unsigned.) */
-i16 font_string_width(i16 spacing, u8 *font, char *s)
+i16 font_string_width(i16 spacing, DosFont *font_, char *s)
 {
+    const u8 *font = (const u8 *)font_;
     i16 total = 0;
     const u8 *p = (const u8 *)s;
     if (!*p)
@@ -88,15 +103,6 @@ void sprite_color_translate(SpriteSeries *sheet, char *map)
 
 /* cycle_colors -- 0f1a:00a6: every due range of the cycling palette turns by one colour (its
    last moves to its front), and the cycled colours go to the DAC */
-typedef struct { u8 count, pos, start, speed; } CycleRange;
-typedef struct { i16 n; CycleRange r[8]; } ColorCycle;
-extern ColorCycle cycle_list;
-extern i32 cycle_timing[8];
-extern i16 total_cycle_colors, cycling_threshold, cycling_active, cycling_delay;
-extern i16 mcga_palette_update;
-extern u8 cycling_palette[0x300];
-i32 timer_read(void);
-void mcga_setpal_range(i16 first, i16 count, char *pal);
 
 void cycle_colors(void)
 {
@@ -136,11 +142,6 @@ void cycle_colors(void)
 /* show_map_gradually -- 087b:0160: copy the map view to the screen a square at a time, in the
    order of a 16-bit Galois LFSR (taps B400h) over 65,536 steps; a small view (180 squares or
    fewer) waits a 600 Hz tick between squares */
-extern i16 map_view_size_x, map_view_size_y, map_tile_inset_x, map_tile_inset_y;
-extern i16 map_tile_size_x, map_tile_size_y;
-extern i32 timer_600_low;
-i32 timer_read_600(void);
-void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 
 void show_map_gradually(void)
 {
@@ -171,20 +172,7 @@ void show_map_gradually(void)
 /* error_shutdown_report -- 0ed0:0156: shut everything down, back to text mode, print the
    report (and the warning file), call the service routines, exit with 3. The original's one
    piece of assembly set text mode through the BIOS; the port closes its window. */
-i16 sound_initialized(void);
-void sound_queue(i16 on);
-void sound_system_shutdown(void);
-void timer_remove(void);
-void keys_remove(void);
-i16 mouse_init(i16 on, i16 mode);
-void screen_dominant_mode(i16 mode);
-void echo(i16 kind, char *text);
-void error_dump_file(char *name);
 void host_quit(void);
-extern char mem_last_alloc_failed;
-extern i32 mem_last_alloc_size, mem_last_alloc_avail;
-extern char error_string[];
-extern void (*error_service_routine)(void), (*error_service_routine_2)(void);
 
 void error_shutdown_report(char *errtext, char *modtext, char *numtext, char *extra, i32 memfree, i16 code)
 {

@@ -1,6 +1,14 @@
 /* From mapedit-decomp src/editor/vicemisc (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "map.h"
+#include "mapedit.h"
+#include "mem.h"
+#include "menu.h"
+#include "sprite.h"
+#include "text.h"
+#include "units.h"
 /* MODULE vicemisc: MAPEDIT.EXE segment 08f9 (vicemisc.obj), file 0xa594-0xb176, 3 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -31,22 +39,11 @@
 
 #include "records.h"
 
-typedef struct { i16 id; i16 kind; } MenuItemHead;
 
-extern void *menu_bar;               /* DS:0x0078 */
-extern void *menu_font;              /* DS:0x0080 */
-extern GameState game;                   /* DS:0x5e2c */
-extern void *menu_create(i16 size, void *font);
-extern void *menu_add_bar_item(void *m, char *name, i16 id, i16 right);
-extern MenuItemHead *menu_add_item(void *m, i16 sub_id, char *name, i16 id);
-extern void menu_bar_hide(void *menu, i16 item, i16 hidden);
-extern i16 text_open(char *file, char *section);
-extern char *text_get(void);
-extern void text_close(void);
 /* construct_main_menu -- 08f9:0004, 2826 bytes */
 i16 construct_main_menu(void)
 {
-    MenuItemHead *p;
+    MenuEntry *p;
     register i16 r;
 
     r = 1;
@@ -154,7 +151,7 @@ i16 construct_main_menu(void)
     menu_add_item(menu_bar, 6, text_get(), 107);
     menu_add_item(menu_bar, 6, text_get(), 108);
     menu_add_item(menu_bar, 6, text_get(), 111);
-    p->kind = 0x13;
+    p->hotkey = 0x13;
     if (!(game.game_flags & 0x2000))
         menu_bar_hide(menu_bar, 6, 1);
     if (text_open(0, "pedia"))
@@ -174,11 +171,6 @@ out:
 }
 /* load_terrain_series -- 08f9:0b0e, 180 bytes */
 
-extern i16 exit_value;                   /* DS:0x0062 */
-extern char *tile_allocate(i16 n);
-extern void *sprite_series_load(char *name, i16 flags);
-extern void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
-extern i16 mem_free(void *p);
 
 void *load_terrain_series(char *name)
 {
@@ -212,7 +204,6 @@ out:
     return r;
 }
 /* load_terrain_tiles -- 08f9:0bc2, 36 bytes */
-extern void *terrain_1;              /* DS:0x04b8 */
 
 i16 load_terrain_tiles(void)
 {

@@ -4,6 +4,8 @@
  * the port polls the machine (keys, mouse, timer) calls it.
  */
 #include "msc.h"
+#include "machine.h"
+#include "records.h"
 #include "host.h"
 
 u8 msc_bda[256];

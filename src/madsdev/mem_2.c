@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/mem_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "mem.h"
+#include "records.h"
+#include "units.h"
 /* MODULE mem_2: MAPEDIT.EXE segment 0cc9 (mem_2.c), file 0xe294-0xe68e, 11 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -56,10 +60,6 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 
-extern i32 mem_conv_get_avail(void);                       /* 0d08:0068 */
-extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2); /* 0ed0:03d6 */
-extern i32 mem_save_free_area;                             /* DS:0x4ae8 */
-extern i32 umb_save_free_area;                             /* DS:0x51c8 */
 
 char mem_initialized = 0;               /* DS:0x748 */
 char mem_max_free_set = 0;              /* DS:0x749 */
@@ -77,11 +77,9 @@ void (*mem_manager_update)(void) = 0;   /* DS:0x76a */
 i16 mem_manager_active = 0;             /* DS:0x76e */
 /* mem_alloc_paras -- 0cc9:0004, 152 bytes */
 /* PORT: mem_alloc_paras is in port/ (inline assembly) */
-u16 mem_alloc_paras(u16 paras);
 
 /* mem_check_chain -- 0cc9:009c, 84 bytes */
 /* PORT: mem_check_chain is in port/ (inline assembly) */
-void mem_check_chain(void);
 
 /* mem_call_hook -- 0cc9:00f0, 28 bytes */
 /* The hook arrives as its two words: shipped tests `off | seg` offset first, which no
@@ -98,13 +96,11 @@ void mem_call_hook(u16 off, u16 seg)
 /* mem_set_block_name -- 0cc9:010c, 42 bytes */
 
 /* PORT: mem_set_block_name is in port/ (inline assembly) */
-void mem_set_block_name(void *block, char *name);
 
 /* mem_get_name -- 0cc9:0136, 428 bytes */
 /* 13 pads: the heapfree-vs-size compares load heapfree (cx:bx) into ax:dx and test the
  * spilled size against it; 0-12 pads give the reverse. */
 /* PORT: mem_get_name is in port/ (inline assembly) */
-void *mem_get_name(i32 size, char *tag);
 
 /* mem_get -- 0cc9:02e2, 10 bytes */
 void *mem_get(i32 size)
@@ -113,15 +109,12 @@ void *mem_get(i32 size)
 }
 /* mem_get_block_name -- 0cc9:02ec, 36 bytes */
 /* PORT: mem_get_block_name is in port/ (inline assembly) */
-void mem_get_block_name(void *block, char *dest);
 
 /* mem_free -- 0cc9:0310, 80 bytes */
 /* PORT: mem_free is in port/ (inline assembly) */
-i16 mem_free(void *p);
 
 /* mem_adjust -- 0cc9:0360, 46 bytes */
 /* PORT: mem_adjust is in port/ (inline assembly) */
-i16 mem_adjust(i32 size, void *p);
 
 /* mem_save_free -- 0cc9:038e, 30 bytes */
 void mem_save_free(void)

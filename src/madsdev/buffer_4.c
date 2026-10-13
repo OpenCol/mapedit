@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/buffer_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
 /* MODULE buffer_4: MAPEDIT.EXE segment 0c4c (buffer_4.c), file 0xdac0-0xdbb4, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -16,10 +17,7 @@
 
 
 
-extern char *buffer_pointer(DosPort *port, i16 x, i16 y);
-extern char *mem_normalize(char *p);
 /* buffer_rect_copy -- 0c4c:0000, 244 bytes */
 /* PORT: buffer_rect_copy is in port/ (inline assembly) */
-i16 buffer_rect_copy(i16 x, i16 y, i16 w, DosPort src, DosPort dst, i16 h);
 
 

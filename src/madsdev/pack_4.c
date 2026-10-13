@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/madsdev/pack_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "fileio.h"
+#include "loader.h"
+#include "pack.h"
+#include "records.h"
+#include "units.h"
 /* MODULE pack_4: MAPEDIT.EXE segment 136f (PACK_4.C), file 0x14cf2-0x14d84, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -16,14 +21,11 @@
 
 
 
-extern i32 pack_write_count;                    /* DS:0xa628 */
-extern i32 pack_write_size;               /* DS:0xa62c */
-extern MSC_FILE *pack_write_file_handle;                /* DS:0xa638 */
-extern i32 fileio_fwrite_f(char *p, i32 size, i32 n, MSC_FILE *fp);
 #define min(a, b) (((a) < (b)) ? (a) : (b))     /* <stdlib.h>'s */
 /* pack_write_file -- 136f:0002, 146 bytes */
-u16 pack_write_file(char *buf, u16 *n)
+u16 pack_write_file(void *data, u16 *n)
 {
+    char *buf = data;
     register u16 got;
     i32 len;
 

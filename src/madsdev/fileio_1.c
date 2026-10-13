@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/fileio_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "fileio.h"
+#include "loader.h"
+#include "records.h"
+#include "units.h"
 /* MODULE fileio_1: MAPEDIT.EXE segment 101f (FILEIO_1.C), file 0x117fc-0x1185c, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *

@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/fileio_8 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "fileio.h"
+#include "loader.h"
+#include "records.h"
+#include "units.h"
 /* MODULE fileio_8: MAPEDIT.EXE segment 0bca (fileio_8.c), file 0xd2a0-0xd4a8, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -19,8 +23,9 @@
 
 i16 fileio_suppress_unbuffering = 0;                          /* DS:0x0718 (defined here) */
 /* fileio_fread_f -- 0bca:0000, 520 bytes */
-i32 fileio_fread_f(char *p, i32 size, i32 n, MSC_FILE *fp)
+i32 fileio_fread_f(void *data, i32 size, i32 n, MSC_FILE *fp)
 {
+    char *p = data;
     i32 total;
     i32 got;
     i32 done;

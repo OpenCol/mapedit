@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/keys_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "keys.h"
+#include "loader.h"
+#include "records.h"
 /* MODULE keys_1: MAPEDIT.EXE segment 0baf (KEYS_1.C), file 0xd0f4-0xd12e, 3 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -20,11 +23,9 @@
 
 /* keys_any -- 0baf:0004, 20 bytes */
 /* PORT: keys_any is in port/ (inline assembly) */
-i16 keys_any(void);
 
 /* keys_get -- 0baf:0018, 22 bytes */
 /* PORT: keys_get is in port/ (inline assembly) */
-i16 keys_get(void);
 
 /* keys_flush -- 0baf:002e, 16 bytes */
 void keys_flush(void)

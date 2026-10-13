@@ -1,6 +1,12 @@
 /* From mapedit-decomp src/madsdev/buffer_r (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "fileio.h"
+#include "loader.h"
+#include "mapedit.h"
+#include "records.h"
+#include "units.h"
 /* MODULE buffer_r: MAPEDIT.EXE segment 1025 (buffer_r.c), file 0x1185c-0x119da, 2 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -20,10 +26,6 @@
 
 
 
-extern char *buffer_pointer(DosPort *port, i16 x, i16 y);
-extern char *env_catint(char *s, i16 value, i16 digits);
-extern i32 fileio_fwrite_f(void *p, i32 size, i32 n, MSC_FILE *fp);
-extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);
 
 static char g_swap_wb[] = "wb";          /* DS:0x43e8: a module static (no public) */
 char buffer_disk_filename[] = "$MPOP.$";          /* DS:0x2634 */

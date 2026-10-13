@@ -1,6 +1,12 @@
 /* From mapedit-decomp src/editor/map_9 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "fileio.h"
+#include "loader.h"
+#include "map.h"
+#include "mapedit.h"
+#include "mem.h"
+#include "units.h"
 /* MODULE map_9: MAPEDIT.EXE segment 09f9 (map_9.obj), file 0xb59a-0xba76, 8 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -25,15 +31,6 @@
 
 
 
-extern MapSize map_file;                  /* DS:0x853a */
-extern DosPort scr_map;               /* DS:0x85a8 */
-extern DosPort scr_feature;               /* DS:0x85b0 */
-extern DosPort scr_continent;               /* DS:0x85b8 */
-extern DosPort scr_site;               /* DS:0x85c0 */
-extern u8 *map;         /* DS:0x015c */
-extern u8 *feature;         /* DS:0x0160 */
-extern u8 *continent;         /* DS:0x0164 */
-extern u8 *site;         /* DS:0x0168 */
 /* set_plane_ports -- 09f9:000a, 88 bytes */
 /* DOS only: the four planes are plain far blocks, and each has a port record (height, width,
  * bits) for the buffer_get/buffer_put drawing code. */
@@ -47,11 +44,6 @@ void set_plane_ports(void)
     scr_site.bits = site;
 }
 /* allocate_map_memory -- 09f9:0062, 198 bytes */
-extern i16 map_high_memory_mode;                     /* DS:0x015a */
-extern i32 map_memory;                    /* DS:0x0180 */
-extern i16 map_pixel_size_x;                       /* DS:0x8550 */
-extern i16 map_pixel_size_y;                       /* DS:0x8552 */
-extern void * mem_get(i32 n);
 
 /* Windows: MSAllocateHandle + MSHLock per plane, viewport 480x384. DOS: a too-big map
  * (map_high_memory_mode, set by map_check) gets 11956 bytes per plane, the viewport is 240x192, and on
@@ -91,8 +83,6 @@ i16 initialize_map_memory(void)
     return 1;
 }
 /* map_check -- 09f9:012c, 68 bytes */
-extern i32 map_size;                    /* DS:0x85a4 */
-extern i16 map_error;                /* DS:0x0158 */
 
 /* Windows: returns 0. DOS: a map of more than 12000 cells sets map_high_memory_mode and error 9999. */
 i16 map_check(void)
@@ -112,13 +102,6 @@ out:
     return r;
 }
 /* load_map_file -- 09f9:0170, 320 bytes */
-extern char map_name[];              /* DS:0x8554 */
-extern char map_ext[];                    /* DS:0x0154, "mp" */
-extern i16 map_file_version;                   /* DS:0x0152 */
-extern void fileio_new_ext(char *dst, char *src, char *ext);
-extern MSC_FILE * env_open(char *name, char *mode);
-extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);
-extern i32 fileio_fwrite_f(void *p, i32 size, i32 n, MSC_FILE *fp);
 
 i16 load_map_file(void)
 {
@@ -237,7 +220,6 @@ i16 create_blank_map(i16 w, i16 h)
     return err;
 }
 /* map_startup -- 09f9:043e, 168 bytes */
-extern i16 map_force;                   /* DS:0x018c */
 
 i16 map_startup(i16 big)
 {

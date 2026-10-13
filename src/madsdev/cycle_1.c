@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/madsdev/cycle_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "pal.h"
+#include "records.h"
+#include "timer.h"
+#include "units.h"
 /* MODULE cycle_1: MAPEDIT.EXE segment 0f1a (cycle_1.c), file 0x107aa-0x1096a, 2 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -22,16 +27,12 @@
  *     mcga_setpal_range once cycling_delay reaches the threshold.
  */
 
-typedef struct { u8 count, pos, start, speed; } CycleRange;
-typedef struct { i16 n; CycleRange r[8]; } ColorCycle;
 
-extern i32 timer_read(void);
 ColorCycle cycle_list;                   /* DS:0x5afe (BSS) */
 i32 cycle_timing[8];                    /* DS:0x52e8 (BSS) */
 i16 total_cycle_colors;                  /* DS:0x4e9a (BSS) */
 i16 cycling_threshold;                   /* DS:0x4b10 (BSS) */
 i16 cycling_active = 0;                  /* DS:0x3c64 (defined here) */
-extern u8 master_palette[0x300];   /* DS:0x5b20 */
 u8 cycling_palette[0x300];    /* DS:0x6048 (BSS) */
 /* cycle_init -- 0f1a:000a, 156 bytes */
 void cycle_init(ColorCycle *ranges, i16 on)
@@ -56,11 +57,8 @@ void cycle_init(ColorCycle *ranges, i16 on)
 }
 /* cycle_colors -- 0f1a:00a6, 292 bytes */
 i16 cycling_delay = 0;                   /* DS:0x3c66 (defined here) */
-extern i16 mcga_palette_update;          /* DS:0x3ab6 */
 static u8 cycle_rgb[3];       /* DS:0x49a6: module static (no public) */
-extern void mcga_setpal_range(i16 first, i16 count, char *pal);
 
 /* PORT: cycle_colors is in port/ (inline assembly) */
-void cycle_colors(void);
 
 

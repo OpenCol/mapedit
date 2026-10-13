@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/font_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "mem.h"
+#include "records.h"
+#include "units.h"
 #include "loader.h"
 /* MODULE font_1: MAPEDIT.EXE segment 0d43 (font_1.c), file 0xea3a-0xeb38, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
@@ -24,9 +28,6 @@
 
 
 
-extern void *mem_get_name(i32 size, char *tag);
-extern void mem_free(void *p);
-extern i16 mem_last_alloc_loader;                                            /* DS:0x074c */
 /* font_load -- 0d43:000a, 254 bytes */
 void *font_load(char *name)
 {

@@ -13,6 +13,9 @@
 #include <string.h>
 
 #include "msc.h"
+#include "mem.h"
+#include "records.h"
+#include "units.h"
 
 #define CONVENTIONAL_FREE 0x90000L     /* 576 KB free: a 640 KB machine after DOS and the EXE */
 
@@ -22,9 +25,6 @@ typedef struct Block {
     char pad[16 - sizeof(size_t) % 16];
 } Block;
 
-extern char mem_last_alloc_failed;
-extern i16 mem_manager_active;
-extern void (*mem_manager_update)(void);
 
 static void call_hook(void)
 {

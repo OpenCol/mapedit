@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/madsdev/heap_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "loader.h"
+#include "mem.h"
+#include "records.h"
+#include "units.h"
 /* MODULE heap_1: MAPEDIT.EXE segment 0f45 (heap_1.c), file 0x10a50-0x10c50, 5 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -35,10 +40,6 @@
 
 
 
-extern void *mem_get_name(i32 size, char *tag);   /* 181f:2e90 */
-extern i32 mem_get_avail(void);                                          /* 181f:127a */
-extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2);
-extern i16 mem_free(void *p);                               /* 181f:11a8 */
 /* heap_create -- 0f45:0000, 144 bytes */
 i16 heap_create(i16 kind, Arena *a, i32 size, char *tag)
 {
@@ -74,7 +75,7 @@ void heap_destroy(Arena *a)
     a->size = a->left = 0;
 }
 /* heap_get -- 0f45:010a, 106 bytes */
-char *heap_get(i32 n, Arena *a)
+void *heap_get(i32 n, Arena *a)
 {
     char *r;
 
@@ -95,6 +96,5 @@ char *heap_get(i32 n, Arena *a)
 }
 /* heap_shrink -- 0f45:0174, 140 bytes */
 /* PORT: heap_shrink is in port/ (inline assembly) */
-i32 heap_shrink(Arena *a);
 
 

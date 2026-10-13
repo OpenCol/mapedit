@@ -13,20 +13,25 @@
 #include <string.h>
 
 #include "msc.h"
+#include "buffer.h"
+#include "font.h"
+#include "mapedit.h"
+#include "records.h"
+#include "units.h"
+#include "w16types.h"
 
-typedef struct { u8 c[4]; } Colours;
-extern Colours font_colors;
-char *buffer_pointer(DosPort *port, i16 x, i16 y);
 
-i16 font_write(DosPort *port, i16 x, i16 y, u8 *font, char *s, i16 gap)
+i16 font_write(DosPort *port, i16 x, i16 y, DosFont *font_, char *s, i16 gap)
 {
+    const u8 *font = (const u8 *)font_;
     char buf[80];
-    Colours cols = font_colors;
+    u8 cols[4];
     i8 rows;
     i16 bottom, skip = 0, clip, cursor;
     char *dst, *d;
     const u8 *p;
     u16 n = 0;
+    memcpy(cols, font_colors, sizeof cols);
 
     while (n < sizeof buf - 1 && s[n]) {        /* PORT: the original copies without a limit */
         buf[n] = s[n];
@@ -68,7 +73,7 @@ i16 font_write(DosPort *port, i16 x, i16 y, u8 *font, char *s, i16 gap)
                 u8 left = w, k = 4, bits = *g++;
                 char *q = rowp;
                 for (;;) {
-                    u8 c = cols.c[bits >> 6];
+                    u8 c = cols[bits >> 6];
                     bits = (u8)(bits << 2);
                     if (c != 0xff)
                         *q = (char)c;

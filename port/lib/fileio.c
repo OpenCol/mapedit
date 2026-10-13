@@ -4,8 +4,10 @@
  * own critical-error handler in place so a missing floppy fails instead of asking Abort,
  * Retry, Fail; -1 when it opened. */
 #include "msc.h"
+#include "fileio.h"
+#include "mapedit.h"
+#include "units.h"
 
-char *env_get_path(char *dst, char *name);
 
 i16 fileio_exist(char *name)
 {

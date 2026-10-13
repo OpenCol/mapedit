@@ -1,6 +1,13 @@
 /* From mapedit-decomp src/editor/me_mini (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "loader.h"
+#include "map.h"
+#include "mapedit.h"
+#include "mouse.h"
+#include "screen.h"
+#include "sprite.h"
 /* MODULE me_mini: MAPEDIT.EXE segment 0b56 (me_mini.obj), file 0xcb64-0xd030, 10 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -32,8 +39,6 @@
 
 
 
-extern void *tiles;            /* DS:0x04c0, the icon sheet */
-extern void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
 /* get_a_color -- 0b56:0004, 52 bytes */
 /* The colour at the centre (8,8) of a 16x16 icon. */
 u8 get_a_color(i16 icon)
@@ -47,8 +52,6 @@ u8 get_a_color(i16 icon)
     return buf[0x88];
 }
 /* get_a_color_2 -- 0b56:0038, 52 bytes */
-extern void *terrain_1;        /* DS:0x04b8, the terrain tile sheet */
-extern void tile_draw(void *tiles, i16 tile, DosPort *port, i16 x, i16 y);
 
 /* The colour at the centre (8,8) of a 16x16 terrain tile. */
 u8 get_a_color_2(i16 tile)
@@ -62,7 +65,6 @@ u8 get_a_color_2(i16 tile)
     return buf[0x88];
 }
 /* get_tile_colors -- 0b56:006c, 108 bytes */
-extern u8 terrain_colors[]; /* DS:0x4aec, 29 */
 
 /* The minimap palette: one colour per base terrain (0-7, repeated for the two forest bands at
  * 8-15 and 16-23), the three water tiles, then mountains and hills from their icons. */
@@ -87,12 +89,6 @@ i16 allocate_mini(void)
     return 0;
 }
 /* generate_mini -- 0b56:00dc, 64 bytes */
-extern i16 map_center_x;           /* DS:0x04c8 */
-extern i16 map_center_y;           /* DS:0x04ca */
-extern MapSize map_file;           /* DS:0x4b12 */
-extern i16 mini_y;                 /* DS:0x49c2 */
-extern i16 mini_x;                 /* DS:0x6982 */
-extern i16 minimax(i16 v, i16 lo, i16 hi);
 
 void generate_mini(void)
 {
@@ -102,12 +98,6 @@ void generate_mini(void)
     mini_y = minimax(mini_y, 1, map_file.h - 40);
 }
 /* blast_mini_region -- 0b56:011c, 344 bytes */
-extern u8 *map_loc(i16 x, i16 y);
-extern u8 *feature_loc(i16 x, i16 y);
-extern u8 *site_loc(i16 x, i16 y);
-extern u8 *continent_loc(i16 x, i16 y);
-extern u8 * buffer_pointer(DosPort *port, i16 x, i16 y);
-extern DosPort scr_work;           /* DS:0x3af4 */
 
 
 /* VICEROY's BlastMiniRegion without the settlement and unit colours (the editor has neither):
@@ -184,12 +174,6 @@ void blast_mini(i16 viewer)
 /* show_mini_region -- 0b56:028e, 294 bytes */
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 #define min(a, b) ((a) <= (b) ? (a) : (b))
-extern i16 map_corner_x;           /* DS:0x49f2 */
-extern i16 map_corner_y;           /* DS:0x49f4 */
-extern i16 map_corner_x2;          /* DS:0x6026 */
-extern i16 map_corner_y2;          /* DS:0x603e */
-extern void buffer_draw_box(i16 x0, i16 y0, i16 x1, DosPort port, i16 y1, char color);
-extern void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 
 void show_mini_region(i16 x, i16 y, i16 w, i16 h, i16 update, i16 viewer, i16 white)
 {
@@ -211,9 +195,6 @@ void show_mini_region(i16 x, i16 y, i16 w, i16 h, i16 update, i16 viewer, i16 wh
         mouse_video_update(x0 - mini_x + 0xfc, y0 - mini_y + 9, x0 - mini_x + 0xfc, y0 - mini_y + 9, w, h);
 }
 /* show_mini -- 0b56:03b4, 278 bytes */
-extern DosPort *main_tile;         /* DS:0x0090 */
-extern void buffer_rect_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 color);
-extern void buffer_tile(DosPort dst, DosPort src, i16 dx, i16 dy, i16 w, i16 h, i16 sx, i16 sy);
 
 void show_mini(i16 update, i16 viewer)
 {

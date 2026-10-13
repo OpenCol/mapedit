@@ -1,6 +1,12 @@
 /* From mapedit-decomp src/editor/map_6 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "keys.h"
+#include "loader.h"
+#include "map.h"
+#include "mapedit.h"
+#include "units.h"
 /* MODULE map_6: MAPEDIT.EXE segment 09c4 (map_6.obj), file 0xb242-0xb59a, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -13,17 +19,6 @@
 
 
 
-extern MapSize map_file;                    /* DS:0x4b12 */
-extern i16 *sprite_base;                /* DS:0x008c */
-extern DosPort scr_continent;               /* DS:0x5eba */
-extern u8 *continent;        /* DS:0x04b0 */
-extern i16 region_size[16];                 /* DS:0x5270 */
-extern void buffer_fill(char c, DosPort port);
-extern i16 on_map(i16 x, i16 y);
-extern i16 terrain_is_ocean(i16 x, i16 y);
-extern i16 build_check(void);
-extern i16 keys_get(void);
-extern void load_main_sprites(void);
 
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 #define min(a, b) ((a) <= (b) ? (a) : (b))

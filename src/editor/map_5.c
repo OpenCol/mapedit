@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/editor/map_5 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "loader.h"
+#include "map.h"
+#include "records.h"
+#include "screen.h"
 /* MODULE map_5: MAPEDIT.EXE segment 08a2 (map_5.obj), file 0xa02a-0xa0d0, 2 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -15,11 +20,6 @@
  */
 
 
-extern void conform_to_view_size(i16 *x, i16 *y, i16 *w, i16 *h);
-extern void generate_terrain_map_region(i16 x, i16 y, i16 w, i16 h, i16 nation);
-extern void update_terrain_region(i16 x, i16 y, i16 w, i16 h);
-extern void show_map_region(i16 x, i16 y, i16 w, i16 h);
-extern void show_mini(i16 update, i16 viewer);
 /* draw_map_region_2 -- 08a2:000a, 94 bytes */
 void draw_map_region_2(i16 x, i16 y, i16 w, i16 h)
 {
@@ -30,13 +30,6 @@ void draw_map_region_2(i16 x, i16 y, i16 w, i16 h)
     show_mini(1, -1);
 }
 /* draw_map_2 -- 08a2:0068, 72 bytes */
-extern DosPort scr_work;                    /* DS:0x3af4 */
-extern i16 map_pixel_size_x;                /* DS:0x64ec */
-extern i16 map_pixel_size_y;                /* DS:0x64ee */
-extern void buffer_draw_box(u16 x0, i16 y0, i16 x1, DosPort port, i16 y1, char color);
-extern void generate_terrain_map(i16 nation);
-extern void update_terrain(void);
-extern void show_map(void);
 
 void draw_map_2(void)
 {

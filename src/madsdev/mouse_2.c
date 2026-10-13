@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/madsdev/mouse_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "mouse.h"
+#include "records.h"
+#include "timer.h"
+#include "units.h"
 /* MODULE mouse_2: MAPEDIT.EXE segment 0c21 (mouse_2.c), file 0xd810-0xd94c, 4 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -28,23 +33,6 @@
  */
 
 
-extern void mouse_check_double(void);
-extern i16 mouse_get_status(i16 *x, i16 *y);
-extern void mouse_double_freedom(i16 n);
-extern i32 timer_read(void);
-extern i16 mouse_button;                   /* DS:0x0720  */
-extern i16 mouse_status;                 /* DS:0x0722 */
-extern i16 mouse_x;                      /* DS:0x0724 */
-extern i16 mouse_y;                      /* DS:0x0726 */
-extern i16 mouse_start_stroke;           /* DS:0x0728 */
-extern i16 mouse_stroke_going;           /* DS:0x072a */
-extern i16 mouse_changed;                /* DS:0x072c */
-extern i16 mouse_latched;                /* DS:0x072e */
-extern i16 mouse_stop_stroke;            /* DS:0x0730 */
-extern i16 mouse_any_stroke;             /* DS:0x0732 */
-extern i16 mouse_old_x;                  /* DS:0x0734 */
-extern i16 mouse_old_y;                  /* DS:0x0736 */
-extern i32 mouse_clock;                 /* DS:0x0738 */
 /* mouse_in_box -- 0c21:0000, 42 bytes */
 i16 mouse_in_box(i16 x0, i16 y0, i16 x1, i16 y1)
 {

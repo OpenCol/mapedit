@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/mem_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "mem.h"
+#include "records.h"
 /* MODULE mem_4: MAPEDIT.EXE segment 0d08 (mem_4.c), file 0xe68e-0xe72c, 4 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -23,14 +26,11 @@
  */
 
 
-i32 mem_conv_get_avail(void);
 /* mem_conv_largest -- 0d08:000e, 90 bytes */
 /* PORT: mem_conv_largest is in port/ (inline assembly) */
-u16 mem_conv_largest(void);
 
 /* mem_conv_get_avail -- 0d08:0068, 26 bytes */
 /* PORT: mem_conv_get_avail is in port/ (inline assembly) */
-i32 mem_conv_get_avail(void);
 
 /* mem_get_avail -- 0d08:0082, 40 bytes */
 i32 mem_get_avail(void)

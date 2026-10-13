@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/buffer_t (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "loader.h"
+#include "records.h"
+#include "units.h"
 /* MODULE buffer_t: MAPEDIT.EXE segment 0c9d (buffer_t.c), file 0xdfde-0xe190, 2 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  * (this file was built with /Oe as well: #pragma optimize("e", on) at the top, like buffer_s.c)
@@ -40,13 +44,6 @@
  */
 
 
-extern i16 buffer_conform(DosPort *port, i16 *x, i16 *y, i16 *w, i16 *h);
-extern i16 buffer_init_name(DosPort *port, u16 w, u16 h, char *tag);
-extern i16 buffer_rect_copy_2(i16 sx, i16 sy, i16 dx, DosPort src, DosPort dst, i16 dy,
-                                        i16 w, i16 h);
-extern i16 buffer_to_disk(DosPort *port, i16 x, i16 y, i16 w, i16 h);
-extern void buffer_from_disk(DosPort *port, i16 k, i16 keep, i16 x, i16 y, i16 w, i16 h);
-extern i16 buffer_free(DosPort *port);
 
 i16 buffer_restore_keep_flag = 0;          /* DS:0x746 */
 static DosPort preserve_port;              /* DS:0x499e (this module's _BSS) */

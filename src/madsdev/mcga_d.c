@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/mcga_d (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "mcga.h"
 /* MODULE mcga_d: MAPEDIT.EXE segment 12ad (mcga_d.c), file 0x140dc-0x14100, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -20,6 +22,5 @@ i16 MCGA_SHAKES = 0;                             /* DS:0x450e: shakes left (defi
 static i16 shake_seed = 1234;                    /* DS:0x4510: module static (no public) */
 /* MCGA_SHAKE -- 12ad:000c, 36 bytes */
 /* PORT: MCGA_SHAKE is in port/ (inline assembly) */
-void MCGA_SHAKE(void);
 
 

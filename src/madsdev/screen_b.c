@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/madsdev/screen_b (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "machine.h"
+#include "records.h"
+#include "screen.h"
+#include "units.h"
 /* MODULE screen_b: MAPEDIT.EXE segment 0c3c (SCREEN_B.C), file 0xd9ca-0xd9ea, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *

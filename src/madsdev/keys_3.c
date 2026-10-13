@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/keys_3 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "keys.h"
+#include "loader.h"
+#include "units.h"
 /* MODULE keys_3: MAPEDIT.EXE segment 0bb2 (keys_3.c), file 0xd12e-0xd240, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *

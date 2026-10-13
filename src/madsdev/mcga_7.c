@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/mcga_7 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "mcga.h"
 /* MODULE mcga_7: MAPEDIT.EXE segment 0d70 (mcga_7.c), file 0xed0a-0xed5e, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -24,6 +26,5 @@ i16 mcga_palette_update = 0;                     /* DS:0x3ab6 */
 i16 mcga_palette_fast = 1;                       /* DS:0x3ab8 */
 /* mcga_setpal -- 0d70:000a, 84 bytes */
 /* PORT: mcga_setpal is in port/ (inline assembly) */
-void mcga_setpal(char *pal);
 
 

@@ -5,9 +5,13 @@
  * the VGA did.
  */
 #include "msc.h"
+#include "mapedit.h"
+#include "records.h"
+#include "sprite.h"
+#include "units.h"
+#include "video.h"
 #include "host.h"
 
-extern i16 video_mode;          /* DS:49c6: mapedit.c defines it (video_1.ASM read it) */
 
 /* VIDEO_ADDRESS -- 1114:0002: the screen address of (x, y), x in CX and y in DX */
 char *VIDEO_ADDRESS(i16 x, i16 y)

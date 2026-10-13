@@ -3,10 +3,12 @@
  * pixel that is not 0 is "under" something already drawn: the _mask variants leave it.
  */
 #include "msc.h"
+#include "buffer.h"
+#include "map.h"
+#include "records.h"
+#include "units.h"
 #include "port_records.h"
 
-i16 tile_id(i16 t);
-char *buffer_pointer(DosPort *port, i16 x, i16 y);
 
 /* tile_draw -- 030b:0048: copy tile t to (x, y), all 256 pixels */
 void tile_draw(char *tiles, i16 t, DosPort *port, i16 x, i16 y)

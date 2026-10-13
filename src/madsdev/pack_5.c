@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/pack_5 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "pack.h"
+#include "records.h"
+#include "units.h"
 /* MODULE pack_5: MAPEDIT.EXE segment 1202 (pack_5.c), file 0x13628-0x137a0, 2 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -28,13 +32,7 @@
  */
 
 
-typedef u16 (*FFIO)(void *buf, u16 *n);
 
-extern void *pack_buffer;             /* DS:0xa622 */
-extern u16 pack_buffer_size;         /* DS:0xa626 */
-extern i32 pack_read_size;               /* DS:0xa630 */
-extern FFIO pack_write_routine;                /* DS:0xa63a */
-extern FFIO pack_read_routine;                /* DS:0xa644 */
 /* pack_raw_copy -- 1202:0008, 126 bytes */
 i16 pack_raw_copy(void)
 {
@@ -54,22 +52,7 @@ i16 pack_raw_copy(void)
     return err;
 }
 /* pack_a_packet -- 1202:0086, 250 bytes */
-typedef i16 (*FFPACK)(FFIO rd, FFIO wr, void *work, i16 *type,
-                                 u16 *dsize);
-typedef i16 (*FFUNPACK)(FFIO rd, FFIO wr, void *work);
-typedef i16 (*FFUNPACK_TO)(FFIO rd, void *dst, void *work);
-typedef i16 (*FFUNPACK_MEM)(void *src, void *dst, void *work);
 
-extern i16 pack_mode;                  /* DS:0x26c6 */
-extern i16 pack_strategy;                   /* DS:0x26ca */
-extern FFPACK pack_implode_routine;             /* DS:0x26cc */
-extern FFUNPACK pack_explode_routine;           /* DS:0x26d0 */
-extern FFPACK pack_pFABcomp_routine;           /* DS:0x26d4 */
-extern FFUNPACK pack_pFABexp0_routine;         /* DS:0x26d8 */
-extern FFUNPACK_TO pack_pFABexp1_routine; /* DS:0x26dc */
-extern FFUNPACK_MEM pack_pFABexp2_routine;   /* DS:0x26e0 */
-extern void *pack_write_memory_ptr;              /* DS:0xa63e */
-extern void *pack_read_memory_ptr;              /* DS:0xa648 */
 
 i16 pack_a_packet(i16 method, i16 kind)
 {

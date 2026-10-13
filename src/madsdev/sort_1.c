@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/sort_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "records.h"
+#include "sort.h"
+#include "units.h"
 /* MODULE sort_1: MAPEDIT.EXE segment 12c7 (SORT_1.C), file 0x1427e-0x14408, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *

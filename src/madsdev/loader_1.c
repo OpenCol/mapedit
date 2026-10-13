@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/loader_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "fileio.h"
+#include "mapedit.h"
+#include "records.h"
+#include "units.h"
 #include "loader.h"
 /* MODULE loader_1: MAPEDIT.EXE segment 121a (loader_1.c), file 0x137a0-0x13b82, 3 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
@@ -137,9 +141,6 @@
 
 
 
-extern MSC_FILE *env_open(char *name, char *mode);                     /* 0297:0104 */
-extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);   /* 0bca:0000 */
-extern i32 fileio_fwrite_f(void *p, i32 size, i32 n, MSC_FILE *fp);  /* 0bea:0008 */
 
 /* Defined before loader_open: emitted after its literals, as shipped (DS:0x44c2-0x44f5). */
 i32 loader_found_in_ems = 0;           /* DS:0x44c2 */

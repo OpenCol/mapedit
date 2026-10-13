@@ -1,6 +1,14 @@
 /* From mapedit-decomp src/madsdev/pal_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "loader.h"
+#include "map.h"
+#include "pal.h"
+#include "records.h"
+#include "sort.h"
+#include "units.h"
+#include "w16types.h"
 /* MODULE pal_1: MAPEDIT.EXE segment 1074 (pal_1.c), file 0x11d4e-0x12742, 13 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -65,30 +73,10 @@
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 
-typedef struct { u8 r, g, b, index, extra, flags; } PalEntry;
-typedef struct { i16 n; PalEntry e[1]; } PalList;
-typedef struct { i16 n; i16 idx[3]; } Shadow;
 typedef union { i32 l; struct { u8 b0, b1, b2, b3; } b; } ColorStatus;
 typedef void (*PalFn)(void);
 
-extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2);
-extern void pal_interface(char *pal);
-extern i16 magic_hash_color(PalEntry *e);
-extern void sort_insertion(i16 n, i16 *idx, i32 *keys);
 
-extern Shadow *master_shadow;                  /* DS:0x4404 */
-extern i16 palette_locked;                         /* DS:0x4408 */
-extern i16 palette_ever_initialized;               /* DS:0x440a */
-extern i32 pal_manager_update;                    /* DS:0x440c: far callback */
-extern i16 pal_manager_active;                     /* DS:0x4410 */
-extern i16 pal_manager_colors;                     /* DS:0x4412 */
-extern i16 palette_high_search_limit;              /* DS:0x49cc */
-extern i16 palette_low_search_limit;               /* DS:0x4a88 */
-extern i16 flag_used[32];                          /* DS:0x5294 */
-extern i16 palette_reserved_top;                   /* DS:0x52d6 */
-extern u8 master_palette[0x300];        /* DS:0x5b20 */
-extern i16 palette_reserved_bottom;                /* DS:0x5e20 */
-extern i32 color_status[256];                     /* DS:0x6572 */
 /* pal_call_manager -- 1074:000e, 30 bytes */
 void pal_call_manager(i32 fn, i16 code)
 {
@@ -202,7 +190,6 @@ void pal_compact(i16 flag, i16 n, i16 *list)
 }
 /* pal_get_hash -- 1074:0288, 38 bytes */
 /* PORT: pal_get_hash is in port/ (inline assembly) */
-i16 pal_get_hash(u8 *b, u8 *a);
 
 /* pal_shadow_sort -- 1074:02ae, 132 bytes */
 void pal_shadow_sort(Shadow *sh, PalList *list)
@@ -276,7 +263,6 @@ i16 pal_count_free(i16 *first)
     return n;
 }
 /* pal_allocate -- 1074:0416, 1516 bytes */
-extern void sort_insertion_8(i16 n, u8 *order, u8 *keys);
 typedef struct { u8 r, g, b; } Rgb;
 /* 4 pads: the limit compares load the global into ax (`mov ax,[g]; cmp ax,[lo8]`); 0..3 pads
  * compare the other way round (position mod 17). */

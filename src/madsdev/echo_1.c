@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/echo_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
 /* MODULE echo_1: MAPEDIT.EXE segment 127b (ECHO_1.C), file 0x13db0-0x13dec, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -17,6 +18,5 @@
 
 /* echo -- 127b:0000, 60 bytes */
 /* PORT: echo is in port/ (inline assembly) */
-void echo(i16 kind, char *text);
 
 

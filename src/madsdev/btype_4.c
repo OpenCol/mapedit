@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/btype_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "btype.h"
+#include "loader.h"
+#include "units.h"
 /* MODULE btype_4: MAPEDIT.EXE segment 1056 (btype_4.c), file 0x11b6e-0x11bb6, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *

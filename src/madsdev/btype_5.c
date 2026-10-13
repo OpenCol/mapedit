@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/btype_5 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "btype.h"
+#include "loader.h"
+#include "units.h"
 /* MODULE btype_5: MAPEDIT.EXE segment 0d12 (btype_5.c), file 0xe72c-0xe786, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -14,9 +17,6 @@
  */
 
 
-extern u8 _ctype[];           /* DS:0x27ec: the runtime's character classes; ctype.h indexes _ctype+1 */
-extern i16 xtoi(char *s);
-extern i16 btoi(char *s);
 /* stoi -- 0d12:000c, 90 bytes */
 i16 stoi(char *s)
 {

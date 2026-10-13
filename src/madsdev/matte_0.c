@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/matte_0 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "records.h"
+#include "screen.h"
 /* MODULE matte_0: MAPEDIT.EXE data only (matte_0.c), data at DS:0x3aec.
  *
  * No code: the seven screen ports (madsdev matte_0.c). A port is its height, its width and a

@@ -1,6 +1,20 @@
 /* From mapedit-decomp src/editor/menu (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "error.h"
+#include "font.h"
+#include "keys.h"
+#include "loader.h"
+#include "machine.h"
+#include "mapedit.h"
+#include "mem.h"
+#include "menu.h"
+#include "mouse.h"
+#include "records.h"
+#include "screen.h"
+#include "sprite.h"
+#include "units.h"
 /* MODULE menu: MAPEDIT.EXE segment 06d7 (menu.obj), file 0x8378-0x9a20, 24 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -253,28 +267,11 @@
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 
 
-typedef struct { u8 height; } DosFont;
 /* A text style: the extra spacing after each character, the plain colour, the highlighted
  * colour, the ~hotkey colour, the font. 0xc bytes. */
-typedef struct { i16 spacing; i16 color; i16 hi; i16 alt; DosFont *font; } MenuStyle;
 /* A menu item: flags (1 disabled, 2 hidden), its hotkey, its id, its text, the list links. */
-typedef struct MenuItem {
-    i16 flags; i16 hotkey; i16 id; char *text; i16 fa; i16 fc;
-    struct MenuItem *next; struct MenuItem *prev;
-} MenuItem;
 /* A submenu (a title on the bar): its x on the bar, its width, the drop-down's item height,
  * hotkey, id, flags (1 hidden), title, owner, links, items. 0x22 bytes. */
-typedef struct MenuSub {
-    i16 n_items; i16 x; i16 w; i16 drop_w; i16 hotkey; i16 id; i16 flags; char *name;
-    struct Menu *menu; struct MenuSub *next; struct MenuSub *prev;
-    MenuItem *items;
-} MenuSub;
-typedef struct Menu {
-    i16 f0; i16 n_subs; i16 bar_h; i16 title_gap; i16 item_gap; i16 gap; i16 item_pad;
-    i16 bar_col; i16 bar_col2; i16 drop_col; i16 drop_col2; i16 sel_col; i16 sel_col2;
-    i16 title_col; i16 title_col2; i16 frame_col;
-    MenuStyle bar; MenuStyle drop; MenuSub *subs; Arena arena[1];   /* PORT: the port's Arena (0x12 bytes in 1994) */
-} Menu;
 /* menu_font_height -- 06d7:0008, 22 bytes */
 i16 menu_font_height(DosFont *f)
 {
@@ -295,9 +292,6 @@ void menu_set_font(MenuStyle *st, DosFont *font, i16 spacing, i16 color, i16 hi,
     st->font = font;
 }
 /* menu_fill_rect -- 06d7:0052, 100 bytes */
-extern DosPort *menu_tile;                         /* DS:0x0632, the menu's backdrop port (defined below) */
-extern void buffer_rect_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, char color);
-extern void buffer_tile(DosPort dst, DosPort src, i16 x, i16 y, i16 w, i16 h, i16 a, i16 b);
 
 /* buffer_rect_fill, except that colour 7 restores the backdrop picture when there is one. */
 void menu_fill_rect(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 a, i16 b, i16 c,
@@ -310,7 +304,6 @@ void menu_fill_rect(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 a, i16 b, i16 
     buffer_rect_fill(x, y, w, port, h, color);
 }
 /* menu_string_width -- 06d7:00b6, 86 bytes */
-extern i16 font_string_width(i16 flags, DosFont *font, char *s);
 
 i16 menu_string_width(MenuStyle *st, char *s)
 {
@@ -324,9 +317,6 @@ i16 menu_string_width(MenuStyle *st, char *s)
     return font_string_width(st->spacing, st->font, buf);
 }
 /* menu_string_write -- 06d7:010c, 314 bytes */
-extern DosPort scr_work;                   /* DS:0x2da8 */
-extern void font_set_colors(i16 a, i16 b, i16 c, i16 d);
-extern i16 font_write(DosPort *port, i16 x, i16 y, DosFont *font, char *s, i16 flags);
 
 i16 menu_string_write(MenuStyle *st, char *s, i16 x, i16 y, i16 hilite)
 {
@@ -401,9 +391,6 @@ i16 menu_bar_font_main_color = 0;         /* DS:0x062c */
 i16 menu_bar_font_grey_color = 8;         /* DS:0x062e */
 i16 menu_bar_font_hilite_color = 0xf;     /* DS:0x0630 */
 DosPort *menu_tile = 0;                   /* DS:0x0632, the menu's backdrop port (declared above) */
-extern void * mem_get(i32 n);
-extern void heap_declare(i16 kind, void *arena, void *base, i32 size);
-extern void mem_free(void *p);
 
 Menu *menu_create(i16 size, DosFont *font)
 {
@@ -473,12 +460,12 @@ MenuSub *menu_bar_item(Menu *m, i16 id)
     return result;
 }
 /* menu_item -- 06d7:048c, 150 bytes */
-MenuItem *menu_item(Menu *m, i16 id)
+MenuEntry *menu_item(Menu *m, i16 id)
 {
     i16 found;
     MenuSub *sub;
-    MenuItem *it;
-    MenuItem *result;
+    MenuEntry *it;
+    MenuEntry *result;
 
     found = 0;
     result = 0;
@@ -516,7 +503,7 @@ void menu_bar_hide(Menu *m, i16 id, i16 on)
 /* menu_grey -- 06d7:055a, 48 bytes */
 void menu_grey(Menu *m, i16 id, i16 on)
 {
-    MenuItem *it;
+    MenuEntry *it;
 
     it = menu_item(m, id);
     if (on)
@@ -528,7 +515,7 @@ void menu_grey(Menu *m, i16 id, i16 on)
 void menu_release_all_grey(Menu *m)
 {
     MenuSub *sub;
-    MenuItem *it;
+    MenuEntry *it;
 
     for (sub = m->subs; sub != 0; sub = sub->next)
         for (it = sub->items; it != 0; it = it->next)
@@ -537,7 +524,7 @@ void menu_release_all_grey(Menu *m)
 /* menu_off -- 06d7:05ce, 48 bytes */
 void menu_off(Menu *m, i16 id, i16 on)
 {
-    MenuItem *it;
+    MenuEntry *it;
 
     it = menu_item(m, id);
     if (on)
@@ -549,14 +536,13 @@ void menu_off(Menu *m, i16 id, i16 on)
 void menu_release_all_off(Menu *m)
 {
     MenuSub *sub;
-    MenuItem *it;
+    MenuEntry *it;
 
     for (sub = m->subs; sub != 0; sub = sub->next)
         for (it = sub->items; it != 0; it = it->next)
             it->flags &= ~2;
 }
 /* menu_add_bar_item -- 06d7:0642, 412 bytes */
-extern void * heap_get(i32 n, void *arena);
 
 MenuSub *menu_add_bar_item(Menu *m, char *name, i16 id, i16 right)
 {
@@ -594,11 +580,11 @@ MenuSub *menu_add_bar_item(Menu *m, char *name, i16 id, i16 right)
     return s;
 }
 /* menu_add_item -- 06d7:07de, 358 bytes */
-MenuItem *menu_add_item(Menu *m, i16 sub_id, char *name, i16 id)
+MenuEntry *menu_add_item(Menu *m, i16 sub_id, char *name, i16 id)
 {
     i16 w;
-    MenuItem *it;
-    MenuItem *last;
+    MenuEntry *it;
+    MenuEntry *last;
     MenuSub *sub;
 
     it = 0;
@@ -607,7 +593,7 @@ MenuItem *menu_add_item(Menu *m, i16 sub_id, char *name, i16 id)
         last = 0;
         for (it = sub->items; it != 0; it = it->next)
             last = it;
-        it = heap_get((i32)sizeof(MenuItem), m->arena);   /* PORT: 0x16 bytes in 1994 */
+        it = heap_get((i32)sizeof(MenuEntry), m->arena);   /* PORT: 0x16 bytes in 1994 */
         if (last != 0)
             last->next = it;
         else
@@ -627,7 +613,6 @@ MenuItem *menu_add_item(Menu *m, i16 sub_id, char *name, i16 id)
     return it;
 }
 /* menu_draw_bar -- 06d7:0944, 296 bytes */
-extern void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 
 void menu_draw_bar(Menu *m, MenuSub *sel, i16 update)
 {
@@ -650,14 +635,13 @@ void menu_draw_bar(Menu *m, MenuSub *sel, i16 update)
         mouse_video_update(0, 0, 0, 0, 0x140, h);
 }
 /* menu_compute_size -- 06d7:0a6c, 278 bytes */
-extern void error_report(i16 code, i16 a, i16 b, i32 c, i32 d);
 
 void menu_compute_size(MenuSub *sub, i16 *px, i16 *py, i16 *pw, i16 *ph, i16 *ix, i16 *iy)
 {
     i16 n;
     i16 right;
     i16 bottom;
-    MenuItem *it;
+    MenuEntry *it;
     Menu *m;
 
     m = sub->menu;
@@ -681,10 +665,9 @@ void menu_compute_size(MenuSub *sub, i16 *px, i16 *py, i16 *pw, i16 *ph, i16 *ix
         error_report(-80, 2, 0x28, (i32)*px, (i32)*py);
 }
 /* menu_draw_menu -- 06d7:0b82, 538 bytes */
-extern void buffer_draw_box(u16 x0, i16 y0, i16 x1, DosPort port, i16 y1, char color);
 
 
-void menu_draw_menu(MenuSub *sub, MenuItem *sel)
+void menu_draw_menu(MenuSub *sub, MenuEntry *sel)
 {
     i16 x;
     i16 y;
@@ -697,7 +680,7 @@ void menu_draw_menu(MenuSub *sub, MenuItem *sel)
     i16 ty;
     i16 yy;
     Menu *m;
-    MenuItem *it;
+    MenuEntry *it;
 
     m = sub->menu;
     menu_compute_size(sub, &x, &y, &w, &h, &x1, &y1);
@@ -726,23 +709,10 @@ void menu_draw_menu(MenuSub *sub, MenuItem *sel)
     mouse_video_update(x, y, x, y, w, h);
 }
 /* menu_bar_run -- 06d7:0d9c, 1560 bytes */
-extern i16 mouse_x, mouse_y;                /* DS:0x07e8, 0x07ea */
-extern i16 mouse_start_stroke;                     /* DS:0x07ec */
-extern i16 mouse_stroke_going;                          /* DS:0x07ee */
-extern i16 mouse_stop_stroke;                     /* DS:0x07f4 */
-extern i16 mouse_any_stroke;                        /* DS:0x07f6 */
-extern void check_music(void);
-extern void mouse_begin_cycle(i16 a);
-extern i16 keys_any(void);
-extern i16 keys_get(void);
-extern void mouse_init_cycle(void);
-extern void mouse_end_cycle(i16 a, i16 hold);
 /* buffer_preserve is (port, int mode, int src, x, y, w, h): -8L below is mode -8 and src -1 in
    ax:dx. Spelled as the two ints, MSC orders an unrelated addition differently; a modern
    compiler needs the two ints (the port patches this call). */
 /* PORT: mode and src as the two ints they are (MSC passed -8L in ax:dx) */
-extern i16 buffer_preserve(DosPort *port, i16 mode, i16 src, i16 x, i16 y, i16 w, i16 h);
-extern void buffer_restore(DosPort *port, i16 handle, i16 flag, i16 x, i16 y, i16 w, i16 h);
 
 /* The drop-down's event loop: the mouse picks an item or moves to another title, the arrow
  * keys (and keypad 8/2) move the bar, left/right switch submenu, Enter takes the bar, Esc
@@ -766,7 +736,7 @@ void menu_bar_run(MenuSub *sub)
     i16 drag8;
     i16 xe9;
     i16 altnav;
-    MenuItem *sel3;
+    MenuEntry *sel3;
     i16 w;
     i16 h;
     i16 redraw7;
@@ -775,7 +745,7 @@ void menu_bar_run(MenuSub *sub)
     i16 wrappedj;
     i16 wrapped28;
     i16 alt2j;
-    MenuItem *it;
+    MenuEntry *it;
 
 
     altnav = 0;
@@ -1005,7 +975,6 @@ i16 menu_bar_mouse_parse(Menu *m, i16 mode)
     return r;
 }
 /* menu_bar_key_parse -- 06d7:1452, 148 bytes */
-extern i16 keys_fix_alt(i16 key);
 
 /* An Alt+letter opens the title with that ~hotkey; 1 if one opened. */
 i16 menu_bar_key_parse(Menu *m, i16 key)
@@ -1042,7 +1011,7 @@ i16 menu_key_parse(Menu *m, i16 key)
     i16 found;
     i16 r;
     MenuSub *s;
-    MenuItem *it;
+    MenuEntry *it;
 
     it = 0;
     s = m->subs;
@@ -1067,8 +1036,6 @@ i16 menu_key_parse(Menu *m, i16 key)
     return r;
 }
 /* menu_read_colors -- 06d7:15ac, 260 bytes */
-extern void * sprite_series_load(char *name, i16 flags);
-extern void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
 
 /* The menu colours, read from the pixels of MENUCOLR.SS. */
 void menu_read_colors(void)

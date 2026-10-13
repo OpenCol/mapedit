@@ -14,10 +14,13 @@
  * only ever looks at the clock is the same thing.
  */
 #include "msc.h"
+#include "keys.h"
+#include "machine.h"
+#include "records.h"
+#include "timer.h"
+#include "units.h"
 #include "host.h"
 
-void bios_sync(void);
-void keys_tick(void);                   /* keys.c: the INT 1Ch work */
 
 i32 timer_600_low;                      /* DS:50b6 */
 i32 timer_60_low;                       /* DS:4e72 */
@@ -25,7 +28,6 @@ i16 TIMER_SOUND_ON, TIMER_NOISE_ON;
 i16 TIMER_LOW_PRIORITY, TIMER_LOW_SEMAPHORE, TIMER_LOW_STACKING, TIMER_LOW_DEFERRED;
 void (*TIMER_LOW_ROUTINE)(void);
 
-extern i32 *timer_address;              /* timer_1.c */
 
 static u16 divisor;                     /* 0: the BIOS's 65536 */
 static int installed;

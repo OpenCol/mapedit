@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/hspot_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "hspot.h"
+#include "loader.h"
+#include "units.h"
 /* MODULE hspot_1: MAPEDIT.EXE segment 0ba3 (hspot_1.c), file 0xd030-0xd0a2, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -18,7 +22,6 @@
 
 
 
-extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2);
 i16 numspots = 0;                                /* DS:0x0716 (defined here) */
 HotSpot spot[121];                               /* DS:0x530a (BSS, 1936 bytes) */
 /* hspot_add -- 0ba3:0000, 114 bytes */

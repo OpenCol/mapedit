@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/font_3 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "loader.h"
+#include "records.h"
 /* MODULE font_3: MAPEDIT.EXE segment 0d6a (FONT_3.C), file 0xeca6-0xecc2, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -13,7 +16,6 @@
  */
 
 
-extern u8 font_colors[4];    /* DS:0x269e */
 /* font_set_colors -- 0d6a:0006, 28 bytes */
 void font_set_colors(i16 a, i16 b, i16 c, i16 d)
 {

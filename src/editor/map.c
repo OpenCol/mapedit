@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/editor/map (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "loader.h"
+#include "map.h"
+#include "mapedit.h"
+#include "units.h"
 /* MODULE map: MAPEDIT.EXE segment 02ab (map.obj), file 0x40be-0x46b6, 26 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -48,7 +53,6 @@
 #define ABS(x) ((x) > 0 ? (x) : ~(x) + 1)
 
 
-extern MapSize map_file;                  /* DS:0x4b12: the .MP header, w then h */
 /* on_map -- 02ab:000e, 50 bytes */
 i16 on_map(i16 x, i16 y)
 {
@@ -88,10 +92,6 @@ out:
 /* Fifteen unused declarations set on_screen's operand order (mod 17): the last compare is
  * `cmp ax,[map_corner_y2]`, the other three `cmp [g],ax`. Sixteen more after it keep the rest
  * of the module where fourteen had it. */
-extern i16 map_corner_x;                  /* DS:0x49f2 */
-extern i16 map_corner_x2;                 /* DS:0x6026 */
-extern i16 map_corner_y;                  /* DS:0x49f4 */
-extern i16 map_corner_y2;                 /* DS:0x603e */
 
 /* Is (x, y) inside the visible map window (map_corner_x..x2, y..y2 inclusive)? */
 i16 on_screen(i16 x, i16 y)
@@ -228,10 +228,6 @@ char owner_of(i16 x, i16 y)
     return v;
 }
 /* owner_set -- 02ab:022c, 120 bytes */
-extern i16 is_village(i16 x, i16 y);
-extern void danger(char *, i16, i16, i16);
-extern void perform_save(i16);
-extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2);
 
 /* DOS: a European owner on a village square is reported and stops the game (Windows' check
  * has an empty body). */
@@ -248,7 +244,6 @@ void owner_set(i16 x, i16 y, i16 n)
     *p = (*p & 0xf) | (n << 4);
 }
 /* land_region_at -- 02ab:02a4, 64 bytes */
-extern i16 terrain_is_ocean(i16 x, i16 y);   /* 03e4:0074 */
 
 i16 land_region_at(i16 x, i16 y)
 {
@@ -337,25 +332,8 @@ i16 is_anything(i16 x, i16 y)
     return n;
 }
 /* is_hostile -- 02ab:040a, 78 bytes */
-extern Nation europe[];                   /* DS:0x4e80 */
 
-/* The European owner of a road/plowed square that `me` is at war with (rel bit 0x40), or -1.
- * Windows is_hostile without its map_index_in_range test. */
-i16 is_hostile(i16 x, i16 y, i16 me)
-{
-    i16 rl;
-    i16 n;
-
-    rl = -1;
-    if (feature_get(x, y) & (MAP1_ROAD | MAP1_PLOWED)) {
-        n = owner_of(x, y);
-        if (n >= 0 && n < 4 && n != me && (europe[me].rel[n] & 0x40))
-            rl = n;
-    }
-    return rl;
-}
 /* resource_at -- 02ab:0458, 232 bytes */
-extern i16 terrain_at(i16 x, i16 y);   /* 03e4:003a */
 
 /* DOS: the hash is (x>>2) + (y>>2)*3 - forested + seed (Windows: *17, *19, *31). */
 i16 resource_at(i16 x, i16 y)

@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/mem_3 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
 /* MODULE mem_3: MAPEDIT.EXE segment 1357 (MEM_3.C), file 0x14b7e-0x14b96, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -14,6 +15,5 @@
  */
 /* mem_check_overflow -- 1357:000e, 24 bytes */
 /* PORT: mem_check_overflow is in port/ (inline assembly) */
-void *mem_check_overflow(void *p);
 
 

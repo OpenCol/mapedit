@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/editor/strings (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "mem.h"
+#include "records.h"
+#include "text.h"
 /* MODULE strings: MAPEDIT.EXE segment 0334 (strings.obj), file 0x494a-0x49de, 4 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -24,11 +28,6 @@
 
 
 
-extern i16 heap_create(i16 kind, Arena *a, i32 size, char *tag);
-extern i32 heap_shrink(Arena *a);
-extern char *heap_get(i32 n, Arena *a);
-extern Arena strings_heap;              /* DS:0x4a02 */
-extern i16 num_strings;                 /* DS:0x6040 */
 /* strings_init -- 0334:000a, 34 bytes */
 void strings_init(i32 size)
 {
@@ -48,7 +47,6 @@ i16 strings_store(char *s)
 }
 /* strings -- 0334:006c, 50 bytes */
 /* PORT: strings is in port/ (inline assembly) */
-char *strings(i16 n);
 
 
 /* The module's uninitialised data (communals, BSS). */

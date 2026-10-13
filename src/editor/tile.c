@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/editor/tile (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "map.h"
+#include "mem.h"
+#include "records.h"
+#include "units.h"
 /* MODULE tile: MAPEDIT.EXE segment 030b (tile.obj), file 0x46b6-0x494a, 6 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -28,8 +33,6 @@
 
 
 
-extern char *mem_get(i32 size);
-extern char *buffer_pointer(DosPort *port, i16 x, i16 y);
 /* tile_allocate -- 030b:0006, 24 bytes */
 char *tile_allocate(i16 n)
 {
@@ -49,18 +52,14 @@ i16 tile_id(i16 t)
 }
 /* tile_draw -- 030b:0048, 100 bytes */
 /* PORT: tile_draw is in port/ (inline assembly) */
-void tile_draw(char *tiles, i16 t, DosPort *port, i16 x, i16 y);
 
 /* tile_draw_mask -- 030b:00ac, 114 bytes */
 /* PORT: tile_draw_mask is in port/ (inline assembly) */
-void tile_draw_mask(char *tiles, i16 t, DosPort *port, i16 x, i16 y);
 
 /* tile_draw_scale -- 030b:011e, 182 bytes */
 /* PORT: tile_draw_scale is in port/ (inline assembly) */
-void tile_draw_scale(char *tiles, i16 t, DosPort *port, i16 x, i16 y, i16 shift);
 
 /* tile_draw_scale_mask -- 030b:01d4, 198 bytes */
 /* PORT: tile_draw_scale_mask is in port/ (inline assembly) */
-void tile_draw_scale_mask(char *tiles, i16 t, DosPort *port, i16 x, i16 y, i16 shift);
 
 

@@ -8,13 +8,13 @@
  * measurement would on anything later than a 386: every colour in one retrace.
  */
 #include "msc.h"
+#include "mcga.h"
+#include "records.h"
+#include "timer.h"
+#include "units.h"
 #include "host.h"
 
-void timer_sync(void);
 
-extern i16 mcga_retrace_max_bytes, mcga_retrace_max_colors, mcga_retrace_computed;
-extern i16 mcga_palette_update, mcga_palette_fast;
-extern i16 MCGA_SHAKES;
 
 /* mcga_retrace -- 1061:000a: wait for the next vertical retrace to begin */
 void mcga_retrace(void)

@@ -1,6 +1,13 @@
 /* From mapedit-decomp src/editor/map_a (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "buffer.h"
+#include "loader.h"
+#include "map.h"
+#include "mapedit.h"
+#include "screen.h"
+#include "sprite.h"
+#include "units.h"
 /* MODULE map_a: MAPEDIT.EXE segment 0a47 (map_a.obj), file 0xba76-0xcb64, 19 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -107,28 +114,6 @@
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 
 
-extern i16 map_scale;                         /* DS:0x04d0, the zoom level */
-extern i16 map_view_size_x;                   /* DS:0x52d4 */
-extern i16 map_view_size_y;                   /* DS:0x52d8 */
-extern i16 map_colony_mode;                   /* DS:0x04d6 */
-extern i16 map_tile_size_x;                   /* DS:0x4e8a */
-extern i16 map_tile_size_y;                   /* DS:0x4e8c */
-extern i16 map_corner_x;                      /* DS:0x49f2 */
-extern i16 map_corner_y;                      /* DS:0x49f4 */
-extern i16 map_corner_x2;                     /* DS:0x6026 */
-extern i16 map_corner_y2;                     /* DS:0x603e */
-extern i16 map_center_x;                      /* DS:0x04c8 */
-extern i16 map_center_y;                      /* DS:0x04ca */
-extern MapSize map_file;                      /* DS:0x4b12, the .MP header {w, h, ..} */
-extern i16 map_tile_inset_x;                  /* DS:0x5ad8 */
-extern i16 map_tile_inset_y;                  /* DS:0x5af4 */
-extern i16 map_area_size_x;                   /* DS:0x4e70, the generated-map window */
-extern i16 map_area_size_y;                   /* DS:0x4e76 */
-extern i16 map_area_base_x;                   /* DS:0x5af6 */
-extern i16 map_area_base_y;                   /* DS:0x5af8 */
-extern i16 map_high_memory_mode;              /* DS:0x04a6 */
-extern i16 map_sprite_scale;                  /* DS:0x04d2, 100 >> zoom */
-extern i16 map_scroll_speed;                  /* DS:0x04d4 */
 /* compute_view_parameters -- 0a47:0006, 424 bytes */
 void compute_view_parameters(void)
 {
@@ -181,17 +166,7 @@ void compute_view_parameters(void)
     map_corner_y2 = map_view_size_y + map_corner_y - 1;
 }
 /* coast_scan -- 0a47:01ae, 262 bytes */
-extern u8 *scan_feature;       /* DS:0x4a7e, plane 1 (features) at the square */
-extern u8 *scan_map;           /* DS:0x5afa, plane 0 (terrain) */
-extern u8 *scan_site;          /* DS:0x52da, plane 3 (who has seen it) */
-extern u8 scan_index;              /* DS:0x6974 */
-extern u8 scan_flags;              /* DS:0x5ad3 */
 static u8 nb_flags[4];      /* DS:0x499a: the module's BSS, first after the initialised data (where the linker's _edata label falls); no public */
-extern u8 gen_base_tile;           /* DS:0x4e84 */
-extern u8 gen_map_tile;            /* DS:0x5acc */
-extern i8 move_x[];                  /* DS:0x06c0, 8 (compass.obj) */
-extern i8 move_y[];                  /* DS:0x06ca, 8 */
-extern u8 terrain_fix_2(i16 terrain);
 
 /* Counts the land squares among the 8 around a water square; the bits go to scan_flags and
  * the corner table, the last orthogonal land terrain to gen_base_tile. */
@@ -237,8 +212,6 @@ i16 coast_scan(void)
     return scan_index;
 }
 /* range_count -- 0a47:02b4, 28 bytes */
-extern u8 scan_greater;            /* DS:0x49c4 */
-extern u8 scan_less;               /* DS:0x526e */
 
 void range_count(i16 off, i16 n)
 {
@@ -377,15 +350,8 @@ out:
     return res;
 }
 /* draw_map_icon -- 0a47:0552, 96 bytes */
-extern void *tiles;                       /* DS:0x04c0, the icon sheet */
-extern void *terrain_1;                   /* DS:0x04b8, the tile sheet */
-extern DosPort scr_orig;                      /* DS:0x3afc, the backdrop port */
 static u8 g_icon_dx = 0;           /* DS:0x0714 (defined here: the module has no literals; module statics, no public) */
 static u8 g_icon_dy = 0;           /* DS:0x0715 */
-extern i16 gen_tile_x;                        /* DS:0x4b0e */
-extern i16 gen_tile_y;                        /* DS:0x4b16 */
-extern void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
-extern void sprite_draw_scaled(i16 icon, void *sheet, DosPort *port, i16 x, i16 y, i16 scale);
 
 void draw_map_icon(i16 icon)
 {
@@ -398,8 +364,6 @@ void draw_map_icon(i16 icon)
         sprite_draw_scaled(icon, s, &scr_orig, gen_tile_x, gen_tile_y, map_sprite_scale);
 }
 /* draw_map_tile -- 0a47:05b2, 100 bytes */
-extern void tile_draw(void *tiles, i16 tile, DosPort *port, i16 x, i16 y);
-extern void tile_draw_scale(void *tiles, i16 tile, DosPort *port, i16 x, i16 y, i16 zoom);
 
 void draw_map_tile(i16 tile)
 {
@@ -412,8 +376,6 @@ void draw_map_tile(i16 tile)
         tile_draw_scale(s, tile, &scr_orig, gen_tile_x, gen_tile_y, map_scale);
 }
 /* draw_map_icon2 -- 0a47:0616, 96 bytes */
-extern void sprite_draw_black(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
-extern void sprite_draw_scaled_black(i16 icon, void *sheet, DosPort *port, i16 x, i16 y, i16 scale);
 
 void draw_map_icon2(i16 icon)
 {
@@ -426,8 +388,6 @@ void draw_map_icon2(i16 icon)
         sprite_draw_scaled_black(icon, s, &scr_orig, gen_tile_x, gen_tile_y, map_sprite_scale);
 }
 /* draw_map_tile2 -- 0a47:0676, 100 bytes */
-extern void tile_draw_mask(void *tiles, i16 tile, DosPort *port, i16 x, i16 y);
-extern void tile_draw_scale_mask(void *tiles, i16 tile, DosPort *port, i16 x, i16 y, i16 zoom);
 
 void draw_map_tile2(i16 tile)
 {
@@ -441,16 +401,6 @@ void draw_map_tile2(i16 tile)
 }
 /* draw_seams -- 0a47:06da, 600 bytes */
 #define abs(x) ((x) > 0 ? (x) : ~(x) + 1)
-extern i16 gen_variation;                     /* DS:0x4e90 */
-extern i16 scan_x;                            /* DS:0x5f16 */
-extern i16 scan_y;                            /* DS:0x634c */
-extern i8 card_x[];                  /* DS:0x06b4, 4 (compass.obj) */
-extern i8 card_y[];                  /* DS:0x06ba, 4 */
-extern u8 map_player_mask;         /* DS:0x5aaa */
-extern u8 gen_site_tile;           /* DS:0x6988 */
-extern i16 on_map(i16 x, i16 y);
-extern i16 on_colony_map(i16 dx, i16 dy, i16 mode);
-extern i16 map_get(i16 x, i16 y);
 
 /* The seams between this square and its four orthogonal neighbours. */
 void draw_seams(i16 hidden_only, i16 no_scan, i16 always)
@@ -528,10 +478,6 @@ void draw_seams(i16 hidden_only, i16 no_scan, i16 always)
     gen_variation = save;
 }
 /* draw_square -- 0a47:0932, 1076 bytes */
-extern u8 gen_feature_tile;        /* DS:0x4c6a */
-extern i16 map_view_base_terrain;             /* DS:0x04da */
-extern i16 resource_at(i16 x, i16 y);
-extern i16 lost_city_at(i16 x, i16 y);
 
 void draw_square(i16 hidden)
 {
@@ -669,12 +615,6 @@ void draw_square(i16 hidden)
     }
 }
 /* generate_terrain_map_region -- 0a47:0d66, 700 bytes */
-extern u8 *map;                /* DS:0x04a8 */
-extern u8 *feature;            /* DS:0x04ac */
-extern u8 *site;               /* DS:0x04b4 */
-extern u8 *map_loc(i16 x, i16 y);
-extern u8 *feature_loc(i16 x, i16 y);
-extern u8 *site_loc(i16 x, i16 y);
 
 void generate_terrain_map_region(i16 x, i16 y, i16 w, i16 h, i16 nation)
 {
@@ -774,9 +714,6 @@ out:
     ;
 }
 /* generate_terrain_map -- 0a47:1022, 134 bytes */
-extern DosPort *main_tile;                    /* DS:0x0090 */
-extern void buffer_tile(DosPort dst, DosPort src, i16 dx, i16 dy, i16 w, i16 h, i16 sx, i16 sy);
-extern void buffer_fill(char c, DosPort port);
 
 /* Windows GenerateTerrainMap. */
 void generate_terrain_map(i16 nation)
@@ -798,7 +735,6 @@ void generate_colony_map(i16 nation, i16 mode)
     map_colony_mode = 0;
 }
 /* map_init -- 0a47:10b8, 60 bytes */
-extern void owner_set(i16 x, i16 y, i16 owner);
 
 void map_init(void)
 {

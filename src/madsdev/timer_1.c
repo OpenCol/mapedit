@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/madsdev/timer_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "machine.h"
+#include "records.h"
+#include "sound.h"
+#include "timer.h"
 /* MODULE timer_1: MAPEDIT.EXE segment 0d18 (TIMER_1.C), file 0xe786-0xe7c8, 5 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -24,14 +29,7 @@
 
 
 i32 *timer_address = (i32 *)(msc_bda + 0x006c);   /* DS:0x267a: the BIOS tick count until the timer is installed */
-extern i32 timer_600_low;                /* DS:0x8338 */
-extern i32 timer_60_low;                /* DS:0x92e8 */
-extern void timer_install(void);
-extern void sound_manager(void);
-extern void sound_driver_null(void);
-extern void timer_remove(void);
 /* PORT: the counters move when read: the port has no clock interrupt (port/lib/timer.c) */
-extern void timer_sync(void);
 /* timer_read -- 0d18:0006, 12 bytes */
 i32 timer_read(void)
 {

@@ -1,6 +1,15 @@
 /* From mapedit-decomp src/editor/write (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "loader.h"
+#include "map.h"
+#include "mapedit.h"
+#include "records.h"
+#include "screen.h"
+#include "text.h"
+#include "units.h"
+#include "w16types.h"
 /* MODULE write: MAPEDIT.EXE segment 08ad (write.obj), file 0xa0d0-0xa594, 30 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -88,19 +97,6 @@
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 
 
-extern char *strings(i16 word);                    /* 0000:0062 */
-extern i16 font_string_width(i16 z, void *font, char *s);
-extern void *menu_font;                               /* DS:0x0080 */
-extern void *font_inter;                           /* DS:0x3a96 */
-extern void font_set_colors(i16 a, i16 b, i16 c, i16 d);
-extern i16 font_write(DosPort *port, i16 x, i16 y, void *font, char *s, i16 flags);
-extern DosPort scr_work;                          /* DS:0x3af4 */
-extern u8 basic_color;                            /* DS:0x0092: the text colour */
-extern u8 enhance_color;                            /* DS:0x0095: the big text's shadow */
-typedef struct { i16 word; char rest[14]; } TerrainName;
-extern TerrainName terrain[];                  /* DS:0x4ee6 */
-extern i16 region_size[16];                            /* DS:0x5270 (map.obj); DS:0x528a is region_size[13], the word for t < 0 */
-extern i16 terrain_names[];                            /* DS:0x4b5a: five words, mapedit.obj */
 /* space_string -- 08ad:0000, 16 bytes */
 void space_string(char *buf)
 {
@@ -296,7 +292,7 @@ void write_big_centered(char *s, i16 x, i16 w, i16 y, i16 color, i16 shadow)
 void say_terrain(char *buf, i16 t)
 {
     if (t >= 0)
-        say_string(buf, terrain[t].word);
+        say_string(buf, terrain[t].name);
     else
         say_string(buf, region_size[13]);
     if (t >= 8 && t < 0x18) {

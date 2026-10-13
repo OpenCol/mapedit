@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/madsdev/pal_8 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "fileio.h"
+#include "loader.h"
+#include "mapedit.h"
+#include "pal.h"
+#include "units.h"
 /* MODULE pal_8: MAPEDIT.EXE segment 0ec0 (pal_8.c), file 0x1020a-0x10258, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -15,8 +20,6 @@
 
 
 
-extern MSC_FILE *env_open(char *name, char *mode);
-extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);
 /* pal_load_2 -- 0ec0:000a, 78 bytes */
 i16 pal_load_2(char *name, char *pal)
 {
