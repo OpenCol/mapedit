@@ -7,8 +7,8 @@
  *
  * fn xms_umb_get_avail 0x13dec
  *
- * No VICEROY twin: reconstructed from the shipped bytes (VICEROY kept the same bytes as
- * matched-dos/asm/asm1100_xms.asm).
+ * No VICEROY twin: reconstructed from the shipped bytes (VICEROY.EXE has the same bytes in
+ * its hand-written assembly, frame 1100).
  *
  * THE LARGEST FREE UPPER MEMORY BLOCK (madsdev.lib). xms_umb_get_avail() asks the XMS
  * driver for an impossible UMB (function 10h, DX = 0FFFFh paragraphs); the driver refuses

@@ -110,6 +110,8 @@ extern u8 _ctype[257];
 
 /* ---- the run-time library the source calls, MSC 6's signatures in the port's types ---- */
 char *msc_strcat(char *d, const char *s);
+char *msc_strncat(char *d, const char *s, u16 n);
+i16   msc__fmemcmp(const void *a, const void *b, u16 n);
 char *msc_strcpy(char *d, const char *s);
 char *msc_strncpy(char *d, const char *s, u16 n);
 u16   msc_strlen(const char *s);

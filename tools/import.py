@@ -25,6 +25,7 @@ left alone):
   segment, link/symbols.tsv) is renamed msc_<name>, and FILE is MSC_FILE, so the
   source's own declarations never meet the modern C library's; port/ implements them with
   MSC 6's semantics. #include <x.h> becomes "msc.h".
+- MSC's based storage (_based(...)) goes, and _segment is u16.
 - MSC's code-generation pragmas (#pragma optimize) become comments; each module packs its
   structures on 2 bytes, MSC 6's default.
 - main is editor_main; the port's main calls it.
@@ -183,7 +184,14 @@ def drop_own_decls(text):
 BDA = re.compile(r'\(\s*([A-Za-z_][\w \t]*\*)\s*\)\s*0x0040([0-9a-fA-F]{4})L')
 
 
+# MSC's based storage: _based(_segname("X")) puts a variable in a segment of its own, which a
+# flat address space does not have
+BASED = re.compile(r'\b_based\s*\((?:[^()]|\([^()]*\))*\)\s*')
+
+
 def bios_area(text):
+    text = BASED.sub('', text)
+    text = re.sub(r'\b_segment\b', 'u16', text)
     return BDA.sub(lambda m: '(%s)(msc_bda + 0x%s)' % (m.group(1).strip(), m.group(2).lower()), text)
 
 
@@ -212,6 +220,11 @@ def convert(text, runtime):
                 tok = '#include "msc.h"'
             elif re.match(r'\s*#\s*pragma\s+(optimize|check_stack|intrinsic|function|loop_opt)\b', tok):
                 tok = '// MSC: %s' % tok.strip()         # MSC 6 code generation, no meaning here
+            else:
+                # a macro's body is code too: convert it (after the macro's name and parameters)
+                m = re.match(r'(\s*#\s*define\s+\w+(?:\([^)]*\))?)(.*)$', tok, re.S)
+                if m:
+                    tok = m.group(1) + convert(m.group(2), runtime)
             out.append(tok)
             i += 1
             continue

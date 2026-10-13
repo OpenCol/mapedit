@@ -15,31 +15,17 @@
  * are the CodeView ones (mouse_x at DS:0x0724 ...); the VICEROY draft's g_mouse_* names and
  * DS:0x07e4 addresses below were the VICEROY layout and are replaced.
  *
- * MOUSE STATE (root code, frame 0acb). The driver read is mouse_read (0a58:038b: buttons, &x, &y).
+ * MOUSE STATE (madsdev mouse_2.c; "elg"). The driver is mouse_1.ASM (mouse_get_status,
+ * mouse_check_double, mouse_double_freedom).
  *   - mouse_in_box(x0, y0, x1, y1) (_fastcall) tests the mouse against a box.
- *   - input_reset forgets the previous position and re-reads the buttons. It stamps the tick.
- *   - sync_frame(a, hold) (_fastcall) waits for the next tick when `hold`.
- *
- *  Three things got it there, in this order:
- *   - the button word is NOT a named local in the shipped source. Dropping `int b` and
- *     reading g_mouse_buttons at each of its six uses gives the size-0 bp frame the shipped
- *     code has (`push bp; mov bp,sp`, `mov sp,bp` after the driver read, `leave`) instead of
- *     our `push si` / `add sp,4` / `pop si`. A CSE needs no
- *     callee-saved register, so the frame comes back. That took 45 bytes to 17.
- *   - the in-bar test reads the clicked flag as `(&g_mouse_clicked)[0]`: as a plain scalar
- *     MSC reuses the value it just stored.
- *   - the last 17 bytes were one register -- the CSE of g_mouse_buttons sat in dx where
- *     shipped has it in bx (hence `mov al,bl`) -- and a VOLATILE STORE is what moves it:
- *     `(*(volatile int *)&g_mouse_pressed) = pressed;`. The store MSC may not drop or fold
- *     changes what it has to keep live across it, and the CSE lands in bx.
- *     Nothing else had moved it: pads 0..16, spare locals before or after `pressed`,
- *     `register int pressed`, four spellings of the pressed expression, a volatile READ of
- *     the global, pragmas e/l/g/a/c off in any combination, declaration order, cdecl/pascal,
- *     and extra stack parameters (they bring retf N, still no frame).
- *   - input_reset's first statement had to become `g_mouse_prev_y = g_mouse_prev_x = -1;`.
- *     In a chained assignment MSC stores the RIGHTMOST target first, so the old
- *     `prev_x = prev_y = -1` put prev_y at 0x7f8. The other two chains in the same function were already the right way round
- *     (`g_dragging = g_mouse_buttons = ...` stores 0x7e6 then 0x7ee, as shipped does).
+ *   - mouse_init_cycle forgets the old position, takes the current button state as the
+ *     stroke in progress and clears the latch.
+ *   - mouse_begin_cycle(check) (_fastcall) reads the mouse and derives: mouse_stop_stroke
+ *     (a release after a latched press), mouse_start_stroke (a new press, mouse_button then
+ *     telling the right button from the left), mouse_changed (moved or any stroke edge) and
+ *     mouse_any_stroke. It stamps mouse_clock.
+ *   - mouse_end_cycle(release, wait) (_fastcall) releases the double-click guard and waits
+ *     for the next timer tick when `wait`.
  */
 
 // MSC: #pragma optimize("elg", on)
@@ -80,7 +66,6 @@ void mouse_init_cycle(void)
 /* mouse_begin_cycle -- 0c21:0042, 206 bytes */
 void mouse_begin_cycle(i16 check)
 {
-    i16 b;
     i16 start;
 
     if (check)
@@ -89,17 +74,16 @@ void mouse_begin_cycle(i16 check)
     mouse_old_y = mouse_y;
     mouse_status = mouse_get_status(&mouse_x, &mouse_y);
     mouse_clock = timer_read();
-    b = mouse_status;
-    if (mouse_latched != 0 && b == 0)
-        mouse_stop_stroke = 1;
+    if (mouse_latched != 0 && mouse_status == 0)
+        *(volatile i16 *)&mouse_stop_stroke = 1;
     else
-        mouse_stop_stroke = 0;
-    if (b != 0 && mouse_stroke_going == 0)
+        *(volatile i16 *)&mouse_stop_stroke = 0;
+    if (mouse_status != 0 && mouse_stroke_going == 0)
         start = 1;
     else
         start = 0;
-    mouse_stroke_going = b;
-    if (b == 0)
+    mouse_stroke_going = mouse_status;
+    if (mouse_status == 0)
         mouse_latched = 0;
     if (mouse_old_x == mouse_x && mouse_old_y == mouse_y && start == 0 && mouse_stop_stroke == 0)
         mouse_changed = 0;
@@ -108,9 +92,9 @@ void mouse_begin_cycle(i16 check)
     mouse_start_stroke = start;
     if (start) {
         mouse_latched = -1;
-        mouse_button = (b & 1) == 0;
+        mouse_button = (mouse_status & 1) == 0;
     }
-    if (b == 0 && mouse_stop_stroke == 0)
+    if (mouse_status == 0 && mouse_stop_stroke == 0)
         mouse_any_stroke = 0;
     else
         mouse_any_stroke = 1;

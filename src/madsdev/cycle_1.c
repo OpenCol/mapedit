@@ -1,0 +1,81 @@
+/* Imported from mapedit-decomp src/madsdev/cycle_1 by tools/import.py. Do not edit; mark a
+ * deliberate change with PORT: (docs/plan.md). */
+#include "msc.h"
+#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+/* MODULE cycle_1: MAPEDIT.EXE segment 0f1a (cycle_1.c), file 0x107aa-0x1096a, 2 functions in source order.
+ * cl /c /AM /G2 /Gs /Ot /Ow
+ *
+ * fn cycle_init   0x107aa
+ * fn cycle_colors 0x10846
+ *
+ * Near twin: `root_0a0a` cycle_start / cycle_tick (VICEROY's copy keeps the
+ * palette far and reads the ranges from a loaded file; here the ranges are copied in and
+ * the cycling palette is a copy of master_palette).
+ *
+ * PALETTE COLOUR CYCLING (madsdev cycle_1.c). cycle_list holds up to eight ranges
+ * {count, pos, start, speed}.
+ *   - cycle_init(ranges, on) copies the 34-byte range list and the 768-byte master palette
+ *     in, stamps every range with the current tick, totals the cycled colours
+ *     (total_cycle_colors), sets cycling_threshold (3, or 0 for 16 colours or fewer) and
+ *     turns cycling on or off.
+ *   - cycle_colors, called per tick, rotates each due range of the cycling palette one
+ *     entry (inline assembly, through a 3-byte temp) and uploads the cycled part with
+ *     mcga_setpal_range once cycling_delay reaches the threshold.
+ */
+extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
+extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
+
+typedef struct { u8 count, pos, start, speed; } CycleRange;
+typedef struct { i16 n; CycleRange r[8]; } ColorCycle;
+
+extern i32 timer_read(void);
+extern ColorCycle cycle_list;            /* DS:0x5afe */
+extern i32 cycle_timing[8];             /* DS:0x52e8 */
+extern i16 total_cycle_colors;           /* DS:0x4e9a */
+extern i16 cycling_threshold;            /* DS:0x4b10 */
+extern i16 cycling_active;               /* DS:0x3c64 */
+extern u8 master_palette[0x300];   /* DS:0x5b20 */
+extern u8 cycling_palette[0x300];  /* DS:0x6048 */
+/* cycle_init -- 0f1a:000a, 156 bytes */
+void cycle_init(ColorCycle *ranges, i16 on)
+{
+    i32 now;
+    i16 i;
+
+    now = timer_read();
+    for (i = 0; i < 8; i++)
+        cycle_timing[i] = now;
+    msc__fmemcpy(&cycle_list, ranges, 0x22);
+    msc__fmemcpy(cycling_palette, master_palette, 0x300);
+    total_cycle_colors = 0;
+    for (i = 0; i < cycle_list.n; i++) {
+        total_cycle_colors += cycle_list.r[i].count;
+        cycle_list.r[i].pos = 0;
+    }
+    cycling_threshold = 3;
+    if (total_cycle_colors <= 16)
+        cycling_threshold = 0;
+    cycling_active = on;
+}
+/* cycle_colors -- 0f1a:00a6, 292 bytes */
+extern i16 cycling_delay;                /* DS:0x3c66 */
+extern i16 mcga_palette_update;          /* DS:0x3ab6 */
+extern u8 cycle_rgb[3];       /* DS:0x49a6: module static (no public) */
+extern void mcga_setpal_range(i16 first, i16 count, char *pal);
+
+extern i16 pad_cycle_xa0;
+extern i16 pad_cycle_xa1;
+extern i16 pad_cycle_xa2;
+extern i16 pad_cycle_xa3;
+extern i16 pad_cycle_xa4;
+extern i16 pad_cycle_xa5;
+extern i16 pad_cycle_xa6;
+extern i16 pad_cycle_xa7;
+extern i16 pad_cycle_xa8;
+extern i16 pad_cycle_xa9;
+extern i16 pad_cycle_xa10;
+extern i16 pad_cycle_xa11;
+/* PORT: cycle_colors is in port/ (inline assembly) */
+void cycle_colors(void);
+
+

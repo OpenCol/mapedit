@@ -400,17 +400,17 @@ Menu *menu_create(i16 size, DosFont *font)
     Menu *dp;
 
     result = 0;
-    m = mem_get((i32)(size + 0x4e));
+    m = mem_get((i32)(size + sizeof(Menu)));   /* PORT: 0x4e bytes in 1994 */
     if (m != 0) {
         dp = m;
-        heap_declare(0x28, m->arena, (char *)m + 0x4e, (i32)size);
+        heap_declare(0x28, m->arena, (char *)m + sizeof(Menu), (i32)size);   /* PORT */
         m->subs = 0;
         m->n_subs = 0;
         m->title_gap = 0xc;
         m->item_gap = 3;
         m->item_pad = 4;
         m->gap = m->bar_h = 1;
-        if (((char *)m + 0x4e) != ((char *)m + 0x4e)) result = 0;
+        if (((char *)m + sizeof(Menu)) != ((char *)m + sizeof(Menu))) result = 0;   /* PORT */
         if ((u16)size < 0) m = 0;
         if ((u16)size < 0) dp->f0 = 0;
         dp->bar_col = menu_bar_background_color_0;
@@ -567,7 +567,7 @@ MenuSub *menu_add_bar_item(Menu *m, char *name, i16 id, i16 right)
         last = s;
     }
     x += m->title_gap;
-    s = heap_get(0x22L, m->arena);
+    s = heap_get((i32)sizeof(MenuSub), m->arena);   /* PORT: 0x22 bytes in 1994 */
     if (last != 0)
         last->next = s;
     else
@@ -603,7 +603,7 @@ MenuItem *menu_add_item(Menu *m, i16 sub_id, char *name, i16 id)
         last = 0;
         for (it = sub->items; it != 0; it = it->next)
             last = it;
-        it = heap_get(0x16L, m->arena);
+        it = heap_get((i32)sizeof(MenuItem), m->arena);   /* PORT: 0x16 bytes in 1994 */
         if (last != 0)
             last->next = it;
         else

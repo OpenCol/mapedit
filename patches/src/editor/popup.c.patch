@@ -1,0 +1,85 @@
+--- src/editor/popup.c
++++ src/editor/popup.c
+@@ -317,11 +317,11 @@
+     if (p->dude_name == 0)
+         return;
+     king = popup_indian > 7 ? 1 : 0;
+-    p->dude = heap_get(20L, p->arena);
++    p->dude = heap_get((i32)sizeof(DosSprite), p->arena);   /* PORT: 20 bytes in 1994 */
+     dd = p->dude;
+     dd->next = 0;
+     if (king) {
+-        second = heap_get(20L, p->arena);
++        second = heap_get((i32)sizeof(DosSprite), p->arena);   /* PORT: 20 bytes in 1994 */
+         dd->next = second;
+     }
+     msc__fstrcpy(fname, p->dude_name);
+@@ -527,7 +527,7 @@
+ DosPopup *popup_create(i16 size, DosFont *font)
+ {
+     DosPopup *result;
+-    i32 m;
++    char *m;   /* PORT: the block, not a long (a pointer is not 32 bits) */
+     DosPopup *dp;
+     void *a;
+     void *e;
+@@ -535,12 +535,12 @@
+     result = 0;
+     king_active = 0;
+     sprite_tight = 0;
+-    m = (i32)mem_get((u16)(size + 0x96));
++    m = (char *)mem_get((i32)((u16)size + sizeof(DosPopup)));   /* PORT: 0x96 bytes in 1994 */
+     if (m == 0)
+         goto skip;
+     {
+         dp = (DosPopup *)m;
+-        e = (char *)m + 0x96;
++        e = m + sizeof(DosPopup);   /* PORT */
+         a = dp->arena;
+         heap_declare(0x29, a, e, (i32)size);
+         dp->sel_item = 0;
+@@ -709,7 +709,7 @@
+         prev = item;
+         item = item->next;
+     }
+-    item = heap_get(0x18L, p->arena);
++    item = heap_get((i32)sizeof(DosItem), p->arena);   /* PORT: 0x18 bytes in 1994 */
+     if (prev != 0) {
+         prev->next = item;
+         item->prev = prev;
+@@ -771,7 +771,7 @@
+         prev = item;
+         item = item->next;
+     }
+-    item = heap_get(10L, p->arena);
++    item = heap_get((i32)sizeof(DosLine), p->arena);   /* PORT: 10 bytes in 1994 */
+     if (prev != 0)
+         prev->next = item;
+     else
+@@ -804,7 +804,7 @@
+         prev = ed;
+         ed = ed->next;
+     }
+-    ed = heap_get(0x14L, p->arena);
++    ed = heap_get((i32)sizeof(DosEdit), p->arena);   /* PORT: 0x14 bytes in 1994 */
+     if (prev != 0)
+         prev->next = ed;
+     else
+@@ -858,7 +858,7 @@
+         last = spr;
+         spr = spr->next;
+     }
+-    spr = heap_get(0x14L, p->arena);
++    spr = heap_get((i32)sizeof(DosSprite), p->arena);   /* PORT: 0x14 bytes in 1994 */
+     if (last != 0) {
+         last->next = spr;
+         spr->x = last->x2;
+@@ -897,7 +897,7 @@
+ /* popup_add_cursor -- 033d:1138, 66 bytes */
+ DosAttach *popup_add_cursor(DosPopup *p, void *a, i16 b)
+ {
+-    p->attach = heap_get(0x14L, p->arena);
++    p->attach = heap_get((i32)sizeof(DosAttach) > 0x14 ? (i32)sizeof(DosAttach) : 0x14L, p->arena);   /* PORT: 0x14 bytes in 1994 */
+     p->attach->a = a;
+     p->attach->b = b;
+     return p->attach;

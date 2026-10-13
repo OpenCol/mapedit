@@ -24,6 +24,7 @@ madsdev/mem_2	mem_adjust	inline assembly
 madsdev/mem_4	mem_conv_largest	inline assembly
 madsdev/mem_4	mem_conv_get_avail	inline assembly
 madsdev/font_2	font_write	inline assembly
+madsdev/font_4	font_string_width	inline assembly
 madsdev/mcga_7	mcga_setpal	inline assembly
 madsdev/mcga_c	mcga_time_palette_swap	inline assembly
 madsdev/mcga_c	mcga_compute_retrace_parameters	inline assembly
@@ -32,6 +33,7 @@ madsdev/sprite_2	sprite_draw_scaled	inline assembly
 madsdev/sprite_l	sprite_draw_black	inline assembly
 madsdev/sprite_m	sprite_draw_scaled_black	inline assembly
 madsdev/error_1	error_shutdown_report	inline assembly
+madsdev/cycle_1	cycle_colors	inline assembly
 madsdev/xms_1	xms_detect	inline assembly
 madsdev/heap_1	heap_shrink	inline assembly
 madsdev/mem_1	mem_normalize	inline assembly
@@ -40,6 +42,7 @@ madsdev/mcga_8	mcga_getpal	inline assembly
 madsdev/mcga_b	mcga_retrace	inline assembly
 madsdev/mcga_b	mcga_setpal_range	inline assembly
 madsdev/sprite_h	sprite_color_translate	inline assembly
+madsdev/pal_1	pal_get_hash	inline assembly
 madsdev/ems_1	ems_detect	inline assembly
 madsdev/ems_1	ems_shutdown	inline assembly
 madsdev/ems_1	ems_map_page	inline assembly

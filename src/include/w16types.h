@@ -46,6 +46,6 @@ typedef struct {
  * the byte at +1 (`TEST BYTE [..7785],20h`), which is what the shipped code does at the
  * high-flag tests. A mask of the whole word (`game_flags & 0x2000`) compiles to a word test
  * instead, and WINDOWS.H's HIBYTE is a shift, a third shape. */
-#define HI_BYTE(w)  (((unsigned char far *)&(w))[1])
+#define HI_BYTE(w)  (((u8 *)&(w))[1])
 
 #endif

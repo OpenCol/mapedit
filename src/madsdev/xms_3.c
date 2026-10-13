@@ -8,8 +8,8 @@
  * fn xms_umb_get  0x13e18
  * fn xms_umb_free 0x13e5a
  *
- * No VICEROY twin: reconstructed from the shipped bytes (VICEROY kept the same bytes as
- * matched-dos/asm/asm1103_xmsmove.asm and asm1107_xmsfree.asm).
+ * No VICEROY twin: reconstructed from the shipped bytes (VICEROY.EXE has the same bytes in
+ * its hand-written assembly, frames 1103 and 1107).
  *
  * UPPER MEMORY BLOCKS (madsdev.lib). The module keeps the segments of the UMBs it handed
  * out in xms_umb_list, xms_umb_mark of them (at most 16).

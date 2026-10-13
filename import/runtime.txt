@@ -2,6 +2,7 @@ _dos_findfirst
 _dos_findnext
 _dos_read
 _dos_write
+_fmemcmp
 _fmemcpy
 _fmemmove
 _fmemset
@@ -38,6 +39,7 @@ strcmp
 strcpy
 strlen
 strlwr
+strncat
 strncmp
 strncpy
 strnicmp

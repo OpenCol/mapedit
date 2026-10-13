@@ -601,6 +601,8 @@ u16 msc__dos_findnext(struct find_t *f)
 /* ---- strings ------------------------------------------------------------------------------ */
 
 char *msc_strcat(char *d, const char *s) { return strcat(d, s); }
+char *msc_strncat(char *d, const char *s, u16 n) { return strncat(d, s, n); }
+i16 msc__fmemcmp(const void *a, const void *b, u16 n) { int r = memcmp(a, b, n); return (i16)(r < 0 ? -1 : r > 0); }
 char *msc_strcpy(char *d, const char *s) { return strcpy(d, s); }
 char *msc_strncpy(char *d, const char *s, u16 n) { return strncpy(d, s, n); }
 u16 msc_strlen(const char *s) { return (u16)strlen(s); }
