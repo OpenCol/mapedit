@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/editor/map_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "pack.h"
+#include "timer.h"
 #include "font.h"
 #include "menu.h"
 #include "popup.h"
@@ -31,8 +34,6 @@
 
 /* plain flags */
 #include "records.h"
-
-
 
 /* conform_to_view -- 087b:0004, 70 bytes */
 /* Clips a corner pair to the visible map squares. */
@@ -106,3 +107,31 @@ void show_map_region(i16 x, i16 y, i16 w, i16 h)
     mouse_video_update(px, py, px, py, pw, ph);
 }
 
+/* show_map_gradually -- 087b:0160: copy the map view to the screen a square at a time, in the
+   order of a 16-bit Galois LFSR (taps B400h) over 65,536 steps; a small view (180 squares or
+   fewer) waits a 600 Hz tick between squares */
+void show_map_gradually(void)
+{
+    u16 lfsr = 1, total, pos, count = 0;
+    i32 oldt = 0;
+    total = (u16)(map_view_size_y * map_view_size_x);
+    timer_600_low = 0;
+    for (;;) {
+        lfsr = (u16)((lfsr & 1) ? (lfsr >> 1) ^ 0xb400 : lfsr >> 1);
+        pos = (u16)(lfsr - 1);
+        if (pos < total) {
+            i16 col = (i16)(pos % (u16)map_view_size_x), row = (i16)(pos / (u16)map_view_size_x);
+            i16 sx = (i16)((col + map_tile_inset_x) * map_tile_size_x);
+            i16 sy = (i16)((row + map_tile_inset_y) * map_tile_size_y + 8);
+            mouse_video_update(sx, sy, sx, sy, map_tile_size_x, map_tile_size_y);
+            if (total <= 0xb4) {
+                if (oldt != 0)
+                    while (timer_read_600() - oldt < 1)
+                        ;
+                oldt = timer_read_600();
+            }
+        }
+        if (++count == 0)
+            break;
+    }
+}

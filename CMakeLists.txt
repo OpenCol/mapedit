@@ -43,7 +43,7 @@ endif()
 # everything that can change behaviour is.
 file(GLOB EDITOR_SOURCES CONFIGURE_DEPENDS src/core/*.c src/editor/*.c src/ui/*.c src/sys/*.c)
 add_library(editor OBJECT ${EDITOR_SOURCES})
-target_include_directories(editor PRIVATE port src/include)
+target_include_directories(editor PRIVATE port src/include platform)
 if(MSVC)
   target_compile_options(editor PRIVATE /W3)
 else()

@@ -4,7 +4,7 @@
 
 #include "msc.h"
 
-void sort_insertion_8(i16 n, char *payload, u8 *key);
 void sort_insertion(i16 n, i16 *vals, i32 *keys);
+void sort_insertion_8(i16 n, char *payload, u8 *key);
 
 #endif

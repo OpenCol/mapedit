@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/editor/strings (f55aff8), now maintained here: docs/origin.md. */
+#include <string.h>
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "pack.h"
+#include "pal.h"
+#include "sprite.h"
 #include "font.h"
 #include "loader.h"
 #include "mem.h"
@@ -27,8 +32,6 @@
  *     Unlike Windows, it has no bounds check.
  */
 
-
-
 /* strings_init -- 0334:000a, 34 bytes */
 void strings_init(i32 size)
 {
@@ -49,8 +52,16 @@ i16 strings_store(char *s)
 /* strings -- 0334:006c, 50 bytes */
 /* PORT: strings is in port/ (inline assembly) */
 
-
 /* The module's uninitialised data (communals, BSS). */
 Arena strings_heap;                       /* DS:0x4a02 */
 i16 num_strings;                          /* DS:0x6040 */
 
+/* strings -- 0334:006c: the n-th of the NUL-separated strings in the string heap */
+char *strings(i16 n)
+{
+    char *p = strings_heap.base;
+    u16 k;
+    for (k = (u16)n; k != 0; k--)
+        p += strlen(p) + 1;
+    return p;
+}

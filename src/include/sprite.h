@@ -43,7 +43,6 @@ typedef struct {
 #pragma pack(pop)
 
 SpriteSeries *sprite_series_load(char *name, i16 flags);
-void sprite_color_translate(SpriteSeries *sheet, char *map);
 void sprite_draw(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y);
 void sprite_draw_black(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y);
 void sprite_draw_scaled(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale);
@@ -54,5 +53,6 @@ extern char *put_palette;
 extern char *sprite_force_memory;
 extern i32 sprite_last_quantity;
 extern i32 sprite_force_size;
+void sprite_color_translate(SpriteSeries *sheet, char *map);
 
 #endif

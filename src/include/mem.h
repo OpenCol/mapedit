@@ -4,7 +4,6 @@
 
 #include "msc.h"
 
-char *mem_normalize(char *p);
 i32 heap_shrink(Arena *a);
 i16 mem_adjust(i32 size, void *p);
 u16 mem_alloc_paras(u16 paras);
@@ -43,5 +42,6 @@ extern i32 umb_max_free;
 extern char umb_max_free_set;
 extern i32 umb_min_free;
 extern i32 umb_save_free_area;
+char *mem_normalize(char *p);
 
 #endif

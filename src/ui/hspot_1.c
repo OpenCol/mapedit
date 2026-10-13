@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/hspot_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "pack.h"
+#include "popup.h"
 #include "font.h"
 #include "menu.h"
 #include "records.h"
@@ -24,8 +26,6 @@
  * 0x1c, with v1 and v2 as the data words) and returns 0.
  */
 
-
-
 i16 numspots = 0;                                /* DS:0x0716 (defined here) */
 HotSpot spot[121];                               /* DS:0x530a (BSS, 1936 bytes) */
 /* hspot_add -- 0ba3:0000, 114 bytes */
@@ -47,3 +47,19 @@ i16 hspot_add(i16 x0, i16 y0, i16 x1, i16 y1, i16 v1, i16 v2, i16 id)
     return -1;
 }
 
+/* hspot_which -- 0baa:0002: the first active hot spot (from 1) with this id whose rectangle
+   holds (x, y), compared unsigned; 0 when none does */
+i16 hspot_which(u16 x, u16 y, i16 id)
+{
+    u16 i;
+    for (i = 1; i <= (u16)numspots; i++) {
+        HotSpot *s = &spot[i];
+        if (s->active == 0)
+            continue;
+        if (x < (u16)s->x0 || x > (u16)s->x1 || y < (u16)s->y0 || y > (u16)s->y1)
+            continue;
+        if (id == s->id)
+            return (i16)i;
+    }
+    return 0;
+}

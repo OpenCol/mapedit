@@ -17,10 +17,6 @@ i16 pfabcomp(FFIO rd, FFIO wr, void *work, i16 *type, u16 *dsize);
 i16 pfabexp0(FFIO rd, FFIO wr, void *work);
 i16 pfabexp1(FFIO rd, void *dst, void *work);
 i16 pfabexp2(void *src, void *dst, void *work);
-u16 far_to_near(void *p);
-void io_call_hook(void);
-u16 pack_read_memory(void *data, u16 *n);
-u16 pack_write_memory(void *data, u16 *n);
 u16 pack_read_file(void *data, u16 *n);
 u16 pack_write_file(void *data, u16 *n);
 i16 pack_a_packet(i16 method, i16 kind);
@@ -53,5 +49,9 @@ extern i32 pack_write_size;
 extern char pack_zip_enabled;
 extern void (*pack_special_buffer)(void);
 extern void (*pack_special_function)(void);
+u16 far_to_near(void *p);
+void io_call_hook(void);
+u16 pack_read_memory(void *data, u16 *n);
+u16 pack_write_memory(void *data, u16 *n);
 
 #endif

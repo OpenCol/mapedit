@@ -1,4 +1,5 @@
 /* From mapedit-decomp src/editor/map_a (f55aff8), now maintained here: docs/origin.md. */
+#include <stdlib.h>
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 #include "assets.h"

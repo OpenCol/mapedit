@@ -12,9 +12,6 @@ typedef struct { i16 n; PalEntry e[1]; } PalList;
 typedef struct { i16 n; i16 idx[3]; } Shadow;
 #pragma pack(pop)
 
-i16 magic_hash_color(const void *color);
-void cycle_colors(void);
-i16 pal_get_hash(u8 *b, u8 *a);
 void cycle_init(ColorCycle *ranges, i16 on);
 void pal_activate_shadow(Shadow *sh);
 i16 pal_allocate(i16 flags, PalList *list, Shadow *sh);
@@ -53,5 +50,8 @@ extern i16 palette_locked;
 extern i16 palette_low_search_limit;
 extern i16 palette_reserved_bottom;
 extern i16 palette_reserved_top;
+i16 pal_get_hash(u8 *b, u8 *a);
+void cycle_colors(void);
+i16 magic_hash_color(const void *color);
 
 #endif

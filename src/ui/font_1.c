@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/font_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "menu.h"
+#include "error.h"
+#include "pack.h"
+#include "sprite.h"
 #include "map.h"
 #include "popup.h"
 #include "font.h"
@@ -27,8 +31,6 @@
  *
  * Global register allocation plus the global optimiser (`#pragma optimize("eg")`), as the twin.
  */
-
-
 
 /* font_load -- 0d43:000a, 254 bytes */
 void *font_load(char *name)
@@ -75,3 +77,23 @@ void *font_conv = 0;                  /* DS:0x3a9e */
 void *font_menu = 0;                  /* DS:0x3aa2 */
 void *font_misc = 0;                  /* DS:0x3aa6 */
 
+/* font_string_width -- 0d6c:0002: the glyph widths of s, plus spacing after each glyph that
+   has a width and is not the last character. (The original sign-extends the character, so a
+   code from 80h up reads before the width table; the port reads it as unsigned.) */
+i16 font_string_width(i16 spacing, DosFont *font_, char *s)
+{
+    const u8 *font = (const u8 *)font_;
+    i16 total = 0;
+    const u8 *p = (const u8 *)s;
+    if (!*p)
+        return 0;
+    do {
+        u8 w = font[2 + (u8)(*p - 1)];
+        i16 c = w;
+        p++;
+        if (c > 0 && *p != 0)
+            c = (i16)(c + spacing);
+        total = (i16)(total + c);
+    } while (*p);
+    return total;
+}

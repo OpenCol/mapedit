@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/pal_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "pack.h"
 #include "font.h"
 #include "menu.h"
 #include "popup.h"
@@ -77,7 +78,6 @@
 
 typedef union { i32 l; struct { u8 b0, b1, b2, b3; } b; } ColorStatus;
 typedef void (*PalFn)(void);
-
 
 /* pal_call_manager -- 1074:000e, 30 bytes */
 void pal_call_manager(i32 fn, i16 code)
@@ -476,3 +476,14 @@ u8 master_palette[0x300];               /* DS:0x5b20 */
 i16 palette_reserved_bottom;                       /* DS:0x5e20 */
 i32 color_status[256];                            /* DS:0x6572 */
 
+/* pal_get_hash -- 1074:0288: the squared distance of two colours, each difference a signed
+   byte (it wraps), squared signed, summed in 16 bits */
+i16 pal_get_hash(u8 *b, u8 *a)
+{
+    i16 sum = 0, i;
+    for (i = 0; i < 3; i++) {
+        i8 d = (i8)(u8)(a[i] - b[i]);
+        sum = (i16)(sum + (i16)d * d);
+    }
+    return sum;
+}

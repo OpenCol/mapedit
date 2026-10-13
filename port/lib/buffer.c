@@ -7,6 +7,8 @@
  * none of that; what is kept is every pixel each routine writes, and the order.
  */
 #include "msc.h"
+#include "error.h"
+#include "pack.h"
 #include "menu.h"
 #include "pal.h"
 #include "popup.h"
@@ -17,19 +19,11 @@
 #include "units.h"
 #include "port_records.h"
 
-
 /* buffer_pointer -- 0c91:0000: the address of pixel (x, y). The original multiplies w * y
    unsigned (MUL, 16 x 16 -> 32 bits) and adds x as an unsigned word (ADD, ADC 0). */
 char *buffer_pointer(DosPort *port, i16 x, i16 y)
 {
     return port->bits + ((u32)(u16)port->w * (u16)y + (u16)x);
-}
-
-/* mem_normalize -- 104f:0002: a far pointer with the smallest offset. Flat pointers are
-   normal already. */
-char *mem_normalize(char *p)
-{
-    return p;
 }
 
 /* buffer_rect_fill -- 0c5b:0004: fill w x h pixels at (x, y) with color, after clipping

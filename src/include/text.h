@@ -4,7 +4,6 @@
 
 #include "msc.h"
 
-char *strings(i16 n);
 void strings_init(i32 size);
 void strings_shrink(void);
 i16 strings_store(char *s);
@@ -25,5 +24,6 @@ extern char text_buffer[80];
 extern MSC_FILE *text_handle;
 extern char text_item[80];
 extern char *text_pointer;
+char *strings(i16 n);
 
 #endif

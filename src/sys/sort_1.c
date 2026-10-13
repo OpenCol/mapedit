@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/sort_1 (f55aff8), now maintained here: docs/origin.md. */
+#include <string.h>
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "pack.h"
+#include "popup.h"
 #include "font.h"
 #include "pal.h"
 #include "loader.h"
@@ -82,3 +86,34 @@ restart:
         goto restart;
 }
 
+/* sort_insertion_8 -- 12e0:0008: sort n byte keys ascending, carrying a payload byte each.
+   Exactly the original's steps, which decide the order of equal keys: find the first i whose
+   key[i+1] < key[i] (unsigned); lift key[i+1] and its payload out, closing the gap; put them
+   back before the first key not below it; scan again from that i. */
+void sort_insertion_8(i16 n, char *payload, u8 *key)
+{
+    i16 i = 0;
+    for (;;) {
+        i16 s = i, last = (i16)(n - 1), cnt, k;
+        u8 al;
+        char dl;
+        while (s < last && !(key[s + 1] < key[s]))
+            i = ++s;
+        if (s >= last)
+            return;
+        al = key[s + 1];
+        cnt = (i16)(last - s - 1);
+        memmove(&key[s + 1], &key[s + 2], (size_t)cnt);
+        dl = payload[s + 1];
+        memmove(&payload[s + 1], &payload[s + 2], (size_t)cnt);
+        for (k = 0; k < last && al > key[k]; k++)
+            ;
+        cnt = (i16)(last - k);
+        if (cnt) {
+            memmove(&key[k + 1], &key[k], (size_t)cnt);
+            memmove(&payload[k + 1], &payload[k], (size_t)cnt);
+        }
+        payload[k] = dl;
+        key[k] = al;
+    }
+}

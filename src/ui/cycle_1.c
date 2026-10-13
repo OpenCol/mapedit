@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/cycle_1 (f55aff8), now maintained here: docs/origin.md. */
+#include <string.h>
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "mcga.h"
+#include "pack.h"
 #include "font.h"
 #include "sprite.h"
 #include "loader.h"
@@ -28,7 +32,6 @@
  *     entry (inline assembly, through a 3-byte temp) and uploads the cycled part with
  *     mcga_setpal_range once cycling_delay reaches the threshold.
  */
-
 
 ColorCycle cycle_list;                   /* DS:0x5afe (BSS) */
 i32 cycle_timing[8];                    /* DS:0x52e8 (BSS) */
@@ -63,4 +66,39 @@ static u8 cycle_rgb[3];       /* DS:0x49a6: module static (no public) */
 
 /* PORT: cycle_colors is in port/ (inline assembly) */
 
-
+/* cycle_colors -- 0f1a:00a6: every due range of the cycling palette turns by one colour (its
+   last moves to its front), and the cycled colours go to the DAC */
+void cycle_colors(void)
+{
+    i32 now;
+    i16 i, changed = 0;
+    if (cycling_active == 0)
+        return;
+    if (++cycling_delay < cycling_threshold)
+        return;
+    if (mcga_palette_update != 0)
+        return;
+    now = timer_read();
+    for (i = 0; i < cycle_list.n; i++) {
+        CycleRange *r = &cycle_list.r[i];
+        if (r->speed + cycle_timing[i] <= now) {
+            i16 cnt = r->count, start = r->start;
+            u16 pos = r->pos;
+            cycle_timing[i] = now;
+            changed = -1;
+            if (cnt > 1) {
+                u8 *p = cycling_palette + start * 3, last[3];
+                memcpy(last, p + (cnt - 1) * 3, 3);
+                memmove(p + 3, p, (size_t)(cnt - 1) * 3);
+                memcpy(p, last, 3);
+                pos++;
+                if (pos >= (u16)cnt)
+                    pos = 0;
+            }
+            r->pos = (u8)pos;
+        }
+    }
+    if (changed)
+        mcga_setpal_range(cycle_list.r[0].start, total_cycle_colors, (char *)cycling_palette);
+    cycling_delay = 0;
+}

@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/pack_6 (f55aff8), now maintained here: docs/origin.md. */
+#include <string.h>
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "sprite.h"
 #include "font.h"
 #include "pal.h"
 #include "popup.h"
@@ -45,7 +47,6 @@
  *     `to_file != 1 && to_file != 2` spelling puts the 0x820 arm first, as shipped.
  */
 
-
 void (*pack_special_buffer)(void) = 0;          /* DS:0x4512 (defined here: before pack_data's "$pack$") */
 void (*pack_special_function)(void) = 0;        /* DS:0x4516 */
 /* far_to_near -- 1309:000a, 10 bytes */
@@ -61,7 +62,6 @@ void pack_set_special_buffer(void (*a)(void), void (*b)(void))
     pack_special_function = b;
 }
 /* pack_data -- 1309:004a, 784 bytes */
-
 
 i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
                          void *src, void *dst)
@@ -172,3 +172,62 @@ out:
     return *count;
 }
 
+/* far_to_near -- 1309:000a: a far pointer's offset. The port's pointers have no segment;
+   what callers hand on is the pointer's low bits, as the original's offset. */
+u16 far_to_near(void *p)
+{
+    return (u16)(uintptr_t)p;
+}
+
+/* io_call_hook -- 1309:0014: the packers' special function, when there is one */
+void io_call_hook(void)
+{
+    if (pack_special_function)
+        pack_special_function();
+}
+
+/* pack_read_memory -- 1359:0006: the packers' reader over a block of memory. Takes *n bytes,
+   no more than pack_read_size has left, counts them, returns how many. A size whose high
+   word is FFFFh (any negative one) means no limit; only a size under 64 KB clamps. *n is not
+   written back. */
+u16 pack_read_memory(void *data, u16 *n)
+{
+    char *buf = data;
+    u16 c = *n;
+    if (((u32)pack_read_size >> 16) != 0xffff) {
+        if (pack_read_size == 0)
+            return 0;
+        if (((u32)pack_read_size >> 16) == 0 && c > (u16)pack_read_size)
+            c = (u16)pack_read_size;
+        pack_read_size -= c;
+    }
+    pack_read_count += c;
+    if (c) {
+        memcpy(buf, pack_read_memory_ptr, c);
+        pack_read_memory_ptr += c;
+    }
+    return c;
+}
+
+/* pack_write_memory -- 1360:000a: the writer, the same way round. The original has no return
+   statement and returns what mem_normalize left in AX, the new pointer's offset after
+   normalising (0-15), which depends on where DOS put the block; PKWARE's library, which calls
+   it, ignores a writer's result. The port returns the count. */
+u16 pack_write_memory(void *data, u16 *n)
+{
+    char *buf = data;
+    u16 c = *n;
+    if (((u32)pack_write_size >> 16) != 0xffff) {
+        if (pack_write_size == 0)
+            return 0;
+        if (((u32)pack_write_size >> 16) == 0 && c > (u16)pack_write_size)
+            c = (u16)pack_write_size;
+        pack_write_size -= c;
+    }
+    pack_write_count += c;
+    if (c) {
+        memcpy(pack_write_memory_ptr, buf, c);
+        pack_write_memory_ptr += c;
+    }
+    return c;
+}

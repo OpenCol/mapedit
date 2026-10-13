@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/sprite_e (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "error.h"
+#include "pack.h"
 #include "font.h"
 #include "map.h"
 #include "menu.h"
@@ -53,8 +55,6 @@
  *     four master entries is written INTO the master palette at its spare slot.
  */
 
-
-
 typedef struct { i32 offset; i32 size; i16 x0; i16 y0; i16 w; i16 h; } FrameEntry;
 typedef struct {
     char packed;                /* +0 */
@@ -75,9 +75,6 @@ typedef struct {
 #define PACKED_INFO(size_b) ((((u32)(size_b) + 0xfc) + 7u) & ~7u)
 /* colour i of a list as bytes: +2 its r, g, b; +5 its index (a CSE temp in the shipped code) */
 #define COLOR(pal, i) ((char *)(pal) + (i) * 6)
-
-
-
 
 i16 sprite_error = 0;                              /* DS:0x3ade */
 char *put_palette = 0;                         /* DS:0x3ae0 */
@@ -118,7 +115,6 @@ SpriteSeries *sprite_series_load(char *name, i16 flags)
     i16 j5;
     i32 totalk;
     SpriteSeries *result;
-
 
     table3 = 0;
     series = 0;
@@ -315,3 +311,46 @@ done:
     return result;
 }
 
+/* sprite_color_translate -- 1069:0006: rewrite every frame's colours in place through map: a
+   colour c becomes map[5 + 6c] (the palette list's index field). A frame's rows end with a
+   row opening FCh; FFh is an empty row, FDh a row of runs, anything else a plain row whose
+   FEh runs keep their count. Transparent FDh pixels stay. A frame with no pixels ends it. */
+void sprite_color_translate(SpriteSeries *sheet, char *map)
+{
+    SpriteSeries *ss = sheet;
+    const u8 *tab = (const u8 *)map + 5;
+    i16 i;
+    for (i = 0; i < ss->count; i++) {
+        u8 *s = ss->icon[i].data;
+        if (s == 0)
+            break;
+        for (;;) {
+            u8 mode = *s++;
+            if (mode == 0xfc)
+                break;
+            if (mode == 0xff)
+                continue;
+            if (mode == 0xfd) {
+                for (;;) {
+                    if (*s++ == 0xff)
+                        break;
+                    if (*s != 0xfd)
+                        *s = tab[*s * 6];
+                    s++;
+                }
+            } else {
+                for (;;) {
+                    if (*s == 0xff) {
+                        s++;
+                        break;
+                    }
+                    if (*s == 0xfe)
+                        s += 2;
+                    if (*s != 0xfd)
+                        *s = tab[*s * 6];
+                    s++;
+                }
+            }
+        }
+    }
+}

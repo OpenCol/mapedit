@@ -1,6 +1,16 @@
 /* From mapedit-decomp src/madsdev/error_1 (f55aff8), now maintained here: docs/origin.md. */
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include "msc.h"
+#include "host.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "keys.h"
+#include "mouse.h"
+#include "screen.h"
+#include "sound.h"
+#include "sprite.h"
+#include "timer.h"
 #include "pack.h"
 #include "font.h"
 #include "map.h"
@@ -144,3 +154,44 @@ void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2)
 }
 
 i16 exit_value = 0;                             /* DS:0x0062 */
+
+/* error_shutdown_report -- 0ed0:0156: shut everything down, back to text mode, print the
+   report (and the warning file), call the service routines, exit with 3. The original's one
+   piece of assembly set text mode through the BIOS; the port closes its window. */
+void error_shutdown_report(char *errtext, char *modtext, char *numtext, char *extra, i32 memfree, i16 code)
+{
+    char line[80];
+    if (sound_initialized()) {
+        sound_queue(0);
+        sound_system_shutdown();
+    }
+    timer_remove();
+    keys_remove();
+    mouse_init(0, 3);
+    screen_dominant_mode(3);
+    host_quit();                        /* PORT: was INT 10h, AX=3: text mode */
+    if (code != -20) {
+        snprintf(line, sizeof line, "Error \"%s\" in module \"%s\" data: %s %s", errtext, modtext, numtext, extra);
+        echo(-1, line);
+        if (strlen(error_string))
+            echo(-1, error_string);
+        if (mem_last_alloc_failed) {
+            snprintf(line, sizeof line, "Tried to allocate %ld bytes when only %ld bytes were free.",
+                     (long)mem_last_alloc_size, (long)mem_last_alloc_avail);
+            echo(-1, line);
+        }
+        echo(-1, " ");
+        snprintf(line, sizeof line, "Most recent memory check: %ld", (long)memfree);
+        echo(-1, line);
+        echo(-1, "Most recent DOS error:    0");
+        echo(-1, "Stack use indicator:      0");
+        echo(-1, " ");
+        error_dump_file("*warn0.dat");
+    } else
+        error_dump_file("*warn6.dat");
+    if (error_service_routine_2)
+        (*error_service_routine_2)();
+    if (error_service_routine)
+        (*error_service_routine)();
+    exit(3);
+}

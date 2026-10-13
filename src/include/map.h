@@ -10,7 +10,6 @@ typedef struct { i16 name; char f2; char f3; char f4; char pad[2]; char v[9]; } 
 #include "records.h"
 #include "terrain.h"
 
-void show_map_gradually(void);
 void tile_draw(char *tiles, i16 t, DosPort *port, i16 x, i16 y);
 void tile_draw_mask(char *tiles, i16 t, DosPort *port, i16 x, i16 y);
 void tile_draw_scale(char *tiles, i16 t, DosPort *port, i16 x, i16 y, i16 shift);
@@ -204,5 +203,6 @@ extern i16 terrain_names[5];
 void load_terrain(i16 n);
 void load_data(void);
 void forest_fix(void);
+void show_map_gradually(void);
 
 #endif
