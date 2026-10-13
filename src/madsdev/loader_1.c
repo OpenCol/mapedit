@@ -5,10 +5,36 @@
 /* MODULE loader_1: MAPEDIT.EXE segment 121a (loader_1.c), file 0x137a0-0x13b82, 3 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
+ * fn loader_open         0x137a0
  * fn loader_set_priority 0x13adc
  * fn loader_close        0x13aee
  *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl28_76e50).
+ * WHAT THE EDITOR'S loader_open DOES DIFFERENTLY: err is -1, open is -1. For a
+ * read with a non-zero mode and loader_ems_search_disabled clear it first asks
+ * himem_resident(name) whether the file is preloaded; when that answers >= 0 the FileIO is
+ * filled from himem_directory_entry instead of the disk (kind 1 for EMS, 2 for XMS, the
+ * handle, the page count 0x4000, the total and the entry count, and each entry's size
+ * copied from the directory's size table into both size fields), and loader_found_in_ems or
+ * loader_found_in_xms counts it. Otherwise it is VICEROY's open (loader_found_on_disk
+ * counts it; no opens counter). The failed-open fclose also needs the himem answer to be 0.
+ * The module's data (DS:0x44c2-0x44f5, all zero) is defined before loader_open, after its
+ * two "MADSPACK 2.0" literals as shipped.
+ *
+ *  What got it there: mode is read
+ * through a register COPY `m = mode` taken right after the strncpy (shipped `mov si,[bp-0x1e]`
+ * after the call; the later `(char)mode` reads the home) -- a folded third use of the
+ * parameter itself puts the si web at the entry and spills it; the loop is `if (count > 0)
+ * do {...} while (++i < count)` with the count read through a volatile view (otherwise "l"
+ * hoists it into a `loop` instruction, as it does for the disk path's sum). What is left:
+ * shipped materialises p and q as `lea ax,[di+0x2a]; mov cx,[bp+0xc]` / `lea ax,[si+0x1a];
+ * mov cx,[seg]`, keeps only their offsets in bx/di and reloads es from the segment slots
+ * for every statement (`mov es,[bp-6]` even between two stores), with a stray
+ * `mov ax,[bp-0xe]` before `inc cx`; ours builds the pointers in ax:dx and holds q's segment
+ * in ds (restoring DGROUP after the loop). No effect: &fh->ent[0], a char-pointer walk
+ * with casts, p[i]/q[i] indexing (for/do), a long temp for *q, volatile views on either
+ * side, (void)&p/&q, volatile p/q, declaration order, folded dead defs of p/q after or in
+ * the loop, pragmas e/el/eg, "w" off. The shipped frame has p at -8 and q at -0x10 (ours
+ * p -0xc), so the allocator weighed them differently.
  *
  * MADSPACK FILES (overlay 28, para 0). DOS-only engine code. A FileIO wraps a stdio FILE
  * holding a "MADSPACK 2.0\x1a" archive: a 0xb0-byte header (12-byte magic, an entry count
@@ -118,32 +144,140 @@ typedef struct {                /* one directory entry, 10 bytes */
     char type;
     char flag;
     i32 size;
-    i32 offset;
+    i32 packed;
 } FFEntry;
 
 typedef struct {
     i16 msc_open;
     i16 reading;
-    char kind;                  /* 1 or 2: an in-memory file */
+    char kind;                  /* 1: in EMS, 2: in XMS */
     char pad5;
     MSC_FILE *fp;
-    i16 x8;
-    i16 xa;
-    i32 xc;
-    i32 x10;
+    i16 ems_handle;             /* +8: the himem_resident answer */
+    i16 xms_handle;             /* +0xa */
+    i32 xms_pos;               /* +0xc */
+    i16 ems_page;               /* +0x10 */
+    i16 ems_offset;             /* +0x12 */
     i32 total;                 /* the entries' sizes summed */
-    i16 x18;
+    i16 next;
     char magic[12];             /* the 0xb0-byte header starts here */
     i16 x26;
     i16 count;
     FFEntry ent[16];
 } FileIO;
 
-extern MSC_FILE * file_open(char *name, char *mode);
-extern i32 far_fread(void *p, i32 size, i32 n, MSC_FILE *fp);
-extern i32 fileio_fwrite_f(void *p, i32 size, i32 n, MSC_FILE *fp);
-extern i32 g_ff_opens;                 /* DS:0x242e */
-extern char g_ff_name[];                /* DS:0x244c */
+typedef struct {                /* a himem directory entry (HIMEM_1.C) */
+    char kind;                  /* 3: in EMS, 4: in XMS */
+    char pad[0x11];
+    i16 handle;                 /* +0x12 */
+    i32 total;                 /* +0x14 */
+    i16 count;                  /* +0x18 */
+    i32 sizes[1];              /* +0x1a */
+} HimemEntry;
+
+extern MSC_FILE *env_open(char *name, char *mode);                     /* 0297:0104 */
+extern i32 fileio_fread_f(void *p, i32 size, MSC_FILE *fp, i32 n);   /* 0bca:0000 */
+extern i32 fileio_fwrite_f(void *p, i32 size, MSC_FILE *fp, i32 n);  /* 0bea:0008 */
+extern i16 himem_resident(char *name);                                       /* 1345:000a */
+extern HimemEntry *himem_directory_entry;                                    /* DS:0x4b56 */
+
+/* Defined before loader_open: emitted after its literals, as shipped (DS:0x44c2-0x44f5). */
+i32 loader_found_in_ems = 0;           /* DS:0x44c2 */
+i32 loader_found_in_xms = 0;           /* DS:0x44c6 */
+i32 loader_found_on_disk = 0;          /* DS:0x44ca */
+i32 loader_timing_ems = 0;             /* DS:0x44ce */
+i32 loader_timing_xms = 0;             /* DS:0x44d2 */
+i32 loader_timing_disk = 0;            /* DS:0x44d6 */
+i32 loader_size_ems = 0;               /* DS:0x44da */
+i32 loader_size_xms = 0;               /* DS:0x44de */
+i32 loader_size_disk = 0;              /* DS:0x44e2 */
+i16 loader_ems_search_disabled = 0;     /* DS:0x44e6 */
+char loader_last[14] = "";              /* DS:0x44e8 */
+/* loader_open -- 121a:0000, 828 bytes */
+i16 loader_open(char *how, i16 mode, FileIO *fh, char *name)
+{
+    i16 reading;
+    i16 err;
+    FFEntry *p;
+    i32 *q;
+    i16 i;
+    i16 res;
+    fpos_t pos;
+    i16 m;                      /* a register copy of mode: its si web starts after the strncpy */
+
+    err = -1;
+    res = -1;
+    msc__fstrncpy(loader_last, name, 13);
+    m = mode;
+    fh->msc_open = 0;
+    reading = msc_strchr(msc_strlwr(how), 'r') != 0;
+    if (reading != 0 && m != 0 && loader_ems_search_disabled == 0)
+        res = himem_resident(name);
+    if (res >= 0) {
+        fh->kind = himem_directory_entry->kind == 3 ? 1 : 2;
+        fh->xms_handle = himem_directory_entry->handle;
+        fh->xms_pos = 0;
+        fh->ems_handle = res;
+        fh->ems_offset = 0x4000;
+        fh->total = himem_directory_entry->total;
+        fh->count = himem_directory_entry->count;
+        fh->ems_page = -1;
+        fh->reading = -1;
+        fh->next = 0;
+        i = 0;
+        if (fh->count > 0) {
+            p = fh->ent;
+            q = himem_directory_entry->sizes;
+            do {
+                p->type = 0;
+                p->size = *q;
+                p->packed = *q;
+                p++;
+                q++;
+                i++;
+            } while (i < *(volatile i16 *)&fh->count);
+        }
+        if (himem_directory_entry->kind == 3)
+            loader_found_in_ems++;
+        else
+            loader_found_in_xms++;
+    } else {
+        fh->kind = 0;
+        fh->ems_handle = -1;
+        if ((fh->fp = env_open(name, how)) == 0)
+            goto out;
+        fh->reading = reading;
+        fh->next = 0;
+        if (reading) {
+            msc_fgetpos(fh->fp, &pos);
+            if (fileio_fread_f(fh->magic, 16L, fh->fp, 1L) == 0)
+                goto out;
+            if (msc__fstrncmp(fh->magic, "MADSPACK 2.0\x1a", 12) != 0)
+                goto out;
+            if (fileio_fread_f(fh->ent, (i32)(u16)(fh->count * sizeof(FFEntry)), fh->fp, 1L) == 0)
+                goto out;
+            pos += 0xb0;
+            msc_fsetpos(fh->fp, &pos);
+            fh->total = 0;
+            for (i = 0; i < fh->count; i++)
+                fh->total += fh->ent[i].size;
+        } else {
+            fh->count = 0;
+            fh->ent[0].type = (char)mode;
+            msc__fstrcpy(fh->magic, "MADSPACK 2.0\x1a");
+            if (fileio_fwrite_f(fh->magic, 0xb0L, fh->fp, 1L) == 0)
+                goto out;
+            fh->total = 0;
+        }
+        loader_found_on_disk++;
+    }
+    fh->msc_open = -1;
+    err = 0;
+out:
+    if (err && res == 0 && fh->fp)
+        msc_fclose(fh->fp);
+    return err;
+}
 /* loader_set_priority -- 121a:033c, 18 bytes */
 void loader_set_priority(i16 flag, FileIO *fh)
 {
@@ -157,12 +291,13 @@ i16 loader_close(FileIO *fh)
     err = 0;
     if (fh->msc_open) {
         if (fh->kind == 1 || fh->kind == 2) {
-            fh->x10 = 0x4000ffffL;
-            fh->xc = 0;
+            fh->ems_page = -1;
+            fh->ems_offset = 0x4000;
+            fh->xms_pos = 0;
         } else {
             if (fh->reading == 0) {
                 msc_rewind(fh->fp);
-                err = fileio_fwrite_f(fh->magic, 0xb0L, 1L, fh->fp) == 0;
+                err = fileio_fwrite_f(fh->magic, 0xb0L, fh->fp, 1L) == 0;
             }
             msc_fclose(fh->fp);
         }
@@ -170,13 +305,4 @@ i16 loader_close(FileIO *fh)
     fh->msc_open = 0;
     return err;
 }
-
-/* DGROUP data that follows this module's literals in the image (DS:0x2426-0x2461): its file state, then ovl28_772ba's I/O hooks. Defined
- * after the last function, so no function's symbol count moves; the values are the shipped ones. */
-u8 g_2426[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };/* DS:0x2426 */
-i32 g_ff_opens = 0L;                               /* DS:0x242e */
-u8 g_2432[26] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };/* DS:0x2432 */
-char g_ff_name[14] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };/* DS:0x244c */
-void (*g_io_hook_a)(void) = 0;                  /* DS:0x245a */
-void (*g_io_hook)(void) = 0;                    /* DS:0x245e */
 

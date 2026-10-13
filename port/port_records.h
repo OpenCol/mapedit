@@ -17,4 +17,18 @@ typedef struct {
     char *bits;
 } DosPort;
 
+/* a heap arena (heap_1.c): a block carved up front to back */
+typedef struct {
+    char kind;
+    char owned;
+    char *base;
+    char *next;
+    i32 size;
+    i32 left;
+} Arena;
+
+/* a hot spot (hspot_1.c): a rectangle with two user values and an id; hspot_which compares
+   the coordinates unsigned */
+typedef struct { i16 x0; i16 y0; i16 x1; i16 y1; i16 v1; i16 v2; i16 id; i16 active; } HotSpot;
+
 #endif

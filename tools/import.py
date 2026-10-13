@@ -31,7 +31,7 @@ left alone):
 - The source's own declarations of the C library (its copy of MSC's FILE record, struct
   find_t, prototypes of run-time functions) are dropped: port/msc.h declares them once.
   So are the modules' own definitions of records the port defines once (port/port_records.h:
-  DosPort, whose shapes differed between modules but whose size did not).
+  DosPort, whose shapes differed between modules but whose size did not; Arena; HotSpot).
 - A function with inline assembly (_asm) is not imported: its definition becomes its
   prototype, and import/REFUSED lists it. port/ holds the C written for it.
 - A far pointer into the BIOS data area written as a constant ((u8 *)0x00400017L, the shift
@@ -164,7 +164,7 @@ OWN_DECLS = [
     re.compile(r'^[ \t]*struct find_t \{[^{}]*\};[ \t]*\n', re.M),
     re.compile(r'^[ \t]*typedef[ \t]+i32[ \t]+fpos_t;[^\n]*\n', re.M),
     # records with one definition in the port (port/port_records.h)
-    re.compile(r'^[ \t]*typedef struct \{[^{}]*\} (?:DosPort);[^\n]*\n', re.M),
+    re.compile(r'^[ \t]*typedef struct \{[^{}]*\} (?:DosPort|Arena|HotSpot);[^\n]*\n', re.M),
     # a prototype: a type first (never `return f(x);`), a msc_ declarator, a parameter list
     re.compile(r'^[ \t]*(?:extern[ \t]+)?(?:const[ \t]+)?(?:i8|u8|i16|u16|i32|u32|char|void|MSC_FILE|'
                r'struct[ \t]+\w+)[ \t\*]+(?:const[ \t\*]+)?msc_\w+[ \t]*\([^;{}()]*\)[ \t]*;[ \t]*'

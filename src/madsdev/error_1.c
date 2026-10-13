@@ -5,45 +5,36 @@
 /* MODULE error_1: MAPEDIT.EXE segment 0ed0 (error_1.c), file 0x10308-0x1076e, 4 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
- * fn error_report      0x106d6
+ * fn error_read_line     0x10308
+ * fn error_dump_file     0x103ac
+ * fn error_shutdown_report 0x10456
+ * fn error_report        0x106d6
  *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl29_77990).
- *
- * THE ENGINE'S TEXT-FILE AND SHUTDOWN HELPERS (overlay 29, one segment: every thunk has
- * para 0). DOS-only; there are no Windows twins.
- *   - read_nth_line (near _fastcall: dest in bx, name in ax, n in dx, all three spilled
- *     below the frame) opens `name` "rt", reads lines 1..n with fgets(36), stops at EOF,
- *     cuts the last line at its first control character and copies it to dest. It returns
- *     0 when it got the line, 1 otherwise.
- *   - type_file (far _fastcall, name in bx) shows a text file line by line through
- *     show_line(1, line) until EOF or a line starting "***".
- *   - shutdown_screen silences the sound if it is playing, shuts the two engine layers
- *     down and puts the BIOS back in text mode 3.
- *
- *   - error_report (near _fastcall; errtext bx, modtext ax, numtext dx, then extra, memfree
- *     and code on the stack, pushed left to right, `ret 8`) shuts the screen down, shows
- *     `Error "<err>" in module "<mod>" data: <n1> <n2>`, the extra g_dialog_key line, the
- *     allocation failure when g_mem_trace is set, the last memory check, the last DOS
- *     error and the stack indicator. It then types *warn0.dat (*warn6.dat for code -20),
- *     runs the two exit hooks and exits with status 3.
+ * THE LIBRARY'S FATAL-ERROR REPORT (madsdev.lib).
+ *   - error_read_line (static, near _fastcall: dest in bx, name in ax, n in dx, all three
+ *     spilled below the frame) opens `name` "rt" through env_open, reads lines 1..n with
+ *     fgets(36), stops at EOF, cuts the last line at its first control character and
+ *     copies it to dest. It returns 0 when it got the line, -1 otherwise (VICEROY: 1).
+ *   - error_dump_file (far _fastcall, name in bx) echoes a text file line by line through
+ *     echo(-1, line) until EOF or a line starting "***". Its `err` is set to -1 and never
+ *     read (the dead store is kept, as VICEROY keeps its `err = 1`).
+ *   - error_shutdown_report (static, near _fastcall; errtext bx, modtext ax, numtext dx,
+ *     then extra, memfree and code on the stack, pushed left to right, `ret 8`) shuts the
+ *     sound, timer, keyboard and high-memory layers down, resets the mouse and the screen
+ *     and puts the BIOS back in text mode 3. Then it shows `Error "<err>" in module
+ *     "<mod>" data: <n1> <n2>`, the extra error_string line, the allocation failure when
+ *     mem_last_alloc_failed is set, the last memory check, the last DOS error and the
+ *     stack indicator. It then types *warn0.dat (*warn6.dat for code -20), runs the two
+ *     service routines and exits with status 3.
  *   - error_report (far _fastcall; code ax, level dx, module bx, then two longs) reports at
- *     g_err_level and up. It reads the error's text from line -code of *ERRORS.DB and the
+ *     error_abort and up. It reads the error's text from line -code of *ERRORS.DB and the
  *     module's from line `module` of *MODULES.DB.
  *
- *  What the last two needed:
- *   - error_report uses its register parameters directly (no local copies): MSC then keeps
- *     modtext/numtext in si/di, errtext in a frame local, and reads the spilled numtext
- *     later, as shipped. With `register` local copies it homed all three into new slots.
- *   - error_report: `g_err_level` is volatile (shipped loads it into ax for `cmp dx,ax`),
- *     and the ERRORS.DB line is `~code + 1` (not/inc, not neg).
- *   - The initialised data (exit hooks, g_err_level, g_dialog_key) is defined BEFORE
- *     read_nth_line. MSC emits it after the next function's literals, so it lands after
- *     "rt" and ahead of type_file's literals, as shipped. Defined before type_file, it came
- *     after type_file's literals and split every _DATA reference in two.
- *
- * The module's _DATA runs from read_nth_line's "rt" (DS:0x246a) through an 8-byte zero
- * block, a word initialised to 1 (DS:0x2476) and an 80-byte buffer (DS:0x2478), which
- * the error formatter fills, to type_file's literals at 0x24c8.
+ * What the DOS twin's notes said still holds: error_report uses its register parameters
+ * directly (MSC keeps modtext/numtext in si/di), error_abort is volatile (shipped loads it
+ * into ax for `cmp dx,ax`), the ERRORS.DB line is `~code + 1`, and the initialised data is
+ * defined BEFORE error_read_line so that it lands after that function's "rt" (DS:0x3b24)
+ * and ahead of error_dump_file's literals (DS:0x3b82), as shipped.
  */
 
 #include "msc.h"
@@ -53,28 +44,94 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-extern MSC_FILE *file_open(char *name, char *mode);   /* 181f:0e86 */
-extern void show_line(i16 kind, char *text);      /* 181f:2f26 */
-extern i16 sound_driver_loaded(void);
-extern void sound_control(i16 on);                               /* 181f:04de */
-extern void sound_driver_stop(void);
-extern void timer_remove(void);
-extern void mouse_init(i16 a, i16 b);
-extern i32 far_mem_free(void);                                  /* 181f:127a */
-extern i16 stack_check();                                        /* 181f:08bc */
-extern char g_mem_trace;                                         /* DS:0x264f */
-extern i32 g_mem_request;                                       /* DS:0x2652 */
-extern i32 g_mem_avail;                                         /* DS:0x2656 */
-/* errno (DS:0x27ac) comes from <stdlib.h>: the runtime's */
-void shutdown_screen(void);
-void type_file(char *name);
+extern MSC_FILE *env_open(char *name, char *mode);    /* 0297:0104 */
+extern void echo(i16 kind, char *text);           /* 127b:0000 */
+extern i16 sound_initialized(void);                              /* 1115:0119 */
+extern void sound_queue(i16 on);                                 /* 1127:0004 */
+extern void sound_system_shutdown(void);                         /* 1127:0059 */
+extern void timer_remove(void);                                  /* 0d1c:01f3 */
+extern void keys_remove(void);                                   /* 0ffe:01c7 */
+extern void himem_shutdown(void);                                /* 0f3e:000c */
+extern void mouse_init(i16 a, i16 b);                            /* 0f65:0086 */
+extern void screen_dominant_mode(i16 mode);            /* 0c3c:000a */
+extern i32 mem_get_avail(void);                       /* 0d08:0082 */
+extern i16 stack_check();                                        /* 12aa:001b */
+extern char mem_last_alloc_failed;                               /* DS:0x74b */
+extern i32 mem_last_alloc_size;                                 /* DS:0x74e */
+extern i32 mem_last_alloc_avail;                                /* DS:0x752 */
+/* errno (DS:0x4568) comes from <stdlib.h>: the runtime's */
+void error_dump_file(char *name);
 
-/* Defined BEFORE read_nth_line: MSC emits initialised data after the next function's string
- * literals, so this lands after read_nth_line's "rt" as shipped. */
-void (*g_exit_hook_a)(void) = 0;        /* DS:0x246e */
-void (*g_exit_hook_b)(void) = 0;        /* DS:0x2472 */
-volatile i16 g_err_level = 1;               /* DS:0x2476: error_report reports at this level and up */
-char g_dialog_key[80] = "";                  /* DS:0x2478: an extra line the error report shows (the key ovl23 copies in) */
+/* Defined BEFORE error_read_line: MSC emits initialised data after the next function's string
+ * literals, so this lands after error_read_line's "rt" as shipped. */
+void (*error_service_routine)(void) = 0;    /* DS:0x3b28 */
+void (*error_service_routine_2)(void) = 0;  /* DS:0x3b2c */
+volatile i16 error_abort = 1;                   /* DS:0x3b30: error_report reports at this level and up */
+char error_string[80] = "";                     /* DS:0x3b32: an extra line the error report shows */
+/* error_read_line -- 0ed0:0008, 164 bytes */
+i16 error_read_line(char *dest, char *name, i16 n)
+{
+    i16 unused;
+    i16 pad;
+    char line[36];
+    i16 err;
+    i16 k;
+    MSC_FILE *handle;
+
+    err = -1;
+    handle = env_open(name, "rt");
+    if (handle != NULL) {
+        for (k = 1; k <= n; k++) {
+            if (feof(handle))
+                goto done;
+            if (msc_fgets(line, 36, handle) == NULL)
+                goto done;
+        }
+        for (k = 0; k < (i16)msc_strlen(line); k++)
+            if (line[k] < ' ')
+                line[k] = 0;
+        msc_strcpy(dest, line);
+        err = 0;
+    }
+done:
+    if (handle != NULL)
+        msc_fclose(handle);
+    return err;
+}
+/* error_dump_file -- 0ed0:00ac, 170 bytes */
+void error_dump_file(char *name)
+{
+    char line[80];
+    i16 err;
+    i16 loop;
+    i16 k;
+    MSC_FILE *handle;
+
+    err = -1;
+    handle = env_open(name, "rt");
+    if (handle != NULL) {
+        loop = -1;
+        do {
+            if (feof(handle))
+                break;
+            if (msc_fgets(line, 0x4f, handle) == NULL)
+                break;
+            for (k = 0; k < (i16)msc_strlen(line); k++)
+                if (line[k] < ' ')
+                    line[k] = 0;
+            if (msc_strncmp(line, "***", 3) == 0)
+                loop = 0;
+            else
+                echo(-1, line);
+        } while (loop != 0);
+    }
+    if (handle != NULL)
+        msc_fclose(handle);
+}
+/* error_shutdown_report -- 0ed0:0156, 640 bytes */
+/* PORT: error_shutdown_report is in port/ (inline assembly) */
+void error_shutdown_report(char *errtext, char *modtext, char *numtext, char *extra, i32 memfree, i16 code);
+
 /* error_report -- 0ed0:03d6, 152 bytes */
 // MSC: #pragma optimize("e", on)
 void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2)
@@ -86,18 +143,14 @@ void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2)
     char mname[40];
 
     unused = 0;
-    if (g_err_level <= level) {
+    if (error_abort <= level) {
         msc_itoa(code, emsg, 10);
         msc_itoa(module, mname, 10);
         msc_ltoa(data1, d1, 10);
         msc_ltoa(data2, d2, 10);
-        read_nth_line(emsg, "*ERRORS.DB", ~code + 1);
-        read_nth_line(mname, "*MODULES.DB", module);
-        error_report(emsg, mname, d1, d2, far_mem_free(), code);
+        error_read_line(emsg, "*ERRORS.DB", ~code + 1);
+        error_read_line(mname, "*MODULES.DB", module);
+        error_shutdown_report(emsg, mname, d1, d2, mem_get_avail(), code);
     }
 }
-
-/* DGROUP data that follows this module's literals in the image (DS:0x25aa-0x25ab). Defined
- * after the last function, so no function's symbol count moves; the values are the shipped ones. */
-i16 g_25aa = 0;                                     /* DS:0x25aa */
 

@@ -134,6 +134,13 @@ class Machine:
     def write_ds(self, off, data):
         self.write(self.dgroup, off, data)
 
+    def data(self, name):
+        """The DS offset of a public variable, by its C name."""
+        seg, off = self.publics['_' + name]
+        if LOAD + seg != self.dgroup:
+            raise KeyError('%s is not in DGROUP' % name)
+        return off
+
     def address(self, name):
         """(seg, off) of a function by its C name, and its convention."""
         for sym, conv in (('_' + name, 'cdecl'), ('@' + name, 'fastcall'), (name.upper(), 'pascal')):

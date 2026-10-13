@@ -37,14 +37,6 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-typedef struct {
-    char kind;
-    char owned;
-    char *base;
-    char *next;
-    i32 size;
-    i32 left;
-} Arena;
 
 extern void *mem_get_name(i32 size, char *tag);   /* 181f:2e90 */
 extern i32 mem_get_avail(void);                                          /* 181f:127a */

@@ -18,7 +18,6 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-typedef struct { u16 x0; u16 y0; u16 x1; u16 y1; i16 v1; i16 v2; i16 id; i16 active; } HotSpot;
 
 extern u16 numspots;                        /* DS:0x0716 */
 extern HotSpot spot[];                           /* DS:0x530a */

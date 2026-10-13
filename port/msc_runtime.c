@@ -427,6 +427,21 @@ static i16 seek(MSC_FILE *f, i32 pos)
 
 void msc_rewind(MSC_FILE *f) { seek(f, 0); }
 
+/* fseek: SEEK_SET, SEEK_CUR (from where the program has read to) or SEEK_END */
+i16 msc_fseek(MSC_FILE *f, i32 offset, i16 whence)
+{
+    i32 base = 0;
+    if (whence == 1)
+        base = tell(f);
+    else if (whence == 2) {
+        i32 len = msc_filelength(f->_file);
+        if (len < 0)
+            return -1;
+        base = len;
+    }
+    return seek(f, base + offset);
+}
+
 i16 msc_fgetpos(MSC_FILE *f, msc_fpos_t *pos)
 {
     i32 t = tell(f);
@@ -615,6 +630,17 @@ char *msc__fstrrchr(const char *s, i16 c) { return strrchr(s, (char)c); }
 char *msc__fstrupr(char *s) { return msc_strupr(s); }
 void *msc__fmemcpy(void *d, const void *s, u16 n) { return memcpy(d, s, n); }
 void *msc__fmemset(void *d, i16 c, u16 n) { return memset(d, (unsigned char)c, n); }
+void *msc__fmemmove(void *d, const void *s, u16 n) { return memmove(d, s, n); }
+i16 msc__fstricmp(const char *a, const char *b)
+{
+    for (;; a++, b++) {
+        int x = tolower((unsigned char)*a), y = tolower((unsigned char)*b);
+        if (x != y)
+            return (i16)(x < y ? -1 : 1);
+        if (!x)
+            return 0;
+    }
+}
 
 /* ---- numbers ------------------------------------------------------------------------------ */
 

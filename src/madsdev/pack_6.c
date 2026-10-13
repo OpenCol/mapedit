@@ -8,6 +8,7 @@
  * fn far_to_near             0x1469a
  * fn io_call_hook            0x146a4
  * fn pack_set_special_buffer 0x146ba
+ * fn pack_data                 0x146da
  *
  * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl28_772ba).
  *
@@ -55,36 +56,155 @@ void pack_set_special_buffer(void (*a)(void), void (*b)(void))
     pack_special_buffer = a;
     pack_special_function = b;
 }
-
+/* pack_data -- 1309:004a, 784 bytes */
 // MSC: #pragma optimize("elg", on)
 typedef u16 (*FFIO)(void *buf, u16 *n);
 
-extern void *far_alloc_tagged(i32 size, char *tag);
-extern void fatal_error(i16 code, i16 level, i16 module, i32 data1, i32 data2);
-extern i16 POPUP_DTOR(void *p);
-extern i16 ff_codec(i16 method, i16 kind);
-extern u16 ff_read_mem(void *buf, u16 *n);
-extern u16 ff_read_file(void *buf, u16 *n);
-extern u16 ff_write_mem(void *buf, u16 *n);
-extern u16 ff_write_file(void *buf, u16 *n);
-extern i16 g_ff_type;                   /* DS:0x26ca */
-extern void *g_ff_implode;          /* DS:0x26cc */
-extern void *g_ff_explode;          /* DS:0x26d0 */
-extern void *g_ff_implode_b;        /* DS:0x26d4 */
-extern void *g_ff_explode_b;        /* DS:0x26d8 */
-extern void *g_ff_explode_to_mem;   /* DS:0x26dc */
-extern void *g_ff_explode_mem;      /* DS:0x26e0 */
-extern void *g_ff_work;             /* DS:0xa622 */
-extern u16 g_ff_work_size;         /* DS:0xa626 */
-extern i32 g_ff_out;                   /* DS:0xa628 */
-extern i32 g_ff_out_left;              /* DS:0xa62c */
-extern i32 g_ff_in_left;               /* DS:0xa630 */
-extern i32 g_ff_in;                    /* DS:0xa634 */
-extern i16 g_ff_dst_fp;                 /* DS:0xa638 */
-extern FFIO g_ff_writer;                /* DS:0xa63a */
-extern void *g_ff_dst;              /* DS:0xa63e */
-extern i16 g_ff_src_fp;                 /* DS:0xa642 */
-extern FFIO g_ff_reader;                /* DS:0xa644 */
-extern void *g_ff_src;              /* DS:0xa648 */
+extern void *mem_get_name(i32 size, char *tag);         /* 0cc9:0136 */
+extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2); /* 0ed0:03d6 */
+extern i16 mem_free(void *p);                                   /* 0cc9:0310 */
+extern i16 pack_a_packet(i16 method, i16 kind);                  /* 1202:0086 */
+extern u16 pack_read_memory(void *buf, u16 *n);   /* 1359:0006 */
+extern u16 pack_read_file(void *buf, u16 *n);     /* 1367:0008 */
+extern u16 pack_write_memory(void *buf, u16 *n);  /* 1360:000a */
+extern u16 pack_write_file(void *buf, u16 *n);    /* 136f:0002 */
+extern u16 pack_write_ems(void *buf, u16 *n);     /* 1378:0004 */
+extern i16 pack_strategy;               /* DS:0x448c */
+extern void *pack_implode_routine;  /* DS:0x448e */
+extern void *pack_explode_routine;  /* DS:0x4492 */
+extern void *pack_pFABcomp_routine; /* DS:0x4496 */
+extern void *pack_pFABexp0_routine; /* DS:0x449a */
+extern void *pack_pFABexp1_routine; /* DS:0x449e */
+extern void *pack_pFABexp2_routine; /* DS:0x44a2 */
+extern void *pack_buffer;           /* DS:0x4ea4 */
+extern u16 pack_buffer_size;       /* DS:0x6028 */
+extern i32 pack_write_count;           /* DS:0x6984 */
+extern i32 pack_write_size;            /* DS:0x4a84 */
+extern i32 pack_read_size;             /* DS:0x5290 */
+extern i32 pack_read_count;            /* DS:0x4b0a */
+extern i16 pack_write_file_handle;      /* DS:0x4e7a */
+extern FFIO pack_write_routine;         /* DS:0x64e8 */
+extern void *pack_write_memory_ptr; /* DS:0x5a9e */
+extern i16 pack_read_file_handle;       /* DS:0x4e7c */
+extern FFIO pack_read_routine;          /* DS:0x6042 */
+extern void *pack_read_memory_ptr;  /* DS:0x6348 */
+extern i16 pack_ems_page_handle;        /* DS:0x6978 */
+extern i16 pack_ems_page_marker;        /* DS:0x4bb4 */
+extern i16 pack_ems_page_offset;        /* DS:0x4e82 */
 
+i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
+                         void *src, void *dst)
+{
+    i32 *count;
+    i16 kind;
+    i32 *left;
+    i16 r;
+    i16 *ems;               /* a named copy: `((int far *)dst)[k]` gives `les bx` where shipped loads the halves apart */
+
+    kind = 0;
+    if (from_file == 0) {
+        pack_read_routine = pack_read_memory;
+        pack_read_memory_ptr = src;
+    } else {
+        pack_read_routine = pack_read_file;
+        pack_read_file_handle = far_to_near(src);
+    }
+    if (to_file == 2) {
+        pack_write_routine = pack_write_ems;
+        ems = dst;
+        pack_ems_page_handle = ems[0];
+        pack_ems_page_marker = ems[1];
+        pack_ems_page_offset = ems[2];
+    } else if (to_file == 0) {
+        pack_write_routine = pack_write_memory;
+        pack_write_memory_ptr = dst;
+    } else {
+        pack_write_routine = pack_write_file;
+        pack_write_file_handle = far_to_near(dst);
+    }
+    pack_read_count = pack_write_count = 0;
+    switch (method) {
+    default:
+        pack_buffer_size = 0x1000;
+        pack_write_size = pack_read_size = bytes;
+        left = &pack_read_size;
+        count = &pack_write_count;
+        break;
+    case 0:
+        if (pack_strategy == 1) {
+            pack_buffer_size = 0xd1d0;
+            if (pack_pFABcomp_routine == 0)
+                error_report(-29, 3, 24, (i32)method, (i32)pack_strategy);
+        } else {
+            pack_buffer_size = 0x89b8;
+            if (pack_implode_routine == 0)
+                error_report(-29, 3, 24, (i32)method, (i32)pack_strategy);
+        }
+        pack_read_size = bytes;
+        pack_write_size = -1L;
+        left = &pack_read_size;
+        count = &pack_read_count;
+        break;
+    case 1:
+        pack_read_size = -1L;
+        pack_write_size = bytes;
+        left = &pack_write_size;
+        if (pack_strategy == 1) {
+            if (from_file == 0 && to_file == 0 && pack_pFABexp2_routine != 0) {
+                count = &bytes;
+                pack_buffer_size = 4;
+                kind = 2;
+            } else if (to_file != 1 && to_file != 2) {
+                count = &bytes;
+                pack_buffer_size = 0x822;
+                kind = 1;
+                if (pack_pFABexp1_routine == 0)
+                    error_report(-29, 3, 24, (i32)method, (i32)pack_strategy);
+            } else {
+                count = &pack_write_count;
+                pack_buffer_size = 0x382e;
+                kind = 0;
+                if (pack_pFABexp0_routine == 0)
+                    error_report(-29, 3, 24, (i32)method, (i32)pack_strategy);
+            }
+        } else {
+            count = &pack_write_count;
+            pack_buffer_size = 0x311e;
+            if (pack_explode_routine == 0)
+                error_report(-29, 3, 24, (i32)method, (i32)pack_strategy);
+        }
+        break;
+    }
+    pack_buffer = 0;
+    if (pack_special_buffer == 0) {
+        pack_buffer = mem_get_name((i32)pack_buffer_size, "$pack$");
+        if (pack_buffer == 0) {
+            *count = 0;
+            goto out;
+        }
+    } else
+        pack_buffer = (void *)pack_special_buffer;
+    if (method == 1 && to_file == 0) {
+        r = pack_a_packet(method, kind);
+        if (r != 0) {
+            *count = 0;
+            error_report(-28, 3, 24, (i32)(method * 1000 + kind), (i32)r);
+        }
+    } else {
+        while (*left > 0) {
+            if (pack_a_packet(method, 0) != 0) {
+                *count = 0;
+                error_report(-28, 3, 24, (i32)method, (i32)to_file);
+                break;
+            }
+        }
+    }
+out:
+    if (pack_special_buffer == 0) {
+        if (pack_buffer != 0)
+            mem_free(pack_buffer);
+    } else
+        io_call_hook();
+    return *count;
+}
 

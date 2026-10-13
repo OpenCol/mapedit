@@ -21,7 +21,6 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-typedef struct { i16 x0; i16 y0; i16 x1; i16 y1; i16 v1; i16 v2; i16 id; i16 active; } HotSpot;
 
 extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2);
 extern i16 numspots;                             /* DS:0x0716 */
