@@ -46,14 +46,21 @@ def rle_row(rng, w):
     return bytes(out)
 
 
-def test_sprite_draw(m, lib, rng):
-    f = lib.sprite_draw
-    f.argtypes = [ctypes.c_int16, ctypes.c_void_p, ctypes.POINTER(DosPort), ctypes.c_int16, ctypes.c_int16]
+def run(m, lib, rng, name):
+    f = getattr(lib, name)
+    scaled = 'scaled' in name
+    f.argtypes = [ctypes.c_int16, ctypes.c_void_p, ctypes.POINTER(DosPort), ctypes.c_int16,
+                  ctypes.c_int16] + ([ctypes.c_int16] if scaled else [])
     port_at = 0xfff0 - 16
     for case in range(N):
         m.reset_heap()
         w, h = rng.choice([(320, 200), (40, 30)])
         b = Buffers(m, w, h, rng)
+        if name.endswith('black'):             # half the destination still empty
+            blank = bytes(0 if rng.random() < 0.5 else c for c in b.data)
+            b.data = blank
+            m.write(b.seg, 0, blank)
+            ctypes.memmove(b.c, blank, len(blank))
         nframes = rng.randrange(1, 4)
         frames = []
         for k in range(nframes):
@@ -78,7 +85,24 @@ def test_sprite_draw(m, lib, rng):
         fw, fh, _ = frames[n - 1]
         x, y = rng.randrange(-fw - 2, w + 2), rng.randrange(-fh - 2, h + 2)
         m.write_ds(port_at, b.port_bytes())
-        m.call('sprite_draw', [W(icon), D(sseg << 16), P(port_at), W(x), W(y)])
+        extra = [rng.choice([100, rng.randrange(1, 100)])] if scaled else []
+        m.call(name, [W(icon), D(sseg << 16), P(port_at), W(x), W(y)] + [W(v) for v in extra])
         p = b.port_c()
-        f(icon, ctypes.addressof(cs), ctypes.byref(p), x, y)
+        f(icon, ctypes.addressof(cs), ctypes.byref(p), x, y, *extra)
         b.compare('case %d: frame %d (%dx%d) at (%d,%d) in %dx%d' % (case, icon, fw, fh, x, y, w, h))
+
+
+def test_sprite_draw(m, lib, rng):
+    run(m, lib, rng, 'sprite_draw')
+
+
+def test_sprite_draw_black(m, lib, rng):
+    run(m, lib, rng, 'sprite_draw_black')
+
+
+def test_sprite_draw_scaled(m, lib, rng):
+    run(m, lib, rng, 'sprite_draw_scaled')
+
+
+def test_sprite_draw_scaled_black(m, lib, rng):
+    run(m, lib, rng, 'sprite_draw_scaled_black')
