@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/sprite_e (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
+#include "sprite.h"
 /* MODULE sprite_e: MAPEDIT.EXE segment 0ddb (sprite_e.c), file 0xf3b8-0xfd1c, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -45,61 +47,7 @@
 
 
 
-typedef struct {                /* one directory entry, 10 bytes */
-    char type;
-    char flag;
-    i32 size;
-    i32 offset;
-} FFEntry;
-typedef struct {
-    i16 msc_open;
-    i16 reading;
-    char kind;                  /* 1 or 2: an in-memory file */
-    char pad5;
-    MSC_FILE *fp;
-    i16 x8;
-    i16 xa;
-    i32 xc;
-    i32 x10;
-    i32 total;
-    i16 x18;
-    char magic[12];
-    i16 x26;
-    i16 count;
-    FFEntry ent[16];
-} FileIO;
-
-typedef struct { u8 *data; i16 x0; i16 y0; i16 w; i16 h; } IconRec;
 typedef struct { i32 offset; i32 size; i16 x0; i16 y0; i16 w; i16 h; } FrameEntry;
-typedef struct { i32 offset; i32 size; } FrameSize;
-typedef struct {
-    char kind;                  /* +0: the loader's kind */
-    char b1;                    /* +1: header byte 1 */
-    MSC_FILE *fp;                   /* +2 */
-    i32 pos;                   /* +4: file position of the frame data */
-    i16 x8;
-    i16 xa;
-    i16 xc;
-    i16 xe;
-    i32 x10;
-} SpriteInfo;
-typedef struct {
-    i16 flag0;                  /* +0 */
-    i16 x2;                     /* +2 */
-    i16 count;                  /* +4 */
-    i16 pal_handle;             /* +6 */
-    i16 tab[16];                /* +8 */
-    i16 x28;
-    i16 x2a;
-    char packed;                /* +0x2c */
-    char pad2d;
-    SpriteInfo *info;       /* +0x2e */
-    FrameSize *sizes;       /* +0x32 */
-    char *color_flags;      /* +0x36 */
-    char *arena;            /* +0x3a */
-    char *extra;            /* +0x3e */
-    IconRec icon[1];            /* +0x42 */
-} SpriteSeries;
 typedef struct {
     char packed;                /* +0 */
     char b1;                    /* +1 */
@@ -124,14 +72,10 @@ typedef struct { i16 n; PalEntry e[1]; } PalList;
 typedef struct { i16 n; i16 idx[3]; } Shadow;
 
 
-extern i16 loader_open(char *how, i16 mode, FileIO *fh, char *name);
-extern i16 loader_close(FileIO *fh);
-extern i32 loader_read(i32 size, void *buf, i32 count, FileIO *fh);
 extern void *mem_get_name(i32 size, char *tag);
 extern i16 mem_free(void *p);
 extern char *mem_normalize(char *p);
 extern i16 pal_allocate(i16 flags, PalList *list, Shadow *sh);
-extern void sprite_color_translate(SpriteSeries *sheet, char *map);
 
 extern Shadow *master_shadow;                  /* DS:0x4404 */
 extern u8 master_palette[0x300];        /* DS:0x5b20 */
@@ -240,14 +184,14 @@ err4:
         goto done;
     }
     if (hdrn.tab[3] == 0) {
-        entsizel = fh.ent[fh.x18].size;
+        entsizel = fh.ent[fh.next].size;
         pal = mem_get_name(entsizel, "$color$");
         if (pal == 0)
             goto err4;
         if (loader_read(entsizel, pal, 1L, &fh) == 0)
             goto done;
     } else {
-        entsizel = fh.ent[fh.x18].size;
+        entsizel = fh.ent[fh.next].size;
         if (put_palette != 0) {
             palp8 = put_palette;
             pal = 0;
@@ -255,8 +199,8 @@ err4:
                 goto done;
         } else {
             msc_fgetpos(fh.fp, &pos3);
-            idx = fh.x18++;
-            msc_fseek(fh.fp, fh.ent[idx].offset + pos3, 0);
+            idx = fh.next++;
+            msc_fseek(fh.fp, fh.ent[idx].packed + pos3, 0);
         }
     }
     series->packed = hdrn.packed;
@@ -336,30 +280,14 @@ no_match:
             series->color_flags[i] = pal->e[i].index;
         info->b1 = hdrn.b1;
         info->kind = fh.kind;
-        if (info->kind == 1 || info->kind == 2) {
-            info->x8 = fh.x8;
-            info->xa = (i16)fh.x10;
-            info->xc = (i16)(fh.x10 >> 16);
-            info->xe = fh.xa;
-            info->x10 = fh.xc;
-            maxsizem = 0;
-            runningl = 0;
-            for (i = 0; i < series->count; i++) {
-                sizes7[i].offset = runningl;
-                sizes7[i].size = table3[i].size;
-                runningl += sizes7[i].size;
-                maxsizem = sizes7[i].size > maxsizem ? sizes7[i].size : maxsizem;
-            }
-        } else {
-            info->fp = fh.fp;
-            msc_fgetpos(fh.fp, &runningl);
-            info->pos = runningl;
-            maxsizem = 0;
-            for (i = 0; i < series->count; i++) {
-                sizes7[i].offset = table3[i].offset;
-                sizes7[i].size = table3[i].size;
-                maxsizem = sizes7[i].size > maxsizem ? sizes7[i].size : maxsizem;
-            }
+        info->fp = fh.fp;
+        msc_fgetpos(fh.fp, &runningl);
+        info->pos = runningl;
+        maxsizem = 0;
+        for (i = 0; i < series->count; i++) {
+            sizes7[i].offset = table3[i].offset;
+            sizes7[i].size = table3[i].size;
+            maxsizem = sizes7[i].size > maxsizem ? sizes7[i].size : maxsizem;
         }
         if (!(flags & 2)) {
             if (pal != 0)

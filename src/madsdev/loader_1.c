@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/loader_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
 /* MODULE loader_1: MAPEDIT.EXE segment 121a (loader_1.c), file 0x137a0-0x13b82, 3 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -136,32 +137,6 @@
 
 
 
-typedef struct {                /* one directory entry, 10 bytes */
-    char type;
-    char flag;
-    i32 size;
-    i32 packed;
-} FFEntry;
-
-typedef struct {
-    i16 msc_open;
-    i16 reading;
-    char kind;                  /* 1: in EMS, 2: in XMS */
-    char pad5;
-    MSC_FILE *fp;
-    i16 ems_handle;             /* +8: the himem_resident answer */
-    i16 xms_handle;             /* +0xa */
-    i32 xms_pos;               /* +0xc */
-    i16 ems_page;               /* +0x10 */
-    i16 ems_offset;             /* +0x12 */
-    i32 total;                 /* the entries' sizes summed */
-    i16 next;
-    char magic[12];             /* the 0xb0-byte header starts here */
-    i16 x26;
-    i16 count;
-    FFEntry ent[16];
-} FileIO;
-
 extern MSC_FILE *env_open(char *name, char *mode);                     /* 0297:0104 */
 extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);   /* 0bca:0000 */
 extern i32 fileio_fwrite_f(void *p, i32 size, i32 n, MSC_FILE *fp);  /* 0bea:0008 */
@@ -191,7 +166,6 @@ i16 loader_open(char *how, i16 mode, FileIO *fh, char *name)
     fh->msc_open = 0;
     reading = msc_strchr(msc_strlwr(how), 'r') != 0;
     fh->kind = 0;
-    fh->ems_handle = -1;
     if ((fh->fp = env_open(name, how)) == 0)
         goto out;
     fh->reading = reading;

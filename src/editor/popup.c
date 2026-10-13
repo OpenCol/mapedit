@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/editor/popup (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "sprite.h"
 /* MODULE popup: MAPEDIT.EXE segment 033d (popup.obj), file 0x49de-0x8378, 64 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -250,15 +251,9 @@ typedef struct DosEdit {
 } DosEdit;
 /* A sprite item: its x, the x after it, the icon index, the key, the label, the icon sheet,
  * the next sprite. 0x14 bytes. */
-typedef struct { i16 x0, y0, f4, f6, w, h; } IconEntry;
-typedef struct { char hdr[0x36]; IconEntry icon[1]; } IconSheet;
-/* PORT: the frames are read through the port's view of the series (port/series.h): this
-   sheet's frame idx is its icon[idx - 1], and DosAnim's w and h are icon[0]'s */
-#include "series.h"
-/* What a dude's animation header holds that the layout reads. */
-typedef struct { char pad0[0x10]; i16 f10; i16 f12; i16 f14; char pad16[0x34]; i16 w; i16 h; } DosAnim;
+
 typedef struct DosSprite {
-    i16 x; i16 x2; i16 idx; i16 key; char *label; IconSheet *sheet;
+    i16 x; i16 x2; i16 idx; i16 key; char *label; SpriteSeries *sheet;
     struct DosSprite *next;
 } DosSprite;
 typedef struct { i16 f0; i16 f2; i16 b; i16 f6; i16 f8; i16 fa; void *a; } DosAttach;
@@ -329,7 +324,6 @@ extern char *put_palette;            /* DS:0x3ae0 */
 extern void cycle_save(i16 on);
 extern void reset_sprite_memory(void);
 extern void * sprite_load(char *name, i16 a);
-extern void * sprite_series_load(char *name, i16 flags);
 extern void mem_free(void *p);
 extern void mcga_setpal(char *pal);
 
@@ -849,7 +843,7 @@ i16 font_height(DosFont *c)
     return r;
 }
 /* popup_add_sprite -- 033d:0f4a, 494 bytes */
-DosSprite *popup_add_sprite(DosPopup *p, IconSheet *sheet, i16 idx, char *label,
+DosSprite *popup_add_sprite(DosPopup *p, SpriteSeries *sheet, i16 idx, char *label,
                             i16 key)
 {
     i16 a;
@@ -893,8 +887,8 @@ DosSprite *popup_add_sprite(DosPopup *p, IconSheet *sheet, i16 idx, char *label,
     if (p->flags & 2)
         x1 = a = 0x10;
     else {
-        a = ((SpriteSeriesView *)sheet)->icon[idx - 1].w;
-        x1 = ((SpriteSeriesView *)sheet)->icon[idx - 1].h;
+        a = sheet->icon[idx - 1].w;
+        x1 = sheet->icon[idx - 1].h;
     }
     spr->x2 = max(x1, h) + p->f46 + spr->x;
     p->spr_h = max(p->spr_h, a);
@@ -1107,9 +1101,9 @@ i16 popup_layout(DosPopup *p)
         if (p->dude != 0) {
             spr5 = p->dude;
             if (popup_indian >= 0) {
-                dh = ((SpriteSeriesView *)spr5->sheet)->icon[0].h + 3;
+                dh = spr5->sheet->icon[0].h + 3;
                 off = -3;
-                dw1 = ((SpriteSeriesView *)spr5->sheet)->icon[0].w + 3;
+                dw1 = spr5->sheet->icon[0].w + 3;
                 tw1 = p->w + dw1 + 3;
                 if (tw1 > 320) {
                     off = tw1 - 0x143;
@@ -1135,11 +1129,11 @@ i16 popup_layout(DosPopup *p)
             }
             if (popup_messenger < 0 && popup_foreign < 0)
                 goto done;
-            dw1 = ((SpriteSeriesView *)spr5->sheet)->icon[0].w;
-            dh = ((SpriteSeriesView *)spr5->sheet)->icon[0].h;
-            a10x = ((DosAnim *)spr5->sheet)->f10;
-            a12v = ((DosAnim *)spr5->sheet)->f12;
-            a14 = ((DosAnim *)spr5->sheet)->f14;
+            dw1 = spr5->sheet->icon[0].w;
+            dh = spr5->sheet->icon[0].h;
+            a10x = spr5->sheet->tab[4];
+            a12v = spr5->sheet->tab[5];
+            a14 = spr5->sheet->tab[6];
             nhv = dh - min(a10x, dh) + p->h;
             if (nhv >= 200) {
                 p->flags |= 0x40;
@@ -1226,7 +1220,6 @@ void popup_help_draw(DosPopup *p)
     }
 }
 /* popup_big_sprite -- 033d:1af6, 148 bytes */
-extern void sprite_draw(u16 icon, IconSheet *sheet, DosPort *port, i16 x, i16 y);
 
 void popup_big_sprite(DosPopup *p)
 {
@@ -1378,7 +1371,7 @@ void popup_draw_sprites(i16 labels, i16 full, i16 hilite, DosPopup *p)
     if (p->flags & 2)
         ihx = 0x10;
     else
-        ihx = ((SpriteSeriesView *)sprs->sheet)->icon[sprs->idx - 1].w;
+        ihx = sprs->sheet->icon[sprs->idx - 1].w;
     uc = lastx - sprs->x + 1;
     if (full)
         popup_fill(ox - 1, sprs->x + oyn - 1, ihx + 2, scr_work, uc + 2,
@@ -1801,7 +1794,7 @@ i16 popup_exec(DosPopup *p)
             }
         }
         if (king_active && dude7 != 0 && timer_read() >= king_clock
-            && *(i16 *)(dude7->sheet->hdr + 4) > king_frame) {
+            && dude7->sheet->count > king_frame) {
             king_frame++;
             buffer_rect_copy(0, 0, 0x140, scr_orig, scr_work, 200);
             fullv = 1;
@@ -2217,7 +2210,7 @@ i16 popup_ask_number(char *txt, char *key, i16 dflt)
  * and that pixel is the colour. */
 void popup_read_colors(void)
 {
-    IconSheet *colr;
+    SpriteSeries *colr;
     volatile u8 pix[2];
     DosPort port;
 

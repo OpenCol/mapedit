@@ -17,16 +17,16 @@
  */
 #include "msc.h"
 
-#include "series.h"
+#include "sprite.h"
 
-static IconRec *frame(void *sheet, i16 n)
+static IconRec *frame(SpriteSeries *sheet, i16 n)
 {
-    return &((SpriteSeriesView *)sheet)->icon[n - 1];
+    return &sheet->icon[n - 1];
 }
 
 /* the shared decoder; with under set (sprite_draw_black) a pixel is written only where the
    destination is still 0, under what is drawn already -- the destination moves either way */
-static void draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y, int under)
+static void draw(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, int under)
 {
     i16 dir = 1, maxx1 = (i16)(port->w - 1), maxy = (i16)(port->h - 1);
     i16 iwo, ihn, skipx, visw, endx, skipyo, vish, endyo, bx, cx, ax, dx;
@@ -161,13 +161,13 @@ static void draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y, int under)
 }
 
 /* sprite_draw -- 0d8f:0000 */
-void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y)
+void sprite_draw(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y)
 {
     draw(icon, sheet, port, x, y, 0);
 }
 
 /* sprite_draw_black -- 0e71:000c: the same, only onto pixels that are 0 */
-void sprite_draw_black(i16 icon, void *sheet, DosPort *port, i16 x, i16 y)
+void sprite_draw_black(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y)
 {
     draw(icon, sheet, port, x, y, 1);
 }
@@ -176,7 +176,7 @@ void sprite_draw_black(i16 icon, void *sheet, DosPort *port, i16 x, i16 y)
    frame's larger dimension keeps a source row or column when an accumulator (from 50, plus
    scale each step) reaches 100; the output is centred on x and its bottom row is y. Dropped
    columns move only the source; kept ones are clipped and drawn as sprite_draw's are. */
-static void draw_scaled(i16 icon, void *sheet, DosPort *port, i16 x, i16 y, i16 scale, int under)
+static void draw_scaled(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale, int under)
 {
     i16 dir = 1, maxx1 = (i16)(port->w - 1), maxy = (i16)(port->h - 1);
     i16 iwo, ihn, maxdim, outw = 0, outh = 0, skipx, visw, endx, skipyo, endyo;
@@ -319,13 +319,13 @@ static void draw_scaled(i16 icon, void *sheet, DosPort *port, i16 x, i16 y, i16 
     }
 }
 
-void sprite_draw_scaled(i16 icon, void *sheet, DosPort *port, i16 x, i16 y, i16 scale)
+void sprite_draw_scaled(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale)
 {
     draw_scaled(icon, sheet, port, x, y, scale, 0);
 }
 
 /* sprite_draw_scaled_black -- 0e92:000a: scaled, only onto pixels that are 0 */
-void sprite_draw_scaled_black(i16 icon, void *sheet, DosPort *port, i16 x, i16 y, i16 scale)
+void sprite_draw_scaled_black(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale)
 {
     draw_scaled(icon, sheet, port, x, y, scale, 1);
 }

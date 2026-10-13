@@ -55,7 +55,7 @@ endif()
 # What the port writes for the functions the import refused (inline assembly): port/lib
 file(GLOB PORT_LIB_SOURCES CONFIGURE_DEPENDS port/lib/*.c)
 add_library(portlib OBJECT ${PORT_LIB_SOURCES})
-target_include_directories(portlib PRIVATE port platform)
+target_include_directories(portlib PRIVATE port platform src/include)
 target_compile_options(portlib PRIVATE ${WARN})
 if(NOT MSVC)
   target_compile_options(portlib PRIVATE -fsigned-char)

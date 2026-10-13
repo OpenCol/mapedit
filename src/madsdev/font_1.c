@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/font_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "loader.h"
 /* MODULE font_1: MAPEDIT.EXE segment 0d43 (font_1.c), file 0xea3a-0xeb38, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
  *
@@ -22,25 +23,14 @@
  */
 
 
-/* PORT: the whole loader record (loader_1.c's FileIO; its size is ent[0].size), which
-   loader_open fills with the port's widths */
-typedef struct {
-    i16 msc_open; i16 reading; char kind; char pad5; MSC_FILE *fp;
-    i16 x8; i16 xa; i32 xc; i16 x10; i16 x12; i32 total; i16 next;
-    char magic[12]; i16 x26; i16 count;
-    struct { char type; char flag; i32 size; i32 packed; } ent[16];
-} Loader;
 
-extern i16 loader_open(char *how, i16 mode, Loader *fh, char *name);
-extern i32 loader_read(i32 size, void *dst, i32 count, Loader *fh);
-extern void loader_close(Loader *fh);
 extern void *mem_get_name(i32 size, char *tag);
 extern void mem_free(void *p);
 extern i16 mem_last_alloc_loader;                                            /* DS:0x074c */
 /* font_load -- 0d43:000a, 254 bytes */
 void *font_load(char *name)
 {
-    Loader fh;
+    FileIO fh;
     char path[80];
     char tag[20];
     void *result;
