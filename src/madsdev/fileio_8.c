@@ -22,7 +22,7 @@ extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_i
 
 
 extern i16 pad_g0;                       /* moves fileio_suppress_unbuffering one position (mod 17) */
-extern i16 fileio_suppress_unbuffering;                       /* DS:0x2624 */
+i16 fileio_suppress_unbuffering = 0;                          /* DS:0x0718 (defined here) */
 /* fileio_fread_f -- 0bca:0000, 520 bytes */
 i32 fileio_fread_f(char *p, i32 size, i32 n, MSC_FILE *fp)
 {

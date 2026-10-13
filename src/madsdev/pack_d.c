@@ -67,3 +67,8 @@ i16 pack_write_ems(char *buf, u16 *n)
     return count;
 }
 
+/* The module's uninitialised data (communals, BSS). */
+i16 pack_ems_page_marker;                 /* DS:0x4bb4 */
+i16 pack_ems_page_offset;                 /* DS:0x4e82 */
+i16 pack_ems_page_handle;                 /* DS:0x6978 */
+

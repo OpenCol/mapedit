@@ -300,7 +300,7 @@ void menu_set_font(MenuStyle *st, DosFont *font, i16 spacing, i16 color, i16 hi,
     st->font = font;
 }
 /* menu_fill_rect -- 06d7:0052, 100 bytes */
-extern DosPort *menu_tile;                         /* DS:0x14ba, the menu's backdrop port */
+extern DosPort *menu_tile;                         /* DS:0x0632, the menu's backdrop port (defined below) */
 extern void buffer_rect_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, char color);
 extern void buffer_tile(DosPort dst, DosPort src, i16 x, i16 y, i16 w, i16 h, i16 a, i16 b);
 
@@ -387,8 +387,25 @@ i16 menu_get_hotkey(u8 *s)
     return r;
 }
 /* menu_create -- 06d7:02fe, 328 bytes */
-extern i16 menu_bar_background_color_0, menu_bar_background_color_1, menu_background_color_0, menu_background_color_1, menu_select_color_0, menu_select_color_1, menu_bar_select_color_0, menu_bar_select_color_1, menu_border_color;
-extern i16 menu_font_main_color, menu_font_grey_color, menu_font_hilite_color, menu_bar_font_main_color, menu_bar_font_grey_color, menu_bar_font_hilite_color;
+/* The menu colours and the backdrop port, defined here (the 16 land at DS:0x0614-0x0634 in
+ * this order, ahead of menu_read_colors' "MENUCOLR.SS": MSC emits a global after the literals
+ * of the function that follows its definition, and no function before that one has any). */
+i16 menu_bar_background_color_0 = 7;      /* DS:0x0614 */
+i16 menu_bar_background_color_1 = 7;      /* DS:0x0616 */
+i16 menu_background_color_0 = 7;          /* DS:0x0618 */
+i16 menu_background_color_1 = 7;          /* DS:0x061a */
+i16 menu_select_color_0 = 8;              /* DS:0x061c */
+i16 menu_select_color_1 = 8;              /* DS:0x061e */
+i16 menu_bar_select_color_0 = 8;          /* DS:0x0620 */
+i16 menu_bar_select_color_1 = 8;          /* DS:0x0622 */
+i16 menu_border_color = 0;                /* DS:0x0624 */
+i16 menu_font_main_color = 0;             /* DS:0x0626 */
+i16 menu_font_grey_color = 8;             /* DS:0x0628 */
+i16 menu_font_hilite_color = 0xf;         /* DS:0x062a */
+i16 menu_bar_font_main_color = 0;         /* DS:0x062c */
+i16 menu_bar_font_grey_color = 8;         /* DS:0x062e */
+i16 menu_bar_font_hilite_color = 0xf;     /* DS:0x0630 */
+DosPort *menu_tile = 0;                   /* DS:0x0632, the menu's backdrop port (declared above) */
 extern void * mem_get(i32 n);
 extern void heap_declare(i16 kind, void *arena, void *base, i32 size);
 extern void mem_free(void *p);

@@ -151,6 +151,7 @@ i16   msc_fgetpos(MSC_FILE *f, msc_fpos_t *pos);
 i16   msc_fsetpos(MSC_FILE *f, const msc_fpos_t *pos);
 i16   msc_remove(const char *name);
 i16   msc_printf(const char *fmt, ...);
+i16   msc_sprintf(char *buf, const char *fmt, ...);
 i16   msc_open(const char *name, i16 flags, ...);
 i16   msc_close(i16 handle);
 i32   msc_filelength(i16 handle);
@@ -167,6 +168,6 @@ extern u8 msc_bda[256];
 #include "port_records.h"
 
 /* the editor's main, called by the port's */
-i16 editor_main(i16 argc, char **argv);
+void editor_main(i16 argc, char **argv);
 
 #endif

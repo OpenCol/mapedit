@@ -28,3 +28,6 @@ extern char * mem_normalize(char *p);
 u16 pack_read_memory(char *buf, u16 *n);
 
 
+/* The module's uninitialised data (communal, BSS). */
+char *pack_read_memory_ptr;           /* DS:0x6348 */
+

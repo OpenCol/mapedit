@@ -241,3 +241,8 @@ void new_mini(void)
     generate_mini();
 }
 
+/* The module's uninitialised data (communals, BSS). */
+i16 mini_y;                               /* DS:0x49c2 */
+u8 terrain_colors[30];         /* DS:0x4aec */
+i16 mini_x;                               /* DS:0x6982 */
+

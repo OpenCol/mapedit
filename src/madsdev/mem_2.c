@@ -172,3 +172,7 @@ void mem_restore_free(void)
     umb_min_free = min(umb_save_free_area, xms_umb_get_avail());
 }
 
+/* The module's uninitialised data (communals, BSS). */
+i32 mem_save_free_area;                  /* DS:0x4ae8 */
+i32 umb_save_free_area;                  /* DS:0x51c8 */
+

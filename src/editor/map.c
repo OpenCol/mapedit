@@ -114,7 +114,28 @@ i16 on_screen(i16 x, i16 y)
 extern i16 pad_os_16, pad_os_17, pad_os_18, pad_os_19, pad_os_20, pad_os_21, pad_os_22, pad_os_23;
 extern i16 pad_os_24, pad_os_25, pad_os_26, pad_os_27, pad_os_28, pad_os_29, pad_os_30, pad_os_31;
 
-extern u8 *map;            /* DS:0x04a8, plane 0: terrain */
+/* The map module's data, defined here (the 23 land at DS:0x049e-0x0518 in this order, ahead of
+ * owner_set's "Illegal entry into village": MSC emits a global after the literals of the
+ * function that follows its definition). */
+i16 map_file_version = 0;                 /* DS:0x049e */
+char map_ext[4] = "mp";                   /* DS:0x04a0 */
+i16 map_error = 0;                        /* DS:0x04a4 */
+i16 map_high_memory_mode = 0;             /* DS:0x04a6 */
+/* 13 unused declarations restore the symbol count (mod 17) the four definitions above moved. */
+extern i16 pad_d1_0;
+extern i16 pad_d1_1;
+extern i16 pad_d1_2;
+extern i16 pad_d1_3;
+extern i16 pad_d1_4;
+extern i16 pad_d1_5;
+extern i16 pad_d1_6;
+extern i16 pad_d1_7;
+extern i16 pad_d1_8;
+extern i16 pad_d1_9;
+extern i16 pad_d1_10;
+extern i16 pad_d1_11;
+extern i16 pad_d1_12;
+u8 *map = 0;               /* DS:0x04a8, plane 0: terrain */
 
 /* 2 unused declarations set map_loc's operand order (mod 17). */
 extern i16 pad_map_loc_0, pad_map_loc_1;
@@ -134,7 +155,7 @@ u8 map_get(i16 x, i16 y)
     return *p;
 }
 /* feature_loc -- 02ab:012e, 24 bytes */
-extern u8 *feature;        /* DS:0x04ac, plane 1: features */
+u8 *feature = 0;           /* DS:0x04ac, plane 1: features */
 
 u8 *feature_loc(i16 x, i16 y)
 {
@@ -163,7 +184,32 @@ void feature_set(i16 x, i16 y, i16 mask, i16 on)
         *p &= ~mask;
 }
 /* continent_loc -- 02ab:0198, 24 bytes */
-extern u8 *continent;      /* DS:0x04b0, plane 2: continent | owner << 4 */
+u8 *continent = 0;         /* DS:0x04b0, plane 2: continent | owner << 4 */
+u8 *site = 0;              /* DS:0x04b4, plane 3: sight bits */
+void *terrain_1 = 0;                  /* DS:0x04b8, the tile sheet */
+void *terrain_2 = 0;                  /* DS:0x04bc */
+void *tiles = 0;                      /* DS:0x04c0, the icon sheet */
+void *tiles2 = 0;                     /* DS:0x04c4 */
+i16 map_center_x = 0;                     /* DS:0x04c8 */
+i16 map_center_y = 0;                     /* DS:0x04ca */
+i32 map_memory = 0;                      /* DS:0x04cc */
+i16 map_scale = 0;                        /* DS:0x04d0 */
+i16 map_sprite_scale = 100;               /* DS:0x04d2 */
+i16 map_scroll_speed = 10;                /* DS:0x04d4 */
+i16 map_colony_mode = 0;                  /* DS:0x04d6 */
+i16 map_force = 0;                        /* DS:0x04d8 */
+i16 map_view_base_terrain = 0;            /* DS:0x04da */
+i16 map_base_seed = 0;                    /* DS:0x04dc */
+i16 resource_index[TERRAIN_COUNT] = {                /* DS:0x04de: the resource per terrain (-1: none) */
+    6,
+    1, 2, 3, 4, 5, 6, 6, 9,
+    1, 8, 9, 10, 10, 6, 6, 9,
+    1, 8, 9, 10, 10, 6, 6, -1,
+    7, -1, 12, 13
+};
+/* 2 unused declarations restore the count the definitions above moved (mod 17). */
+extern i16 pad_d2_0;
+extern i16 pad_d2_1;
 
 u8 *continent_loc(i16 x, i16 y)
 {
@@ -237,8 +283,6 @@ i16 land_region_at(i16 x, i16 y)
     return n;
 }
 /* site_loc -- 02ab:02e4, 24 bytes */
-extern u8 *site;           /* DS:0x04b4, plane 3: sight bits */
-
 /* 4 unused declarations set site_loc's operand order (mod 17). */
 extern i16 pad_site_loc_0, pad_site_loc_1, pad_site_loc_2, pad_site_loc_3;
 u8 *site_loc(i16 x, i16 y)
@@ -335,8 +379,6 @@ i16 is_hostile(i16 x, i16 y, i16 me)
     return rl;
 }
 /* resource_at -- 02ab:0458, 232 bytes */
-extern i16 map_base_seed;                /* DS:0x0190 */
-extern i16 resource_index[];             /* DS:0x0192 */
 extern i16 terrain_at(i16 x, i16 y);   /* 03e4:003a */
 
 /* DOS: the hash is (x>>2) + (y>>2)*3 - forested + seed (Windows: *17, *19, *31). */
@@ -402,8 +444,6 @@ done:
     return r;
 }
 /* terrain_fix_2 -- 02ab:05bc, 74 bytes */
-extern i16 map_view_base_terrain;                   /* DS:0x018e */
-
 /* The terrain a square shows in the current map frame: in frame 2 both forest bands draw as the
  * first band, in frame 3 every forest as its open terrain. */
 u8 terrain_fix_2(i16 t)
@@ -421,4 +461,33 @@ u8 terrain_fix_2(i16 t)
     }
     return t;
 }
+
+/* The map module's uninitialised data: communals (int x;), placed by the linker (BSS, from
+ * DS:0x4999). A definition after the last function moves no symbol position. */
+i16 map_corner_x;                         /* DS:0x49f2 */
+i16 map_corner_y;                         /* DS:0x49f4 */
+char map_name[80];                        /* DS:0x4a18 */
+DosPort scr_feature;                      /* DS:0x4a6c */
+MapSize map_file;                         /* DS:0x4b12 */
+i16 map_area_size_x;                      /* DS:0x4e70 */
+i16 map_area_size_y;                      /* DS:0x4e76 */
+i16 map_tile_size_x;                      /* DS:0x4e8a */
+i16 map_tile_size_y;                      /* DS:0x4e8c */
+DosPort scr_map;                          /* DS:0x4e92 */
+i32 map_size;                            /* DS:0x4e9c */
+char sea_moves[270];                      /* DS:0x50ba: 270 bytes, nothing in the editor reads it */
+i16 region_size[16];                      /* DS:0x5270 */
+i16 map_view_size_x;                      /* DS:0x52d4 */
+i16 map_view_size_y;                      /* DS:0x52d8 */
+DosPort scr_site;                         /* DS:0x5aa2 */
+i16 map_tile_inset_x;                     /* DS:0x5ad8 */
+i16 map_tile_inset_y;                     /* DS:0x5af4 */
+i16 map_area_base_x;                      /* DS:0x5af6 */
+i16 map_area_base_y;                      /* DS:0x5af8 */
+DosPort scr_continent;                    /* DS:0x5eba */
+char land_moves[270];                     /* DS:0x5f18: 270 bytes, nothing in the editor reads it */
+i16 map_corner_x2;                        /* DS:0x6026 */
+i16 map_corner_y2;                        /* DS:0x603e */
+i16 map_pixel_size_x;                     /* DS:0x64ec */
+i16 map_pixel_size_y;                     /* DS:0x64ee */
 

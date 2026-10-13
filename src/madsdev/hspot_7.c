@@ -19,7 +19,7 @@ extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
 
-extern u16 numspots;                        /* DS:0x0716 */
+extern i16 numspots;                             /* DS:0x0716 (hspot_1.c) */
 extern HotSpot spot[];                           /* DS:0x530a */
 /* hspot_which -- 0baa:0002, 82 bytes */
 /* PORT: hspot_which is in port/ (inline assembly) */

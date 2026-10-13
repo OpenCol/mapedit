@@ -45,3 +45,6 @@ void (*xms_controller)(void) = 0;                  /* DS:0x26e8 */
 u16 xms_chain_seg = 0x0000;                       /* DS:0x26ec */
 u16 xms_preloaded = 0x0000;                           /* DS:0x26ee */
 
+/* The module's uninitialised data (communal, BSS). */
+u16 xms_version;                     /* DS:0x5308 */
+

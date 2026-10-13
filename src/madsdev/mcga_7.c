@@ -19,8 +19,12 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-extern i16 mcga_retrace_max_bytes;               /* DS:0x3ab4 */
-extern i16 mcga_palette_update;                  /* DS:0x3ab6 */
+i16 mcga_retrace_computed = 0;                   /* DS:0x3aae (defined here, the six in address order) */
+u16 mcga_retrace_ticks = 0;                 /* DS:0x3ab0 */
+i16 mcga_retrace_max_colors = 256;               /* DS:0x3ab2 */
+i16 mcga_retrace_max_bytes = 768;                /* DS:0x3ab4 */
+i16 mcga_palette_update = 0;                     /* DS:0x3ab6 */
+i16 mcga_palette_fast = 1;                       /* DS:0x3ab8 */
 /* mcga_setpal -- 0d70:000a, 84 bytes */
 /* PORT: mcga_setpal is in port/ (inline assembly) */
 void mcga_setpal(char *pal);

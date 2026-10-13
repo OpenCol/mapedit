@@ -19,8 +19,8 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-extern i16 MCGA_SHAKES;                          /* DS:0x450e: shakes left */
-extern i16 shake_seed;                           /* DS:0x4510: module static (no public) */
+i16 MCGA_SHAKES = 0;                             /* DS:0x450e: shakes left (defined here) */
+static i16 shake_seed = 1234;                    /* DS:0x4510: module static (no public) */
 /* MCGA_SHAKE -- 12ad:000c, 36 bytes */
 /* PORT: MCGA_SHAKE is in port/ (inline assembly) */
 void MCGA_SHAKE(void);

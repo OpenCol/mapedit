@@ -36,7 +36,7 @@ extern void mouse_check_double(void);
 extern i16 mouse_get_status(i16 *x, i16 *y);
 extern void mouse_double_freedom(i16 n);
 extern i32 timer_read(void);
-extern i16 mouse_button;                 /* DS:0x0720 */
+extern i16 mouse_button;                   /* DS:0x0720  */
 extern i16 mouse_status;                 /* DS:0x0722 */
 extern i16 mouse_x;                      /* DS:0x0724 */
 extern i16 mouse_y;                      /* DS:0x0726 */
@@ -108,4 +108,23 @@ void mouse_end_cycle(i16 release, i16 wait)
         while (timer_read() == mouse_clock)
             ;
 }
+
+/* The mouse state, defined here after the code (docs/msc6-codegen.md: a definition after the last
+ * function moves no symbol position; defined before mouse_begin_cycle it swaps that
+ * function's bx/dx). The 13 land at DS:0x0720-0x073c in this order; the module has no
+ * literals.
+ */
+i16 mouse_button = -1;                   /* DS:0x0720 */
+i16 mouse_status = 0;                    /* DS:0x0722 */
+i16 mouse_x = 0;                         /* DS:0x0724 */
+i16 mouse_y = 0;                         /* DS:0x0726 */
+i16 mouse_start_stroke = 0;              /* DS:0x0728 */
+i16 mouse_stroke_going = 0;              /* DS:0x072a */
+i16 mouse_changed = 0;                   /* DS:0x072c */
+i16 mouse_latched = 0;                   /* DS:0x072e */
+i16 mouse_stop_stroke = 0;               /* DS:0x0730 */
+i16 mouse_any_stroke = 0;                /* DS:0x0732 */
+i16 mouse_old_x = 0;                     /* DS:0x0734 */
+i16 mouse_old_y = 0;                     /* DS:0x0736 */
+i32 mouse_clock = 0;                    /* DS:0x0738 */
 

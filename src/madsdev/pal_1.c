@@ -476,3 +476,21 @@ out:
     return flag;
 }
 
+/* The palette manager's data, defined here after the code (a definition after the last
+ * function moves no symbol position). The six initialised words land at DS:0x4404-0x4414 in
+ * this order (the module has no literals; the asm modules' data follows to 0x4438); the rest
+ * are communals (BSS). */
+Shadow *master_shadow = 0;                     /* DS:0x4404 */
+i16 palette_locked = 0;                            /* DS:0x4408 */
+i16 palette_ever_initialized = 0;                  /* DS:0x440a */
+i32 pal_manager_update = 0;                       /* DS:0x440c: far callback */
+i16 pal_manager_active = 0;                        /* DS:0x4410 */
+i16 pal_manager_colors = 0;                        /* DS:0x4412 */
+i16 palette_high_search_limit;                     /* DS:0x49cc */
+i16 palette_low_search_limit;                      /* DS:0x4a88 */
+i16 flag_used[32];                                 /* DS:0x5294 */
+i16 palette_reserved_top;                          /* DS:0x52d6 */
+u8 master_palette[0x300];               /* DS:0x5b20 */
+i16 palette_reserved_bottom;                       /* DS:0x5e20 */
+i32 color_status[256];                            /* DS:0x6572 */
+

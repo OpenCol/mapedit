@@ -29,3 +29,6 @@ extern char * mem_normalize(char *p);
 u16 pack_write_memory(char *buf, u16 *n);
 
 
+/* The module's uninitialised data (communal, BSS). */
+char *pack_write_memory_ptr;          /* DS:0x5a9e */
+

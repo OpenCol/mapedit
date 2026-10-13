@@ -215,3 +215,8 @@ i16 text_search(char *name, char *key, i16 n)
     return err;
 }
 
+/* The module's uninitialised data (communals, BSS). */
+char text_item[80];                       /* DS:0x51cc */
+char *text_pointer;                       /* DS:0x5ad6 */
+char text_buffer[80];                     /* DS:0x5ec6 */
+

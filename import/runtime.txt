@@ -33,6 +33,7 @@ printf
 remove
 rewind
 setbuf
+sprintf
 strcat
 strchr
 strcmp

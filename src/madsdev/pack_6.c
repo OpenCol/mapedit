@@ -40,8 +40,8 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-extern void (*pack_special_buffer)(void);       /* DS:0x245a */
-extern void (*pack_special_function)(void);         /* DS:0x245e */
+void (*pack_special_buffer)(void) = 0;          /* DS:0x4512 (defined here: before pack_data's "$pack$") */
+void (*pack_special_function)(void) = 0;        /* DS:0x4516 */
 /* far_to_near -- 1309:000a, 10 bytes */
 /* PORT: far_to_near is in port/ (inline assembly) */
 u16 far_to_near(void *p);
@@ -59,6 +59,10 @@ void pack_set_special_buffer(void (*a)(void), void (*b)(void))
 /* pack_data -- 1309:004a, 784 bytes */
 // MSC: #pragma optimize("elg", on)
 typedef u16 (*FFIO)(void *buf, u16 *n);
+typedef i16 (*FFPACK)(FFIO rd, FFIO wr, void *work, i16 *type, u16 *dsize);
+typedef i16 (*FFUNPACK)(FFIO rd, FFIO wr, void *work);
+typedef i16 (*FFUNPACK_TO)(FFIO rd, void *dst, void *work);
+typedef i16 (*FFUNPACK_MEM)(void *src, void *dst, void *work);
 
 extern void *mem_get_name(i32 size, char *tag);         /* 0cc9:0136 */
 extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2); /* 0ed0:03d6 */
@@ -70,22 +74,22 @@ extern u16 pack_write_memory(void *buf, u16 *n);  /* 1360:000a */
 extern u16 pack_write_file(void *buf, u16 *n);    /* 136f:0002 */
 extern u16 pack_write_ems(void *buf, u16 *n);     /* 1378:0004 */
 extern i16 pack_strategy;               /* DS:0x448c */
-extern void *pack_implode_routine;  /* DS:0x448e */
-extern void *pack_explode_routine;  /* DS:0x4492 */
-extern void *pack_pFABcomp_routine; /* DS:0x4496 */
-extern void *pack_pFABexp0_routine; /* DS:0x449a */
-extern void *pack_pFABexp1_routine; /* DS:0x449e */
-extern void *pack_pFABexp2_routine; /* DS:0x44a2 */
+extern FFPACK pack_implode_routine;     /* DS:0x448e (pack_5.c's types) */
+extern FFUNPACK pack_explode_routine;   /* DS:0x4492 */
+extern FFPACK pack_pFABcomp_routine;    /* DS:0x4496 */
+extern FFUNPACK pack_pFABexp0_routine;  /* DS:0x449a */
+extern FFUNPACK_TO pack_pFABexp1_routine; /* DS:0x449e */
+extern FFUNPACK_MEM pack_pFABexp2_routine; /* DS:0x44a2 */
 extern void *pack_buffer;           /* DS:0x4ea4 */
 extern u16 pack_buffer_size;       /* DS:0x6028 */
 extern i32 pack_write_count;           /* DS:0x6984 */
 extern i32 pack_write_size;            /* DS:0x4a84 */
 extern i32 pack_read_size;             /* DS:0x5290 */
 extern i32 pack_read_count;            /* DS:0x4b0a */
-extern i16 pack_write_file_handle;      /* DS:0x4e7a */
+extern MSC_FILE *pack_write_file_handle;    /* DS:0x4e7a */
 extern FFIO pack_write_routine;         /* DS:0x64e8 */
 extern void *pack_write_memory_ptr; /* DS:0x5a9e */
-extern i16 pack_read_file_handle;       /* DS:0x4e7c */
+extern MSC_FILE *pack_read_file_handle;     /* DS:0x4e7c */
 extern FFIO pack_read_routine;          /* DS:0x6042 */
 extern void *pack_read_memory_ptr;  /* DS:0x6348 */
 extern i16 pack_ems_page_handle;        /* DS:0x6978 */
@@ -107,7 +111,7 @@ i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
         pack_read_memory_ptr = src;
     } else {
         pack_read_routine = pack_read_file;
-        pack_read_file_handle = far_to_near(src);
+        pack_read_file_handle = (MSC_FILE *)far_to_near(src);
     }
     if (to_file == 2) {
         pack_write_routine = pack_write_ems;
@@ -120,7 +124,7 @@ i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
         pack_write_memory_ptr = dst;
     } else {
         pack_write_routine = pack_write_file;
-        pack_write_file_handle = far_to_near(dst);
+        pack_write_file_handle = (MSC_FILE *)far_to_near(dst);
     }
     pack_read_count = pack_write_count = 0;
     switch (method) {

@@ -119,3 +119,6 @@ i16 env_exist(char *name);
 i16 env_search_mode = 0;                                     /* DS:0x036a */
 i16 env_special_path = 0;                                /* DS:0x036c */
 
+/* The module's uninitialised data (communal, BSS): 60 bytes to the next communal. */
+char env_path[60];                        /* DS:0x4eaa */
+

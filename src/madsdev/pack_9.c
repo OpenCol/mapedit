@@ -18,14 +18,19 @@ extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_i
 
 extern char pack_pfab_enabled;                          /* DS:0x448b */
 extern i16 pack_strategy;                               /* DS:0x448c */
-extern void (*pack_pFABcomp_routine)(void);  /* DS:0x4496 */
-extern void (*pack_pFABexp0_routine)(void);  /* DS:0x449a */
-extern void (*pack_pFABexp1_routine)(void);  /* DS:0x449e */
-extern void (*pack_pFABexp2_routine)(void);  /* DS:0x44a2 */
-extern void pfabcomp(void);                      /* 1168:0006 */
-extern void pfabexp0(void);                      /* 11a7:0000 */
-extern void pfabexp1(void);                      /* 11a7:024e */
-extern void pfabexp2(void);                      /* 11a7:045a */
+typedef u16 (*FFIO)(void *buf, u16 *n);
+typedef i16 (*FFPACK)(FFIO rd, FFIO wr, void *work, i16 *type, u16 *dsize);
+typedef i16 (*FFUNPACK)(FFIO rd, FFIO wr, void *work);
+typedef i16 (*FFUNPACK_TO)(FFIO rd, void *dst, void *work);
+typedef i16 (*FFUNPACK_MEM)(void *src, void *dst, void *work);
+extern FFPACK pack_pFABcomp_routine;                    /* DS:0x4496 (pack_5.c's types) */
+extern FFUNPACK pack_pFABexp0_routine;                  /* DS:0x449a */
+extern FFUNPACK_TO pack_pFABexp1_routine;               /* DS:0x449e */
+extern FFUNPACK_MEM pack_pFABexp2_routine;              /* DS:0x44a2 */
+extern i16 pfabcomp(FFIO rd, FFIO wr, void *work, i16 *type, u16 *dsize); /* 1168:0006 */
+extern i16 pfabexp0(FFIO rd, FFIO wr, void *work);                 /* 11a7:0000 */
+extern i16 pfabexp1(FFIO rd, void *dst, void *work);           /* 11a7:024e */
+extern i16 pfabexp2(void *src, void *dst, void *work);     /* 11a7:045a */
 /* pack_enable_pfab -- 0f16:000e, 60 bytes */
 void pack_enable_pfab(void)
 {

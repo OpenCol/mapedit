@@ -102,3 +102,25 @@ i16 pack_a_packet(i16 method, i16 kind)
     }
 }
 
+/* The packer's data, defined here after the code (a definition after the last function
+ * moves no symbol position). The initialised ones land at DS:0x4488-0x44a6 in this order
+ * (the module has no literals); the rest are communals (BSS). */
+i16 pack_mode = 0;                        /* DS:0x4488 */
+char pack_zip_enabled = 0;                /* DS:0x448a */
+char pack_pfab_enabled = 0;               /* DS:0x448b */
+i16 pack_strategy = 1;                    /* DS:0x448c */
+FFPACK pack_implode_routine = 0;          /* DS:0x448e */
+FFUNPACK pack_explode_routine = 0;        /* DS:0x4492 */
+FFPACK pack_pFABcomp_routine = 0;         /* DS:0x4496 */
+FFUNPACK pack_pFABexp0_routine = 0;       /* DS:0x449a */
+FFUNPACK_TO pack_pFABexp1_routine = 0;    /* DS:0x449e */
+FFUNPACK_MEM pack_pFABexp2_routine = 0;   /* DS:0x44a2 */
+i32 pack_write_size;                     /* DS:0x4a84 */
+i32 pack_read_count;                     /* DS:0x4b0a */
+void *pack_buffer;                    /* DS:0x4ea4 */
+i32 pack_read_size;                      /* DS:0x5290 */
+u16 pack_buffer_size;                /* DS:0x6028 */
+FFIO pack_read_routine;                   /* DS:0x6042 */
+FFIO pack_write_routine;                  /* DS:0x64e8 */
+i32 pack_write_count;                    /* DS:0x6984 */
+

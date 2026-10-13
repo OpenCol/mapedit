@@ -386,8 +386,8 @@ out:
 extern void *tiles;                       /* DS:0x04c0, the icon sheet */
 extern void *terrain_1;                   /* DS:0x04b8, the tile sheet */
 extern DosPort scr_orig;                      /* DS:0x3afc, the backdrop port */
-u8 g_icon_dx = 0;                  /* DS:0x0714 (defined here: the module has no literals; no public) */
-u8 g_icon_dy = 0;                  /* DS:0x0715 */
+static u8 g_icon_dx = 0;           /* DS:0x0714 (defined here: the module has no literals; module statics, no public) */
+static u8 g_icon_dy = 0;           /* DS:0x0715 */
 extern i16 gen_tile_x;                        /* DS:0x4b0e */
 extern i16 gen_tile_y;                        /* DS:0x4b16 */
 extern void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
@@ -826,4 +826,23 @@ void map_init(void)
         for (x = 0; map_file.w > x; x++)
             owner_set(x, y, -1);
 }
+
+/* The module's uninitialised data (communals, BSS; a one-byte communal is not word-aligned). */
+u8 scan_greater;               /* DS:0x49c4 */
+u8 *scan_feature;          /* DS:0x4a7e */
+i16 gen_tile_x;                           /* DS:0x4b0e */
+i16 gen_tile_y;                           /* DS:0x4b16 */
+u8 gen_feature_tile;           /* DS:0x4c6a */
+u8 gen_base_tile;              /* DS:0x4e84 */
+i16 gen_variation;                        /* DS:0x4e90 */
+u8 scan_less;                  /* DS:0x526e */
+u8 *scan_site;             /* DS:0x52da */
+u8 map_player_mask;            /* DS:0x5aaa */
+u8 gen_map_tile;               /* DS:0x5acc */
+u8 scan_flags;                 /* DS:0x5ad3 */
+u8 *scan_map;              /* DS:0x5afa */
+i16 scan_x;                               /* DS:0x5f16 */
+i16 scan_y;                               /* DS:0x634c */
+u8 scan_index;                 /* DS:0x6974 */
+u8 gen_site_tile;              /* DS:0x6988 */
 

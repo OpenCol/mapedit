@@ -20,7 +20,7 @@ int main(int argc, char **argv)
     HostOptions opt;
     const char *game = getenv("MAPEDIT_GAME");
     char *args[16];
-    int n = 0, i, r;
+    int n = 0, i;
     memset(&opt, 0, sizeof opt);
     opt.title = "Colonization Map Editor";
     opt.scale = 3;
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
         return 1;
     }
     msc_set_root(game ? game : ".");
-    r = editor_main((i16)n, args);
+    editor_main((i16)n, args);         /* the editor leaves through exit() itself, mostly */
     host_quit();
-    return r;
+    return 0;
 }

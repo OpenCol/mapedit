@@ -46,3 +46,6 @@ u16 pack_write_file(char *buf, u16 *n)
     return got;
 }
 
+/* The module's uninitialised data (communal, BSS). */
+MSC_FILE *pack_write_file_handle;             /* DS:0x4e7a */
+

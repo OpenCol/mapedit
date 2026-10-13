@@ -461,18 +461,17 @@ i16 msc_remove(const char *name)
     return unlink(path) == 0 ? 0 : -1;
 }
 
-/* printf: the editor prints its usage and exit value to the console */
-i16 msc_printf(const char *fmt, ...)
+/* MSC's printf formatting: int is 16 bits and long 32, so %d takes an int promoted from i16
+   and %ld an i32, which on every target the port builds for is an int: 'l' reads an int.
+   %Fs and %Np (far, near) are plain. */
+static size_t format(char *out, size_t cap, const char *fmt, va_list ap)
 {
-    /* MSC's int is 16 bits and its long 32, so %d takes an int promoted from i16 and %ld an
-       i32, which on every target the port builds for is an int: read 'l' as int */
-    char spec[32], out[1024];
+    char spec[32];
     size_t o = 0;
-    va_list ap;
-    va_start(ap, fmt);
-    while (*fmt && o < sizeof out - 64) {
+    while (*fmt && o + 1 < cap) {
         const char *start = fmt;
         size_t k = 0;
+        int r = 0;
         if (*fmt != '%') {
             out[o++] = *fmt++;
             continue;
@@ -490,18 +489,41 @@ i16 msc_printf(const char *fmt, ...)
         spec[k++] = *fmt;
         spec[k] = 0;
         switch (*fmt++) {
-        case 's': o += snprintf(out + o, sizeof out - o, spec, va_arg(ap, char *)); break;
+        case 's': r = snprintf(out + o, cap - o, spec, va_arg(ap, char *)); break;
         case 'c': case 'd': case 'i': case 'u': case 'x': case 'X': case 'o':
-            o += snprintf(out + o, sizeof out - o, spec, va_arg(ap, int)); break;
+            r = snprintf(out + o, cap - o, spec, va_arg(ap, int)); break;
         case '%': out[o++] = '%'; break;
         default: break;
         }
-        if (o > sizeof out - 64)
-            o = sizeof out - 64;
+        if (r > 0)
+            o += (size_t)r < cap - o ? (size_t)r : cap - o - 1;
     }
+    out[o < cap ? o : cap - 1] = 0;
+    return o;
+}
+
+/* printf: the editor prints its usage and exit value to the console */
+i16 msc_printf(const char *fmt, ...)
+{
+    char out[1024];
+    size_t n;
+    va_list ap;
+    va_start(ap, fmt);
+    n = format(out, sizeof out, fmt, ap);
     va_end(ap);
-    fwrite(out, 1, o, stdout);
-    return (i16)o;
+    fwrite(out, 1, n, stdout);
+    return (i16)n;
+}
+
+/* sprintf: into the caller's buffer, as MSC's had no limit (the editor's are 80 bytes) */
+i16 msc_sprintf(char *buf, const char *fmt, ...)
+{
+    size_t n;
+    va_list ap;
+    va_start(ap, fmt);
+    n = format(buf, 4096, fmt, ap);
+    va_end(ap);
+    return (i16)n;
 }
 
 /* ---- _dos_findfirst / _dos_findnext (INT 21h AH=4Eh/4Fh) ------------------------------------ */

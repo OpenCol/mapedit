@@ -23,8 +23,8 @@ extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_i
 
 
 extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2);
-extern i16 numspots;                             /* DS:0x0716 */
-extern HotSpot spot[];                           /* DS:0x530a */
+i16 numspots = 0;                                /* DS:0x0716 (defined here) */
+HotSpot spot[121];                               /* DS:0x530a (BSS, 1936 bytes) */
 /* hspot_add -- 0ba3:0000, 114 bytes */
 i16 hspot_add(i16 x0, i16 y0, i16 x1, i16 y1, i16 v1, i16 v2, i16 id)
 {

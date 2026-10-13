@@ -55,3 +55,7 @@ i16 strings_store(char *s)
 char *strings(i16 n);
 
 
+/* The module's uninitialised data (communals, BSS). */
+Arena strings_heap;                       /* DS:0x4a02 */
+i16 num_strings;                          /* DS:0x6040 */
+
