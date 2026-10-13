@@ -5,7 +5,7 @@
 # The platform host, MSC 6's run-time (port/), and the imported editor (src/, compiled as
 # an object library until it links: M2).
 cmake_minimum_required(VERSION 3.16)
-project(mapedit_port C)
+project(mapedit_port VERSION 0.1.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -75,11 +75,39 @@ if(APPLE)
 endif()
 
 # The editor (M2: links; M3: runs)
-add_executable(mapedit port/main.c $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib>)
+set(MAPEDIT_MAIN port/main.c port/game_dir.c)
+add_executable(mapedit ${MAPEDIT_MAIN} $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib>)
 target_include_directories(mapedit PRIVATE port platform)
 target_link_libraries(mapedit PRIVATE msc host)
 if(NOT MSVC)
   target_compile_options(mapedit PRIVATE -fsigned-char)
+endif()
+# macOS: the same program as an application, "Colonization Map Editor.app". A release links
+# SDL3 statically (tools/release.py), so the bundle is the one executable; a build against a
+# shared SDL3 (Homebrew's) runs on the machine that has it.
+if(APPLE)
+  add_executable(mapedit_app MACOSX_BUNDLE ${MAPEDIT_MAIN} $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib>)
+  target_include_directories(mapedit_app PRIVATE port platform)
+  target_link_libraries(mapedit_app PRIVATE msc host)
+  target_compile_options(mapedit_app PRIVATE -fsigned-char)
+  set(ICON ${CMAKE_SOURCE_DIR}/platform/mapedit.icns)
+  if(EXISTS ${ICON})
+    target_sources(mapedit_app PRIVATE ${ICON})
+    set_source_files_properties(${ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  endif()
+  set_target_properties(mapedit_app PROPERTIES
+    OUTPUT_NAME "Colonization Map Editor"
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/cmake/Info.plist.in
+    MACOSX_BUNDLE_BUNDLE_NAME "Colonization Map Editor"
+    MACOSX_BUNDLE_GUI_IDENTIFIER org.opencol.mapedit
+    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+    MACOSX_BUNDLE_ICON_FILE mapedit.icns)
+endif()
+
+if(MINGW)
+  # a Windows program, not a console one: a double click opens the editor alone
+  set_target_properties(mapedit PROPERTIES WIN32_EXECUTABLE ON)
 endif()
 if(WIN32)
   # SDL3.dll beside mapedit.exe, where Windows looks for it

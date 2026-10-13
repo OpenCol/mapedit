@@ -1,16 +1,25 @@
 # mapedit-port
 
 The **Colonization Map Editor** (`MAPEDIT.EXE`, MicroProse 1994) running natively on Windows,
-macOS and Linux. It is built from [mapedit-decomp](../mapedit-decomp), the editor's source
+macOS and Linux. It is built from [mapedit-decomp](https://github.com/OpenCol/mapedit-decomp), the editor's source
 recovered from the shipped program, compiled with modern compilers, and it runs on
 [SDL3](https://libsdl.org) instead of DOS.
 
-**Status: M2 done (it links), M3 under way.** The editor starts, loads the game's palette,
-fonts and art, and shows its first screen; scripted sessions (`--script`, below) drive it
-headless and take screenshots. Every function that was inline assembly has C in
-`port/lib/`, each checked against the original machine code where it computes something
-(`tests/oracle`, 21 tests, thousands of random cases). [docs/plan.md](docs/plan.md) has the
-milestones and the gate for each one.
+**Status: 0.1.0, faithful.** The editor runs natively on macOS (Apple silicon and Intel)
+and Windows (64-bit), and Linux builds from source. Given the same keys, it writes `.MP` files
+byte-identical to the original's running under DOSBox-X (`tools/m4.py`, six sessions: open
+and save, paint, undo, fill, Find Continents, a new map). Improvements come next, each
+behind an option. [docs/plan.md](docs/plan.md) has the milestones.
+
+## Download
+
+[Releases](https://github.com/OpenCol/mapedit/releases): `mapedit-<version>-macos.zip`
+(an application, "Colonization Map Editor.app") and `mapedit-<version>-windows-x64.zip`
+(`mapedit.exe` and `SDL3.dll`). Each has a README.txt on starting it. You need your own
+copy of *Colonization* for DOS (GOG or Steam): the editor asks for its folder the first
+time and remembers it.
+
+On macOS the app is not notarized: the first time, right-click it and choose Open.
 
 ## What you need
 
@@ -30,9 +39,11 @@ build/mapedit --game /path/to/COLONIZE
 build/mapedit --game /path/to/COLONIZE --headless --script session.txt
 ```
 
-Without `--game` (or `$MAPEDIT_GAME`) it uses the current directory if the game is there,
-else its own: copy `mapedit` (on Windows `mapedit.exe` and `SDL3.dll`) into the game's
-directory and start it from there.
+Without `--game` (or `$MAPEDIT_GAME`) it looks in the current directory, then its own (or,
+for the macOS app, the folder the app is in), then the folder chosen last time, and else
+asks with a folder dialog (`--choose-game` asks again). On macOS, `cmake --build build
+--target mapedit_app` makes "Colonization Map Editor.app"; `tools/release.py` builds the
+release zips (a static, universal SDL3 for the app; the Windows build cross-compiled).
 
 ### Windows
 
