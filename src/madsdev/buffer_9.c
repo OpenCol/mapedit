@@ -19,7 +19,6 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-typedef struct { i16 h; i16 w; u16 off; u16 seg; } DosPort;
 /* buffer_hline -- 0c79:0006, 106 bytes */
 /* PORT: buffer_hline is in port/ (inline assembly) */
 void buffer_hline(i16 x0, i16 x1, i16 y, DosPort port, char color);

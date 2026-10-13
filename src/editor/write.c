@@ -91,7 +91,6 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-typedef struct { i16 h; i16 w; void *bits; } DosPort;
 
 extern char *strings(i16 word);                    /* 0000:0062 */
 extern i16 font_string_width(i16 z, void *font, char *s);

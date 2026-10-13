@@ -21,7 +21,6 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-typedef struct { i16 h; i16 w; char *bits; } DosPort;
 
 extern DosPort scr_work;            /* DS:0x2da8 */
 extern void mouse_set_work_buffer(char *bits, i16 w);

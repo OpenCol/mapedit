@@ -150,6 +150,9 @@ u16   msc__dos_findnext(struct find_t *f);
 u16   msc__dos_read(i16 handle, void *buf, u16 count, u16 *done);
 u16   msc__dos_write(i16 handle, void *buf, u16 count, u16 *done);
 
+/* the records modules share, one definition each */
+#include "port_records.h"
+
 /* the editor's main, called by the port's */
 i16 editor_main(i16 argc, char **argv);
 

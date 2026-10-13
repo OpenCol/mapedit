@@ -23,6 +23,8 @@ target_include_directories(host PUBLIC platform)
 target_link_libraries(host PUBLIC SDL3::SDL3)
 target_compile_options(host PRIVATE ${WARN})
 
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
 # MSC 6's run-time library as the editor calls it (msc_*)
 add_library(msc STATIC port/msc_runtime.c)
 target_include_directories(msc PUBLIC port)
@@ -46,6 +48,30 @@ else()
     -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-misleading-indentation)
 endif()
 
+# What the port writes for the functions the import refused (inline assembly): port/lib
+file(GLOB PORT_LIB_SOURCES CONFIGURE_DEPENDS port/lib/*.c)
+add_library(portlib OBJECT ${PORT_LIB_SOURCES})
+target_include_directories(portlib PRIVATE port)
+target_compile_options(portlib PRIVATE ${WARN})
+if(NOT MSVC)
+  target_compile_options(portlib PRIVATE -fsigned-char)
+endif()
+
+# The oracle tests (tests/oracle) call the port's functions through this library, beside the
+# original's machine code run in an emulator. Symbols nothing calls yet may stay unresolved.
+add_custom_command(
+  OUTPUT ${CMAKE_BINARY_DIR}/stubs.c
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/unresolved.py --stubs ${CMAKE_BINARY_DIR}/stubs.c
+          $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib> $<TARGET_FILE:msc>
+  DEPENDS editor portlib msc ${CMAKE_SOURCE_DIR}/tools/unresolved.py
+  COMMAND_EXPAND_LISTS
+  COMMENT "weak stand-ins for what nothing defines yet")
+add_library(oracle_lib SHARED $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib> ${CMAKE_BINARY_DIR}/stubs.c)
+target_link_libraries(oracle_lib PRIVATE msc)
+if(APPLE)
+  target_link_options(oracle_lib PRIVATE -undefined dynamic_lookup)
+endif()
+
 enable_testing()
 add_executable(msc_selftest tests/msc_selftest.c)
 target_link_libraries(msc_selftest PRIVATE msc)
@@ -56,3 +82,11 @@ add_executable(host_selftest tests/host_selftest.c)
 target_link_libraries(host_selftest PRIVATE host)
 target_compile_options(host_selftest PRIVATE ${WARN})
 add_test(NAME host_selftest COMMAND host_selftest)
+
+# Per-function comparisons with the original (needs the player's MAPEDIT.EXE in $MAPEDIT_EXE
+# and Python's unicorn package; skipped without them)
+if(Python3_FOUND)
+  add_test(NAME oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/oracle/run.py
+           --lib $<TARGET_FILE:oracle_lib>)
+  set_tests_properties(oracle PROPERTIES SKIP_RETURN_CODE 77)
+endif()

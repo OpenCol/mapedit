@@ -18,7 +18,6 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-typedef struct { i16 h; i16 w; char *bits; } DosPort;
 typedef struct { u8 *data; i16 x0; i16 y0; i16 w; i16 h; } IconRec;
 typedef struct { char hdr[0x36]; IconRec icon[1]; } IconSheet;
 /* sprite_draw_scaled_black -- 0e92:000a, 736 bytes */

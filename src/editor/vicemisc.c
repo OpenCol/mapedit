@@ -177,7 +177,6 @@ out:
     return r;
 }
 /* load_terrain_series -- 08f9:0b0e, 180 bytes */
-typedef struct { i16 h; i16 w; char *bits; } DosPort;
 
 extern i16 exit_value;                   /* DS:0x0062 */
 extern char *tile_allocate(i16 n);
