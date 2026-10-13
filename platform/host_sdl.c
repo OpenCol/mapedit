@@ -196,6 +196,7 @@ static void shift_from(SDL_Keymod m)
  *     hold [shift|ctrl|alt ...]  keep those keys down (for clicks); hold alone releases them
  *     shot FILE                the screen as it is now, a 320x200 BMP
  *     exit                     end the program
+ *     realtime                 from here on, the real clock (the program's waits sleep)
  *
  * Every command is logged to stderr with the time it ran.
  *
@@ -342,6 +343,10 @@ static void script_step(void)
             write_bmp(arg);
         else if (!strcmp(cmd, "exit"))
             exit(0);
+        else if (!strcmp(cmd, "realtime")) {
+            H.t0 = SDL_GetTicksNS() - (uint64_t)H.virtual_ms * 1000000u;
+            H.script_clock = H.virtual_time = 0;
+        }
         else
             fprintf(stderr, "script: unknown command %s\n", cmd);
     }
@@ -518,6 +523,12 @@ void host_sleep(uint32_t ms)
     if (H.virtual_time)
         H.virtual_ms += ms;
     else
+        SDL_Delay(ms);
+}
+
+void host_idle(uint32_t ms)
+{
+    if (!H.script_clock && !H.virtual_time)
         SDL_Delay(ms);
 }
 

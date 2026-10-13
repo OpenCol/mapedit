@@ -128,5 +128,13 @@ void TIMER_ACTIVATE_LOW_PRIORITY(void (*routine)(void))
     TIMER_LOW_PRIORITY = routine != 0;
 }
 
+/* timer_idle -- the port's: a UI loop has nothing to do until the next input or tick. The
+   1994 loops polled flat out, which a DOS machine could afford; a millisecond's sleep keeps
+   them responsive at a fraction of the CPU. */
+void timer_idle(void)
+{
+    host_idle(1);
+}
+
 void TIMER_SET_COPY_PROTECT(i16 on) { (void)on; }
 i16 TIMER_GET_COPY_PROTECT(void) { return 0; }

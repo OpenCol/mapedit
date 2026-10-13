@@ -78,5 +78,8 @@ uint32_t host_ms(void);                    /* milliseconds since host_init */
 void     host_virtual_time(int on);        /* tests: time moves only by host_advance */
 void     host_advance(uint32_t ms);
 void     host_sleep(uint32_t ms);
+/* the program has nothing to do for a moment: give the CPU back for ms (real time only; a
+   script's clock and the tests' virtual one move only as the program waits on them) */
+void     host_idle(uint32_t ms);
 
 #endif

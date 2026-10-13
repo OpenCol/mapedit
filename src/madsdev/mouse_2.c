@@ -90,7 +90,8 @@ void mouse_end_cycle(i16 release, i16 wait)
         mouse_double_freedom(-1);
     if (wait)
         while (timer_read() == mouse_clock)
-            ;
+            timer_idle();
+    timer_idle();       /* one round of a UI loop is done: let the machine rest a moment */
 }
 
 /* The mouse state, defined here after the code (docs/msc6-codegen.md: a definition after the last

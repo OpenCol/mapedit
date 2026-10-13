@@ -30,4 +30,6 @@ extern i32 *timer_address;
 extern i16 timer_rate;
 extern i16 timer_service_active;
 
+void timer_idle(void);
+
 #endif
