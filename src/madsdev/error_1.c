@@ -48,7 +48,6 @@ extern void sound_queue(i16 on);                                 /* 1127:0004 */
 extern void sound_system_shutdown(void);                         /* 1127:0059 */
 extern void timer_remove(void);                                  /* 0d1c:01f3 */
 extern void keys_remove(void);                                   /* 0ffe:01c7 */
-extern void himem_shutdown(void);                                /* 0f3e:000c */
 extern void mouse_init(i16 a, i16 b);                            /* 0f65:0086 */
 extern void screen_dominant_mode(i16 mode);            /* 0c3c:000a */
 extern i32 mem_get_avail(void);                       /* 0d08:0082 */

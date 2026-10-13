@@ -57,9 +57,6 @@
 
 
 extern i32 mem_conv_get_avail(void);                       /* 0d08:0068 */
-extern i32 xms_umb_get_avail(void);                        /* 127e:000c */
-extern void *xms_umb_get(i32 size);                    /* 1281:0008 */
-extern i16 xms_umb_free(void *p);                       /* 1281:004a */
 extern void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2); /* 0ed0:03d6 */
 extern i32 mem_save_free_area;                             /* DS:0x4ae8 */
 extern i32 umb_save_free_area;                             /* DS:0x51c8 */
@@ -136,7 +133,7 @@ void mem_save_free(void)
 void mem_restore_free(void)
 {
     mem_min_free = min(mem_save_free_area, mem_conv_get_avail());
-    umb_min_free = min(umb_save_free_area, xms_umb_get_avail());
+    umb_min_free = min(umb_save_free_area, 0);   /* no upper memory */
 }
 
 /* The module's uninitialised data (communals, BSS). */

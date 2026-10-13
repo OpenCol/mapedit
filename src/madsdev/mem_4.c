@@ -23,7 +23,6 @@
  */
 
 
-extern i32 xms_umb_get_avail(void);                /* 127e:000c */
 i32 mem_conv_get_avail(void);
 /* mem_conv_largest -- 0d08:000e, 90 bytes */
 /* PORT: mem_conv_largest is in port/ (inline assembly) */
@@ -40,7 +39,7 @@ i32 mem_get_avail(void)
     i32 heap;
 
     dos = mem_conv_get_avail();
-    heap = xms_umb_get_avail();
+    heap = 0;                   /* no upper memory */
     return heap >= dos ? heap : dos;
 }
 /* mem_set_video_mode -- 0d08:00aa, 2 bytes */

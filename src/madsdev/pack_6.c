@@ -68,7 +68,6 @@ extern u16 pack_read_memory(void *buf, u16 *n);   /* 1359:0006 */
 extern u16 pack_read_file(void *buf, u16 *n);     /* 1367:0008 */
 extern u16 pack_write_memory(void *buf, u16 *n);  /* 1360:000a */
 extern u16 pack_write_file(void *buf, u16 *n);    /* 136f:0002 */
-extern u16 pack_write_ems(void *buf, u16 *n);     /* 1378:0004 */
 extern i16 pack_strategy;               /* DS:0x448c */
 extern FFPACK pack_implode_routine;     /* DS:0x448e (pack_5.c's types) */
 extern FFUNPACK pack_explode_routine;   /* DS:0x4492 */
@@ -88,9 +87,6 @@ extern void *pack_write_memory_ptr; /* DS:0x5a9e */
 extern MSC_FILE *pack_read_file_handle;     /* DS:0x4e7c */
 extern FFIO pack_read_routine;          /* DS:0x6042 */
 extern void *pack_read_memory_ptr;  /* DS:0x6348 */
-extern i16 pack_ems_page_handle;        /* DS:0x6978 */
-extern i16 pack_ems_page_marker;        /* DS:0x4bb4 */
-extern i16 pack_ems_page_offset;        /* DS:0x4e82 */
 
 i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
                          void *src, void *dst)
@@ -99,7 +95,6 @@ i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
     i16 kind;
     i32 *left;
     i16 r;
-    i16 *ems;               /* a named copy: `((int far *)dst)[k]` gives `les bx` where shipped loads the halves apart */
 
     kind = 0;
     if (from_file == 0) {
@@ -109,13 +104,7 @@ i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
         pack_read_routine = pack_read_file;
         pack_read_file_handle = (MSC_FILE *)src;   /* PORT: the whole pointer (1994: its offset, far_to_near) */
     }
-    if (to_file == 2) {
-        pack_write_routine = pack_write_ems;
-        ems = dst;
-        pack_ems_page_handle = ems[0];
-        pack_ems_page_marker = ems[1];
-        pack_ems_page_offset = ems[2];
-    } else if (to_file == 0) {
+    if (to_file == 0) {
         pack_write_routine = pack_write_memory;
         pack_write_memory_ptr = dst;
     } else {

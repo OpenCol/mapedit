@@ -54,8 +54,6 @@ typedef struct {
 } FileIO;
 
 extern i16 pack_strategy;                                       /* DS:0x448c */
-extern i16 ems_copy_it_down(i16 handle, i16 *page, i16 *offset, void *buf, i32 n);  /* 12ec:0008 */
-extern i16 xms_copy(i32 n, i16 handle, i32 pos, i16 dir, void *buf);                                  /* 1343:0004 */
 extern void *mem_get(i32 size);                  /* 0cc9:02e2 */
 extern i16 mem_free(void *p);                        /* 0cc9:0310 */
 extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);   /* 0bca:0000: the first long takes ax:dx */
@@ -82,37 +80,24 @@ i32 loader_read(i32 size, void *buf, i32 count, FileIO *fh)
     else
         total = size * count;
     i = fh->next++;
-    if (fh->kind == 1) {
-        got = 0;
-        if (ems_copy_it_down(fh->ems_handle, &fh->ems_page, &fh->ems_offset, buf, total))
-            goto out;
-        got = total;
-    } else if (fh->kind == 2) {
-        got = 0;
-        if (xms_copy(total, fh->xms_handle, fh->xms_pos, 0, buf))
-            goto out;
-        got = total;
-        fh->xms_pos += total;
-    } else {
-        got = 0;
-        pack_strategy = (u8)fh->ent[i].type;
-        packed = fh->ent[i].packed;
-        kind2 = pack_strategy == 0 ? 2 : 1;
-        if (kind2 == 1) {
-            tmp9 = mem_get(packed);
-            if (tmp9 != 0) {
-                if (fileio_fread_f(tmp9, packed, 1L, fh->fp) == 0)
-                    goto out;
-                got = pack_data(kind2, 0, 0, total, tmp9, buf);
-                done4 = -1;
-            }
+    got = 0;
+    pack_strategy = (u8)fh->ent[i].type;
+    packed = fh->ent[i].packed;
+    kind2 = pack_strategy == 0 ? 2 : 1;
+    if (kind2 == 1) {
+        tmp9 = mem_get(packed);
+        if (tmp9 != 0) {
+            if (fileio_fread_f(tmp9, packed, 1L, fh->fp) == 0)
+                goto out;
+            got = pack_data(kind2, 0, 0, total, tmp9, buf);
+            done4 = -1;
         }
-        if (done4 == 0) {
-            msc_fgetpos(fh->fp, &pos8);
-            got = pack_data(kind2, 1, 0, total, (void *)fh->fp, buf);
-            if (kind2 == 1)
-                msc_fseek(fh->fp, packed + pos8, 0);
-        }
+    }
+    if (done4 == 0) {
+        msc_fgetpos(fh->fp, &pos8);
+        got = pack_data(kind2, 1, 0, total, (void *)fh->fp, buf);
+        if (kind2 == 1)
+            msc_fseek(fh->fp, packed + pos8, 0);
     }
 out:
     if (tmp9)

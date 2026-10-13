@@ -162,20 +162,9 @@ typedef struct {
     FFEntry ent[16];
 } FileIO;
 
-typedef struct {                /* a himem directory entry (HIMEM_1.C) */
-    char kind;                  /* 3: in EMS, 4: in XMS */
-    char pad[0x11];
-    i16 handle;                 /* +0x12 */
-    i32 total;                 /* +0x14 */
-    i16 count;                  /* +0x18 */
-    i32 sizes[1];              /* +0x1a */
-} HimemEntry;
-
 extern MSC_FILE *env_open(char *name, char *mode);                     /* 0297:0104 */
 extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);   /* 0bca:0000 */
 extern i32 fileio_fwrite_f(void *p, i32 size, i32 n, MSC_FILE *fp);  /* 0bea:0008 */
-extern i16 himem_resident(char *name);                                       /* 1345:000a */
-extern HimemEntry *himem_directory_entry;                                    /* DS:0x4b56 */
 
 /* Defined before loader_open: emitted after its literals, as shipped (DS:0x44c2-0x44f5). */
 i32 loader_found_in_ems = 0;           /* DS:0x44c2 */
@@ -194,84 +183,46 @@ i16 loader_open(char *how, i16 mode, FileIO *fh, char *name)
 {
     i16 reading;
     i16 err;
-    FFEntry *p;
-    i32 *q;
     i16 i;
-    i16 res;
     fpos_t pos;
-    i16 m;                      /* a register copy of mode: its si web starts after the strncpy */
 
     err = -1;
-    res = -1;
     msc__fstrncpy(loader_last, name, 13);
-    m = mode;
     fh->msc_open = 0;
     reading = msc_strchr(msc_strlwr(how), 'r') != 0;
-    if (reading != 0 && m != 0 && loader_ems_search_disabled == 0)
-        res = himem_resident(name);
-    if (res >= 0) {
-        fh->kind = himem_directory_entry->kind == 3 ? 1 : 2;
-        fh->xms_handle = himem_directory_entry->handle;
-        fh->xms_pos = 0;
-        fh->ems_handle = res;
-        fh->ems_offset = 0x4000;
-        fh->total = himem_directory_entry->total;
-        fh->count = himem_directory_entry->count;
-        fh->ems_page = -1;
-        fh->reading = -1;
-        fh->next = 0;
-        i = 0;
-        if (fh->count > 0) {
-            p = fh->ent;
-            q = himem_directory_entry->sizes;
-            do {
-                p->type = 0;
-                p->size = *q;
-                p->packed = *q;
-                p++;
-                q++;
-                i++;
-            } while (i < *(volatile i16 *)&fh->count);
-        }
-        if (himem_directory_entry->kind == 3)
-            loader_found_in_ems++;
-        else
-            loader_found_in_xms++;
-    } else {
-        fh->kind = 0;
-        fh->ems_handle = -1;
-        if ((fh->fp = env_open(name, how)) == 0)
+    fh->kind = 0;
+    fh->ems_handle = -1;
+    if ((fh->fp = env_open(name, how)) == 0)
+        goto out;
+    fh->reading = reading;
+    fh->next = 0;
+    if (reading) {
+        msc_fgetpos(fh->fp, &pos);
+        if (fileio_fread_f(fh->magic, 16L, 1L, fh->fp) == 0)
             goto out;
-        fh->reading = reading;
-        fh->next = 0;
-        if (reading) {
-            msc_fgetpos(fh->fp, &pos);
-            if (fileio_fread_f(fh->magic, 16L, 1L, fh->fp) == 0)
-                goto out;
-            if (msc__fstrncmp(fh->magic, "MADSPACK 2.0\x1a", 12) != 0)
-                goto out;
-            if (fileio_fread_f(fh->ent, (i32)(u16)(fh->count * sizeof(FFEntry)), 1L, fh->fp) == 0)
-                goto out;
-            pos += 0xb0;
-            msc_fsetpos(fh->fp, &pos);
-            fh->total = 0;
-            for (i = 0; i < fh->count; i++)
-                fh->total += fh->ent[i].size;
-        } else {
-            fh->count = 0;
-            fh->ent[0].type = (char)mode;
-            msc__fstrcpy(fh->magic, "MADSPACK 2.0\x1a");
-            if (fileio_fwrite_f(fh->magic, 0xb0L, 1L, fh->fp) == 0)
-                goto out;
-            fh->total = 0;
-        }
-        loader_found_on_disk++;
+        if (msc__fstrncmp(fh->magic, "MADSPACK 2.0\x1a", 12) != 0)
+            goto out;
+        if (fileio_fread_f(fh->ent, (i32)(u16)(fh->count * sizeof(FFEntry)), 1L, fh->fp) == 0)
+            goto out;
+        pos += 0xb0;
+        msc_fsetpos(fh->fp, &pos);
+        fh->total = 0;
+        for (i = 0; i < fh->count; i++)
+            fh->total += fh->ent[i].size;
+    } else {
+        fh->count = 0;
+        fh->ent[0].type = (char)mode;
+        msc__fstrcpy(fh->magic, "MADSPACK 2.0\x1a");
+        if (fileio_fwrite_f(fh->magic, 0xb0L, 1L, fh->fp) == 0)
+            goto out;
+        fh->total = 0;
     }
+    loader_found_on_disk++;
     fh->msc_open = -1;
     err = 0;
 out:
-    if (err && res == 0 && fh->fp)
-        msc_fclose(fh->fp);
+    /* (1994 closed the file on an error only for a resident file, which is never opened
+       here: a file that fails its header check stays open, as it did) */
     return err;
 }
 /* loader_set_priority -- 121a:033c, 18 bytes */
@@ -286,17 +237,11 @@ i16 loader_close(FileIO *fh)
 
     err = 0;
     if (fh->msc_open) {
-        if (fh->kind == 1 || fh->kind == 2) {
-            fh->ems_page = -1;
-            fh->ems_offset = 0x4000;
-            fh->xms_pos = 0;
-        } else {
-            if (fh->reading == 0) {
-                msc_rewind(fh->fp);
-                err = fileio_fwrite_f(fh->magic, 0xb0L, 1L, fh->fp) == 0;
-            }
-            msc_fclose(fh->fp);
+        if (fh->reading == 0) {
+            msc_rewind(fh->fp);
+            err = fileio_fwrite_f(fh->magic, 0xb0L, 1L, fh->fp) == 0;
         }
+        msc_fclose(fh->fp);
     }
     fh->msc_open = 0;
     return err;

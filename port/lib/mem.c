@@ -119,23 +119,3 @@ i32 heap_shrink(Arena *a)
     }
     return a->size;
 }
-
-/* EMS (INT 67h): not there */
-i16 ems_detect(void) { return 0; }
-void ems_shutdown(void) { }
-i16 ems_map_page(i16 physical, i16 logical) { (void)physical; (void)logical; return 0x80; }
-i16 ems_paging_setup(void) { return 0; }
-
-/* XMS and upper memory: not there */
-i16 xms_detect(void) { return 0; }
-i32 xms_umb_get_avail(void) { return 0; }
-void *xms_umb_get(i32 bytes) { (void)bytes; return NULL; }
-i16 xms_umb_free(void *p) { (void)p; return -1; }
-void xms_umb_purge(void) { }
-i16 xms_get(i32 bytes) { (void)bytes; return -1; }
-void xms_free(i16 handle) { (void)handle; }
-i16 xms_copy(i32 length, i16 sh, i32 so, i16 dh, i32 doff)
-{
-    (void)length; (void)sh; (void)so; (void)dh; (void)doff;
-    return 0;
-}

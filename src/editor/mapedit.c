@@ -1960,19 +1960,14 @@ void flag_parse(char **p)
     }
 }
 /* main -- 0000:28d8, 164 bytes */
-extern i16 xms_disabled;                                        /* DS:0x3c6a */
 extern void pack_enable_pfab(void);
-extern void himem_startup(void);
-extern void himem_shutdown(void);
 
 void editor_main(i16 argc, char **argv)
 {
     register i16 i;
     char *s;
 
-    xms_disabled = 1;
     pack_enable_pfab();
-    himem_startup();
     mads_mode = 0;
     file_set = 0;
     for (i = 1; i < argc; i++) {
@@ -1989,7 +1984,6 @@ void editor_main(i16 argc, char **argv)
     }
     viceroy_game();
 done:
-    himem_shutdown();
     if (exit_value)
         msc_printf("Exit value: %d\n", exit_value);
 }

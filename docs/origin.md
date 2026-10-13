@@ -21,7 +21,10 @@ it is changed here, and mapedit-decomp stays the byte-exact reference it is chec
   in `port/port_records.h`.
 - `main` became `editor_main`; `port/main.c` is the program's entry.
 - The byte-matching scaffolding (stand-in declarations that moved symbols, `#pragma optimize`
-  settings) was removed after the fork.
+  settings) was removed after the fork, and so were EMS, XMS and the high-memory directory
+  (`ems_*`, `xms_*`, `himem_*`, `pack_d`'s EMS writer, `buffer_s`'s EMS copies), which a
+  machine without them never used: the port always took the conventional-memory and disk
+  paths those modules fell back to.
 
 ## Functions written anew in port/lib
 
@@ -66,7 +69,6 @@ These were inline assembly in 1994 (or the assembly modules), and have C of thei
 | `madsdev/sprite_m` | `sprite_draw_scaled_black` |
 | `madsdev/error_1` | `error_shutdown_report` |
 | `madsdev/cycle_1` | `cycle_colors` |
-| `madsdev/xms_1` | `xms_detect` |
 | `madsdev/heap_1` | `heap_shrink` |
 | `madsdev/mem_1` | `mem_normalize` |
 | `madsdev/timer_2` | `TIMER_SET_RATE` |
@@ -75,23 +77,12 @@ These were inline assembly in 1994 (or the assembly modules), and have C of thei
 | `madsdev/mcga_b` | `mcga_setpal_range` |
 | `madsdev/sprite_h` | `sprite_color_translate` |
 | `madsdev/pal_1` | `pal_get_hash` |
-| `madsdev/ems_1` | `ems_detect` |
-| `madsdev/ems_1` | `ems_shutdown` |
-| `madsdev/ems_1` | `ems_map_page` |
-| `madsdev/ems_2` | `ems_paging_setup` |
 | `madsdev/echo_1` | `echo` |
-| `madsdev/xms_2` | `xms_umb_get_avail` |
-| `madsdev/xms_3` | `xms_umb_get` |
-| `madsdev/xms_3` | `xms_umb_free` |
-| `madsdev/xms_4` | `xms_umb_purge` |
-| `madsdev/xms_6` | `xms_get` |
-| `madsdev/xms_6` | `xms_free` |
 | `madsdev/mcga_d` | `MCGA_SHAKE` |
 | `madsdev/sort_3` | `sort_insertion_8` |
 | `madsdev/pack_6` | `far_to_near` |
 | `madsdev/pack_6` | `io_call_hook` |
 | `madsdev/magic_e` | `magic_hash_color` |
-| `madsdev/xms_7` | `xms_copy` |
 | `madsdev/mem_3` | `mem_check_overflow` |
 | `madsdev/pack_1` | `pack_read_memory` |
 | `madsdev/pack_2` | `pack_write_memory` |

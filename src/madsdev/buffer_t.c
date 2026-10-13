@@ -44,9 +44,7 @@ extern i16 buffer_conform(DosPort *port, i16 *x, i16 *y, i16 *w, i16 *h);
 extern i16 buffer_init_name(DosPort *port, u16 w, u16 h, char *tag);
 extern i16 buffer_rect_copy_2(i16 sx, i16 sy, i16 dx, DosPort src, DosPort dst, i16 dy,
                                         i16 w, i16 h);
-extern i16 buffer_to_ems(DosPort *port, i16 handle, i16 src, i16 x, i16 y, i16 w, i16 h);
 extern i16 buffer_to_disk(DosPort *port, i16 x, i16 y, i16 w, i16 h);
-extern i16 buffer_from_ems(DosPort *port, i16 handle, i16 dst, i16 x, i16 y, i16 w, i16 h);
 extern void buffer_from_disk(DosPort *port, i16 k, i16 keep, i16 x, i16 y, i16 w, i16 h);
 extern i16 buffer_free(DosPort *port);
 
@@ -69,8 +67,8 @@ i16 buffer_preserve(DosPort *port, i16 mode, i16 src, i16 x, i16 y, i16 w, i16 h
             goto out;
         }
     }
-    res = buffer_to_ems(port, mode, src, x, y, w, h);
-    if (res < 0) {
+    /* (1994 tried EMS first, which the port does not have) */
+    {
         if (mode != -2) {
             mode = buffer_to_disk(port, x, y, w, h);
             if (mode >= 0) {
@@ -89,10 +87,7 @@ void buffer_restore(DosPort *port, i16 handle, i16 dst, i16 x, i16 y, i16 w, i16
     if (buffer_conform(port, &x, &y, &w, &h) != 0)
         return;
     switch (handle) {
-    default:
-        if (buffer_restore_keep_flag != 0)
-            handle &= 0xbfff;
-        buffer_from_ems(port, handle, dst, x, y, w, h);
+    default:                    /* an EMS handle: the port never gives one out */
         break;
     case -19: case -18: case -17: case -16: case -15:
     case -14: case -13: case -12: case -11: case -10:

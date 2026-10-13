@@ -176,7 +176,6 @@ void sound_queue(i16 on);
 void sound_system_shutdown(void);
 void timer_remove(void);
 void keys_remove(void);
-void himem_shutdown(void);
 i16 mouse_init(i16 on, i16 mode);
 void screen_dominant_mode(i16 mode);
 void echo(i16 kind, char *text);
@@ -196,7 +195,6 @@ void error_shutdown_report(char *errtext, char *modtext, char *numtext, char *ex
     }
     timer_remove();
     keys_remove();
-    himem_shutdown();
     mouse_init(0, 3);
     screen_dominant_mode(3);
     host_quit();                        /* PORT: was INT 10h, AX=3: text mode */
