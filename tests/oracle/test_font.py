@@ -54,3 +54,21 @@ def test_font_write(m, lib, rng):
         what = 'case %d: %r at (%d,%d) gap %d in %dx%d' % (case, text[:10], x, y, gap, w, h)
         b.compare(what)
         assert (r & 0xffff) == ax, '%s: returned %d, the original %d' % (what, r, ax)
+
+
+def test_font_string_width(m, lib, rng):
+    f = lib.font_string_width
+    f.argtypes = [ctypes.c_int16, ctypes.c_char_p, ctypes.c_char_p]
+    f.restype = ctypes.c_int16
+    for case in range(N):
+        m.reset_heap()
+        font = make_font(rng)
+        fseg = m.alloc(len(font))
+        m.write(fseg, 0, font)
+        text = bytes(rng.randrange(1, 0x80) for _ in range(rng.randrange(0, 30))) + b'\0'
+        sseg = m.alloc(len(text))
+        m.write(sseg, 0, text)
+        sp = rng.randrange(-2, 4)
+        ax, _ = m.call('font_string_width', [W(sp), D(fseg << 16), D(sseg << 16)])
+        r = f(sp, font, text) & 0xffff
+        assert r == ax, 'case %d: %r spacing %d: %d, the original %d' % (case, text, sp, r, ax)

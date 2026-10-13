@@ -73,3 +73,17 @@ def test_pack_memory_streams(m, lib, rng):
             assert size_c.value == struct.unpack('<i', m.read_ds(m.data('pack_%s_size' % which), 4))[0], what + ': size'
             assert count_c.value == struct.unpack('<i', m.read_ds(m.data('pack_%s_count' % which), 4))[0], what + ': count'
             assert cbuf.raw == m.read(buf_seg, 0, 300) and cmem.raw == m.read(mem_seg, 0, 300), what + ': bytes'
+
+
+def test_pal_get_hash(m, lib, rng):
+    f = lib.pal_get_hash
+    f.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+    f.restype = ctypes.c_int16
+    seg = m.alloc(16)
+    for case in range(N):
+        a = bytes(rng.randrange(256) for _ in range(3))
+        b = bytes(rng.randrange(256) for _ in range(3))
+        m.write(seg, 0, b + a)
+        ax, _ = m.call('pal_get_hash', [D(seg << 16), D(seg << 16 | 3)])
+        r = f(b, a) & 0xffff
+        assert r == ax, 'b %s a %s: %04x, the original %04x' % (b.hex(), a.hex(), r, ax)

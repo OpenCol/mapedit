@@ -30,6 +30,7 @@ extern i32 *timer_address;              /* timer_1.c */
 static u16 divisor;                     /* 0: the BIOS's 65536 */
 static int installed;
 static uint64_t base_ms, base_count;    /* timer_600_low counted from here */
+static i32 last_600;                    /* its value when timer_sync last left it */
 static u32 bios_chain;                  /* 1Ch ticks run through the chain */
 
 /* TIMER_SET_RATE -- 105b:0006: the PIT's channel 0 divisor */
@@ -62,12 +63,19 @@ void timer_sync(void)
 {
     bios_sync();
     if (installed) {
-        uint64_t now = host_ms();
-        uint64_t due = (uint64_t)((double)(now - base_ms) * rate() / 1000.0) + base_count;
+        uint64_t now = host_ms(), due;
+        if (timer_600_low != last_600) {
+            /* the program set the counter itself (show_map_gradually zeroes it): count on
+               from there */
+            base_ms = now;
+            base_count = (u32)timer_600_low;
+        }
+        due = (uint64_t)((double)(now - base_ms) * rate() / 1000.0) + base_count;
         while ((uint64_t)(u32)timer_600_low < due) {
             timer_600_low++;
             interrupt((u32)timer_600_low);
         }
+        last_600 = timer_600_low;
     } else {
         /* without the handler, INT 1Ch runs on the BIOS tick */
         u32 t = (u32)msc_bda[0x6c] | (u32)msc_bda[0x6d] << 8 | (u32)msc_bda[0x6e] << 16;
@@ -90,6 +98,7 @@ void timer_install(void)
     timer_address = &timer_60_low;
     base_ms = host_ms();
     base_count = 0;
+    last_600 = 0;
     installed = 1;
 }
 

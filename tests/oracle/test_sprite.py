@@ -106,3 +106,36 @@ def test_sprite_draw_scaled(m, lib, rng):
 
 def test_sprite_draw_scaled_black(m, lib, rng):
     run(m, lib, rng, 'sprite_draw_scaled_black')
+
+
+def test_sprite_color_translate(m, lib, rng):
+    f = lib.sprite_color_translate
+    f.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+    for case in range(100):
+        m.reset_heap()
+        nframes = rng.randrange(1, 4)
+        Series = series_type(nframes)
+        cs = Series()
+        cs.head[2] = nframes                    # count
+        sheet = bytearray(0x42 + 12 * nframes)
+        struct.pack_into('<h', sheet, 4, nframes)
+        segs, keep = [], []
+        for k in range(nframes):
+            fw, fh = rng.randrange(1, 30), rng.randrange(1, 20)
+            rows = b''.join(rle_row(rng, fw).replace(b'\xfc', b'\xfb', 1) for _ in range(fh))
+            data = rows + b'\xfc'
+            seg = m.alloc(len(data))
+            m.write(seg, 0, data)
+            segs.append((seg, len(data)))
+            struct.pack_into('<HH', sheet, 0x42 + 12 * k, 0, seg)
+            cbuf = ctypes.create_string_buffer(data, len(data))
+            keep.append(cbuf)
+            cs.icon[k] = IconRec(ctypes.cast(cbuf, ctypes.c_void_p).value, 0, 0, fw, fh)
+        mp = bytes(rng.randrange(256) for _ in range(6 * 256 + 6))
+        mseg, sseg = m.alloc(len(mp)), m.alloc(len(sheet))
+        m.write(mseg, 0, mp)
+        m.write(sseg, 0, bytes(sheet))
+        m.call('sprite_color_translate', [D(sseg << 16), D(mseg << 16)])
+        f(ctypes.addressof(cs), mp)
+        for k, (seg, n) in enumerate(segs):
+            assert keep[k].raw[:n] == m.read(seg, 0, n), 'case %d frame %d differs' % (case, k)

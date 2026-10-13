@@ -2,7 +2,7 @@
  * goes through the driver's jump table to the dummy driver, which does nothing. */
 #include "msc.h"
 
-i16 sound_initialized;
+i16 sound_initialized(void) { return 0; }
 
 void sound_driver_null(void) { }
 i16 sound_manager(void) { return 0; }
