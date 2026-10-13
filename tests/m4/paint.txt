@@ -1,0 +1,9 @@
+# Pick up the terrain under the cursor, carry it across, paint it, save. The cursor starts
+# at (29, 36) on AMER2.MP; painting only reaches squares inside the map window.
+pace 1.0
+enter
+6 6 6 bspace          # (32, 36), savannah: pick up
+1 1 space             # (30, 38): paint
+8 8 8 8 space         # (30, 34): paint
+7 7 space             # (28, 32): paint
+lalt s enter

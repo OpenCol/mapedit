@@ -66,5 +66,6 @@ i32 fileio_fwrite_f(char *p, i32 size, i32 n, MSC_FILE *fp)
             return 1;
         return written / size;
     }
+    return 0;   /* PORT: size 0; the shipped code arrives here with dx:ax = size = 0 */
 }
 

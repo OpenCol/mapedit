@@ -1,0 +1,5 @@
+# Esc at the file menu: a new map, named UNTITLED.MP; paint a few squares, save.
+pace 1.0
+esc enter
+enter 6 space 6 6 space 2 space
+lalt s enter

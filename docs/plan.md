@@ -53,7 +53,7 @@ The C implementations of what the asm modules and DOS did, keeping the original 
   monotonic clock, or from a virtual clock that counts reads (for the gates);
 - **files**: DOS file names in the game directory, found whatever their case;
 - **memory**: `mem_get` and friends on `malloc`; EMS, XMS and upper memory report "absent";
-- **decompression**: PKWARE's explode for the game's packed art (zlib's `blast.c`);
+- **decompression**: MicroProse's FAB codec for the game's packed art (`port/lib/fab.c`);
 - **sound**: none (the editor makes none).
 
 ## Milestones and gates
@@ -67,9 +67,17 @@ The C implementations of what the asm modules and DOS did, keeping the original 
 | M4 | **faithful** | the same input script, run in the original (DOSBox-X) and in the port, writes byte-identical `.MP` files, and the screens match at each checkpoint |
 | M5 | improvements | each one behind an option, M4 still green with all of them off |
 
-Gate M4 is the contract. An input script is a list of key presses and mouse events, with the
-time each one happens. The original runs under DOSBox-X, with the editor's timer reads
-counted rather than clocked, so both sides see the same time.
+Status (2026-10-13): M2 done; M3's session runs (`--script`: the editor opens AMER2.MP,
+paints, saves). M4 has its harness, `tools/m4.py`: a keyboard session (`tests/m4/*.txt`,
+in DOSBox-X's AUTOTYPE key names) is typed into the original under DOSBox-X and played
+into the port, each in a fresh copy of the game directory, and every file is compared
+afterwards. Screens are not compared yet: DOSBox-X takes no screenshot a session can ask
+for, and the port's `shot` has nothing to be held against.
+
+Gate M4 is the contract. The sessions are keyboard-only because AUTOTYPE types keys and
+moves no mouse; the editor drives everything from the keyboard (the keypad is its mouse).
+Time is not matched: AUTOTYPE paces keys in real time, and nothing the editor writes to a
+file depends on the clock.
 
 ## Improvements (M5), candidates
 

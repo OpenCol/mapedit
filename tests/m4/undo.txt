@@ -1,0 +1,8 @@
+# Paint two squares, undo the last change (Map > Undo Last Change), save.
+pace 1.0
+enter
+6 6 6 bspace          # (32, 36), savannah: pick up
+1 1 space             # (30, 38): paint
+8 8 8 8 space         # (30, 34): paint
+lalt right right u    # Map > Undo Last Change
+lalt s enter

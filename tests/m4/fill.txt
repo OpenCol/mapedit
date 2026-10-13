@@ -1,0 +1,8 @@
+# Map > Fill Mode Change, then paint and pick up with it, save.
+pace 1.0
+enter
+lalt right right f
+6 6 6 bspace
+1 1 space
+4 4 4 space
+lalt s enter

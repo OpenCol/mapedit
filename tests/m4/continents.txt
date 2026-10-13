@@ -1,0 +1,8 @@
+# Join two land masses by painting, then Map > Find Continents, which renumbers the
+# continent layer, and save.
+pace 1.0
+enter
+6 6 6 bspace          # (32, 36), savannah: pick up
+8 8 8 8 space 8 space 8 space   # paint a strip north into the bay
+lalt right right c
+lalt s enter

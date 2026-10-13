@@ -1,0 +1,5 @@
+# Open the first map the file menu offers and save it unchanged: what loading alone does to
+# a map (forest_fix rewrites the old 0x10-0x17 forest codes).
+pace 1.5
+enter
+lalt s enter

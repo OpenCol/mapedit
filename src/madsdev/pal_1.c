@@ -154,7 +154,9 @@ void pal_unlock(void)
     if (palette_locked) {
         for (i = 0; i < 256; i++)
             color_status[i] &= 0x7fffffffL;
-        palette_locked = flag_used[32] = 0;
+        /* PORT: flag_used[32] is one past the array: DS:0x52d4, which is map_view_size_x */
+        extern i16 map_view_size_x;
+        palette_locked = map_view_size_x = 0;
     }
 }
 /* pal_deallocate -- 1074:015a, 128 bytes */

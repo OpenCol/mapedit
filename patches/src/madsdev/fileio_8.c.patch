@@ -1,0 +1,10 @@
+--- src/madsdev/fileio_8.c
++++ src/madsdev/fileio_8.c
+@@ -71,6 +71,6 @@
+         return 1;
+     return done / size;
+ out:
+-    ;
++    return 0;   /* PORT: size 0; the shipped code arrives here with dx:ax = size = 0 */
+ }
+ 
