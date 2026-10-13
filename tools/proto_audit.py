@@ -69,7 +69,7 @@ def scan():
     defs, decls = {}, collections.defaultdict(list)
     # the imported modules, and the port's own C for the functions it refused (port/lib):
     # their definitions are the ones the imported declarations must agree with
-    for group in ('src/editor', 'src/madsdev', 'port/lib'):
+    for group in ('src/core', 'src/editor', 'src/ui', 'src/sys', 'port/lib'):
         d = os.path.join(ROOT, group)
         for f in sorted(os.listdir(d)):
             if not f.endswith('.c'):

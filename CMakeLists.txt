@@ -41,7 +41,7 @@ endif()
 # The editor (src/, from mapedit-decomp: docs/origin.md). Its warnings policy: the leftovers of byte-matching
 # (stand-in declarations, unused locals that fixed MSC's stack layout) are not reported;
 # everything that can change behaviour is.
-file(GLOB EDITOR_SOURCES CONFIGURE_DEPENDS src/editor/*.c src/madsdev/*.c)
+file(GLOB EDITOR_SOURCES CONFIGURE_DEPENDS src/core/*.c src/editor/*.c src/ui/*.c src/sys/*.c)
 add_library(editor OBJECT ${EDITOR_SOURCES})
 target_include_directories(editor PRIVATE port src/include)
 if(MSVC)
