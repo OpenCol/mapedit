@@ -55,8 +55,7 @@ cmake -B build -G Ninja && cmake --build build --target mapedit
 
 `build/mapedit.exe` and `build/SDL3.dll` are the program. From macOS or Linux, cross-build
 with MinGW-w64 and SDL3's MinGW development package (`cmake/mingw-w64-x86_64.cmake` says
-how); `tools/m4.py --wine` checks the result under Wine. MSVC is in CI but not yet seen to
-build.
+how); `tools/m4.py --wine` checks the result under Wine. MSVC builds too (CI).
 
 A script is one command a line: `wait MS`, `key NAME`, `type TEXT`, `move X Y`, `click X Y`,
 `shot FILE.bmp`, `exit` (platform/host_sdl.c has them all).

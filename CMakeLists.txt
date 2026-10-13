@@ -9,6 +9,8 @@ project(mapedit_port VERSION 0.1.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+# the editor's objects also go into a shared library (the oracle tests' oracle_lib)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(SDL3 REQUIRED CONFIG)
 

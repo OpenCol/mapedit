@@ -50,10 +50,9 @@ jobs:
             build/mapedit.exe
             build/*.dll
 
-  # Windows with MSVC: not yet seen to build; it reports without failing the run
+  # Windows with MSVC
   windows-msvc:
     runs-on: windows-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: SDL3 (VC development package)

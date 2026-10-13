@@ -282,7 +282,7 @@ static MSC_FILE iob[MSC_NFILE];
 static char iob_text[MSC_NFILE];           /* opened in text mode */
 static char charbuf[MSC_NFILE];            /* an unbuffered stream's one-byte buffer */
 
-static int stream(MSC_FILE *f) { return (int)(f - iob); }
+static int rt_stream(MSC_FILE *f) { return (int)(f - iob); }
 
 MSC_FILE *msc_fopen(const char *name, const char *mode)
 {
@@ -313,9 +313,9 @@ MSC_FILE *msc_fopen(const char *name, const char *mode)
     return &iob[i];
 }
 
-static int flush(MSC_FILE *f)
+static int rt_flush(MSC_FILE *f)
 {
-    int s = stream(f);
+    int s = rt_stream(f);
     if ((f->_flag & (M_IOWRT | M_IORW)) && f->_base && f->_ptr > f->_base) {
         size_t n = (size_t)(f->_ptr - f->_base);
         if (handle_write(f->_file, f->_base, n) != (long)n) {
@@ -334,7 +334,7 @@ i16 msc_fclose(MSC_FILE *f)
     int r;
     if (!f || !f->_flag)
         return MSC_EOF;
-    r = flush(f);
+    r = rt_flush(f);
     if (f->_flag & M_IOMYBUF)
         free(f->_base);
     handle_close(f->_file);
@@ -344,7 +344,7 @@ i16 msc_fclose(MSC_FILE *f)
 
 void msc_setbuf(MSC_FILE *f, char *buf)
 {
-    flush(f);
+    rt_flush(f);
     if (f->_flag & M_IOMYBUF)
         free(f->_base);
     f->_flag &= ~(M_IOMYBUF | M_IONBF);
@@ -352,14 +352,14 @@ void msc_setbuf(MSC_FILE *f, char *buf)
         f->_base = buf;
     else {
         f->_flag |= M_IONBF;
-        f->_base = &charbuf[stream(f)];
+        f->_base = &charbuf[rt_stream(f)];
     }
     f->_ptr = f->_base;
     f->_cnt = 0;
 }
 
 /* refill the buffer; the next byte, or EOF */
-static int fill(MSC_FILE *f)
+static int rt_fill(MSC_FILE *f)
 {
     long n;
     size_t size;
@@ -382,15 +382,15 @@ static int fill(MSC_FILE *f)
 }
 
 /* one byte as stdio returns it: in text mode, a CR before an LF vanishes and Ctrl-Z ends it */
-static int get(MSC_FILE *f)
+static int rt_get(MSC_FILE *f)
 {
     int c;
     for (;;) {
-        if (f->_cnt <= 0 && fill(f) == MSC_EOF)
+        if (f->_cnt <= 0 && rt_fill(f) == MSC_EOF)
             return MSC_EOF;
         f->_cnt--;
         c = (unsigned char)*f->_ptr++;
-        if (!iob_text[stream(f)])
+        if (!iob_text[rt_stream(f)])
             return c;
         if (c == 0x1a) {
             f->_flag |= M_IOEOF;
@@ -400,7 +400,7 @@ static int get(MSC_FILE *f)
         if (c != '\r')
             return c;
         /* a CR: drop it if an LF follows */
-        if (f->_cnt <= 0 && fill(f) == MSC_EOF)
+        if (f->_cnt <= 0 && rt_fill(f) == MSC_EOF)
             return '\r';
         if (*f->_ptr == '\n')
             continue;
@@ -408,22 +408,22 @@ static int get(MSC_FILE *f)
     }
 }
 
-static int put(MSC_FILE *f, int c)
+static int rt_put(MSC_FILE *f, int c)
 {
     if (!f->_base) {
         if (f->_flag & M_IONBF)
-            f->_base = &charbuf[stream(f)];
+            f->_base = &charbuf[rt_stream(f)];
         else {
             f->_base = malloc(MSC_BUFSIZ);
             f->_flag |= M_IOMYBUF;
         }
         f->_ptr = f->_base;
     }
-    if (c == '\n' && iob_text[stream(f)] && put(f, '\r') == MSC_EOF)
+    if (c == '\n' && iob_text[rt_stream(f)] && rt_put(f, '\r') == MSC_EOF)
         return MSC_EOF;
     *f->_ptr++ = (char)c;
     if (f->_ptr - f->_base >= (f->_flag & M_IONBF ? 1 : MSC_BUFSIZ))
-        return flush(f) == MSC_EOF ? MSC_EOF : c;
+        return rt_flush(f) == MSC_EOF ? MSC_EOF : c;
     return c;
 }
 
@@ -434,7 +434,7 @@ u16 msc_fread(void *p, u16 size, u16 n, MSC_FILE *f)
     int c;
     if (!size)
         return 0;
-    while (got < total && (c = get(f)) != MSC_EOF)
+    while (got < total && (c = rt_get(f)) != MSC_EOF)
         d[got++] = (unsigned char)c;
     return (u16)(got / size);
 }
@@ -445,7 +445,7 @@ u16 msc_fwrite(const void *p, u16 size, u16 n, MSC_FILE *f)
     u32 total = (u32)size * n, put_ = 0;
     if (!size)
         return 0;
-    while (put_ < total && put(f, s[put_]) != MSC_EOF)
+    while (put_ < total && rt_put(f, s[put_]) != MSC_EOF)
         put_++;
     return (u16)(put_ / size);
 }
@@ -455,7 +455,7 @@ char *msc_fgets(char *s, i16 n, MSC_FILE *f)
     int i = 0, c = 0;
     if (n <= 0)
         return NULL;
-    while (i < n - 1 && (c = get(f)) != MSC_EOF) {
+    while (i < n - 1 && (c = rt_get(f)) != MSC_EOF) {
         s[i++] = (char)c;
         if (c == '\n')
             break;
@@ -464,7 +464,7 @@ char *msc_fgets(char *s, i16 n, MSC_FILE *f)
     return i == 0 && c == MSC_EOF ? NULL : s;
 }
 
-static i32 tell(MSC_FILE *f)
+static i32 rt_tell(MSC_FILE *f)
 {
     SDL_IOStream *io = handle_io(f->_file);
     Sint64 at = io ? SDL_TellIO(io) : -1;
@@ -475,43 +475,43 @@ static i32 tell(MSC_FILE *f)
     return (i32)(at + (f->_base ? f->_ptr - f->_base : 0));
 }
 
-static i16 seek(MSC_FILE *f, i32 pos)
+static i16 rt_seek(MSC_FILE *f, i32 pos)
 {
     SDL_IOStream *io = handle_io(f->_file);
-    flush(f);
+    rt_flush(f);
     f->_flag &= ~(M_IOEOF | M_IOERR);
     f->_cnt = 0;
     f->_ptr = f->_base;
     return io && SDL_SeekIO(io, pos, SDL_IO_SEEK_SET) >= 0 ? 0 : -1;
 }
 
-void msc_rewind(MSC_FILE *f) { seek(f, 0); }
+void msc_rewind(MSC_FILE *f) { rt_seek(f, 0); }
 
 /* fseek: SEEK_SET, SEEK_CUR (from where the program has read to) or SEEK_END */
 i16 msc_fseek(MSC_FILE *f, i32 offset, i16 whence)
 {
     i32 base = 0;
     if (whence == 1)
-        base = tell(f);
+        base = rt_tell(f);
     else if (whence == 2) {
         i32 len = msc_filelength(f->_file);
         if (len < 0)
             return -1;
         base = len;
     }
-    return seek(f, base + offset);
+    return rt_seek(f, base + offset);
 }
 
 i16 msc_fgetpos(MSC_FILE *f, msc_fpos_t *pos)
 {
-    i32 t = tell(f);
+    i32 t = rt_tell(f);
     if (t < 0)
         return -1;
     *pos = t;
     return 0;
 }
 
-i16 msc_fsetpos(MSC_FILE *f, const msc_fpos_t *pos) { return seek(f, *pos); }
+i16 msc_fsetpos(MSC_FILE *f, const msc_fpos_t *pos) { return rt_seek(f, *pos); }
 
 i16 msc_remove(const char *name)
 {
