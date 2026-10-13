@@ -1,0 +1,37 @@
+# The keyboard: move, pick up (Backspace), paint (Space), undo (Map > Undo), save
+wait 300
+key Return
+wait 1500
+key 6
+key 6
+key 6
+key Backspace
+wait 300
+key 1
+key 1
+key Space
+wait 300
+key 8
+key 8
+key 8
+key 8
+key Space
+wait 300
+shot 01-painted.bmp
+hold alt
+wait 150
+hold
+wait 300
+key Right
+key Right
+key U
+wait 500
+shot 02-undone.bmp
+hold alt
+wait 150
+hold
+wait 300
+key S
+wait 500
+key Return
+wait 800

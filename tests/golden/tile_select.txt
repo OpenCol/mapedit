@@ -1,0 +1,15 @@
+# Map > Map Tile Select: the terrain palette, a pick (the 5th forested tile), a paint
+wait 300
+key Return
+wait 1500
+click 84 3
+wait 300
+click 110 16
+wait 800
+shot 01-tiles.bmp
+click 72 24
+wait 800
+shot 02-picked.bmp
+key Space
+wait 500
+shot 03-painted.bmp

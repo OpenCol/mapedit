@@ -43,6 +43,7 @@ static struct {
     FILE *script;
     uint32_t script_due;            /* the next command runs at this host_ms() */
     int script_held;                /* shift flags `hold` keeps down */
+    int script_clock;               /* time is the script's (see above) */
 } H;
 
 /* ---- keyboard ---------------------------------------------------------------------------- */
@@ -196,7 +197,13 @@ static void shift_from(SDL_Keymod m)
  *     shot FILE                the screen as it is now, a 320x200 BMP
  *     exit                     end the program
  *
- * Every command is logged to stderr with the time it ran. */
+ * Every command is logged to stderr with the time it ran.
+ *
+ * A script runs on its own clock, so a session gives the same screens every time: time
+ * stands still except while the script waits, and then moves 1 ms each time the program
+ * waits for it (host_pump, host_sleep) -- up to the wait's end, exactly. Whatever the
+ * program does at 1500 ms, it does at 1500 ms, however fast the machine. A script that
+ * ends without `exit` hands over to the real clock. */
 
 static void script_mouse(int x, int y, int buttons)
 {
@@ -266,6 +273,10 @@ static void script_step(void)
             fclose(H.script);
             H.script = NULL;
             fprintf(stderr, "script: end\n");
+            if (H.script_clock) {         /* the real clock from here, without a jump */
+                H.t0 = SDL_GetTicksNS() - (uint64_t)H.virtual_ms * 1000000u;
+                H.script_clock = H.virtual_time = 0;
+            }
             return;
         }
         line[strcspn(line, "\r\n")] = 0;
@@ -336,10 +347,18 @@ static void script_step(void)
     }
 }
 
+/* the program waits: the script's next commands, and its clock 1 ms on inside a wait */
+static void script_tick(void)
+{
+    script_step();
+    if (H.script_clock && H.script && H.virtual_ms < H.script_due)
+        H.virtual_ms++;
+}
+
 void host_pump(void)
 {
     SDL_Event e;
-    script_step();
+    script_tick();
     while (SDL_PollEvent(&e)) {
         switch (e.type) {
         case SDL_EVENT_QUIT:
@@ -491,6 +510,11 @@ void host_advance(uint32_t ms) { H.virtual_ms += ms; }
 
 void host_sleep(uint32_t ms)
 {
+    if (H.script_clock) {
+        while (ms-- && H.script_clock)
+            script_tick();
+        return;
+    }
     if (H.virtual_time)
         H.virtual_ms += ms;
     else
@@ -509,8 +533,12 @@ int host_init(const HostOptions *opt)
     if (!SDL_Init(SDL_INIT_VIDEO))
         return -1;
     H.t0 = SDL_GetTicksNS();
-    if (opt->script && !(H.script = fopen(opt->script, "r")))
-        return -1;
+    if (opt->script) {
+        if (!(H.script = fopen(opt->script, "r")))
+            return -1;
+        H.script_clock = H.virtual_time = 1;
+        H.virtual_ms = 0;
+    }
     if (opt->headless)
         return 0;
     scale = opt->scale > 0 ? opt->scale : 3;

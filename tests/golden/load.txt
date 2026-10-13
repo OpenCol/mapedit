@@ -1,0 +1,12 @@
+# Editor > Load Map, from the editor
+wait 300
+key Return
+wait 1500
+click 20 3
+wait 300
+click 40 31
+wait 800
+shot 01-list.bmp
+key Return
+wait 1500
+shot 02-loaded.bmp

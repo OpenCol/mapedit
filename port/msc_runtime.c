@@ -427,8 +427,13 @@ static int rt_put(MSC_FILE *f, int c)
     return c;
 }
 
+/* A null stream is DS:0000 read as a FILE: no flags, so MSC's stdio found nothing to read
+   or write there and failed (text_get reads on after closing its file at the end). */
+
 u16 msc_fread(void *p, u16 size, u16 n, MSC_FILE *f)
 {
+    if (!f)
+        return 0;
     unsigned char *d = p;
     u32 total = (u32)size * n, got = 0;
     int c;
@@ -441,6 +446,8 @@ u16 msc_fread(void *p, u16 size, u16 n, MSC_FILE *f)
 
 u16 msc_fwrite(const void *p, u16 size, u16 n, MSC_FILE *f)
 {
+    if (!f)
+        return 0;
     const unsigned char *s = p;
     u32 total = (u32)size * n, put_ = 0;
     if (!size)
@@ -452,6 +459,8 @@ u16 msc_fwrite(const void *p, u16 size, u16 n, MSC_FILE *f)
 
 char *msc_fgets(char *s, i16 n, MSC_FILE *f)
 {
+    if (!f)
+        return NULL;
     int i = 0, c = 0;
     if (n <= 0)
         return NULL;
@@ -485,11 +494,13 @@ static i16 rt_seek(MSC_FILE *f, i32 pos)
     return io && SDL_SeekIO(io, pos, SDL_IO_SEEK_SET) >= 0 ? 0 : -1;
 }
 
-void msc_rewind(MSC_FILE *f) { rt_seek(f, 0); }
+void msc_rewind(MSC_FILE *f) { if (f) rt_seek(f, 0); }
 
 /* fseek: SEEK_SET, SEEK_CUR (from where the program has read to) or SEEK_END */
 i16 msc_fseek(MSC_FILE *f, i32 offset, i16 whence)
 {
+    if (!f)
+        return -1;
     i32 base = 0;
     if (whence == 1)
         base = rt_tell(f);
@@ -504,6 +515,8 @@ i16 msc_fseek(MSC_FILE *f, i32 offset, i16 whence)
 
 i16 msc_fgetpos(MSC_FILE *f, msc_fpos_t *pos)
 {
+    if (!f)
+        return -1;
     i32 t = rt_tell(f);
     if (t < 0)
         return -1;
@@ -511,7 +524,7 @@ i16 msc_fgetpos(MSC_FILE *f, msc_fpos_t *pos)
     return 0;
 }
 
-i16 msc_fsetpos(MSC_FILE *f, const msc_fpos_t *pos) { return rt_seek(f, *pos); }
+i16 msc_fsetpos(MSC_FILE *f, const msc_fpos_t *pos) { return f ? rt_seek(f, *pos) : -1; }
 
 i16 msc_remove(const char *name)
 {
@@ -684,6 +697,12 @@ u16 msc__dos_findnext(struct find_t *f)
 
 /* ---- strings ------------------------------------------------------------------------------ */
 
+/* A null pointer, as the editor sometimes reads one: in DOS, DS:0000, where MSC 6 put eight
+   zero bytes and its copyright -- so a null string reads as an empty one (popup_start_box
+   measures text_get's NULL at the end of MAPEDIT.TXT's last section). */
+static const char ds0[] = "\0\0\0\0\0\0\0\0MS Run-Time Library - Copyright (c) 1990, Microsoft Corp";
+#define RD(p) ((p) ? (p) : ds0)
+
 /* MSC's copies measure the source first, then move it forward (rep movsw): defined when the
    two overlap, which the editor relies on (menu_string_width shifts a string down a byte
    with strcpy). The host's are not, so every copy here is a forward move. */
@@ -693,7 +712,7 @@ static void fwd(char *d, const char *s, size_t n)
         *d++ = *s++;
 }
 
-char *msc_strcat(char *d, const char *s) { fwd(d + strlen(d), s, strlen(s) + 1); return d; }
+char *msc_strcat(char *d, const char *s) { s = RD(s); fwd(d + strlen(d), s, strlen(s) + 1); return d; }
 char *msc_strncat(char *d, const char *s, u16 n)
 {
     size_t k = SDL_strnlen(s, n);
@@ -703,7 +722,7 @@ char *msc_strncat(char *d, const char *s, u16 n)
     return d;
 }
 i16 msc__fmemcmp(const void *a, const void *b, u16 n) { int r = memcmp(a, b, n); return (i16)(r < 0 ? -1 : r > 0); }
-char *msc_strcpy(char *d, const char *s) { fwd(d, s, strlen(s) + 1); return d; }
+char *msc_strcpy(char *d, const char *s) { s = RD(s); fwd(d, s, strlen(s) + 1); return d; }
 char *msc_strncpy(char *d, const char *s, u16 n)
 {
     size_t k = SDL_strnlen(s, n);
@@ -711,9 +730,9 @@ char *msc_strncpy(char *d, const char *s, u16 n)
     memset(d + k, 0, n - k);
     return d;
 }
-u16 msc_strlen(const char *s) { return (u16)strlen(s); }
-i16 msc_strcmp(const char *a, const char *b) { int r = strcmp(a, b); return (i16)(r < 0 ? -1 : r > 0); }
-i16 msc_strncmp(const char *a, const char *b, u16 n) { int r = strncmp(a, b, n); return (i16)(r < 0 ? -1 : r > 0); }
+u16 msc_strlen(const char *s) { return (u16)strlen(RD(s)); }
+i16 msc_strcmp(const char *a, const char *b) { int r = strcmp(RD(a), RD(b)); return (i16)(r < 0 ? -1 : r > 0); }
+i16 msc_strncmp(const char *a, const char *b, u16 n) { int r = strncmp(RD(a), RD(b), n); return (i16)(r < 0 ? -1 : r > 0); }
 i16 msc_strnicmp(const char *a, const char *b, u16 n)
 {
     for (; n; n--, a++, b++) {
@@ -725,13 +744,13 @@ i16 msc_strnicmp(const char *a, const char *b, u16 n)
     }
     return 0;
 }
-char *msc_strchr(const char *s, i16 c) { return strchr(s, (char)c); }
+char *msc_strchr(const char *s, i16 c) { return s ? strchr(s, (char)c) : NULL; }
 char *msc_strupr(char *s) { char *p; for (p = s; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 0x20; return s; }
 char *msc_strlwr(char *s) { char *p; for (p = s; *p; p++) if (*p >= 'A' && *p <= 'Z') *p += 0x20; return s; }
 char *msc__fstrcat(char *d, const char *s) { return msc_strcat(d, s); }
 char *msc__fstrcpy(char *d, const char *s) { return msc_strcpy(d, s); }
 char *msc__fstrncpy(char *d, const char *s, u16 n) { return msc_strncpy(d, s, n); }
-u16 msc__fstrlen(const char *s) { return (u16)strlen(s); }
+u16 msc__fstrlen(const char *s) { return (u16)strlen(RD(s)); }
 i16 msc__fstrncmp(const char *a, const char *b, u16 n) { return msc_strncmp(a, b, n); }
 char *msc__fstrchr(const char *s, i16 c) { return strchr(s, (char)c); }
 char *msc__fstrrchr(const char *s, i16 c) { return strrchr(s, (char)c); }

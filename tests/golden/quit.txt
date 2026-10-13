@@ -1,0 +1,20 @@
+# A change, then Esc: the editor asks about saving; No leaves
+wait 300
+key Return
+wait 1500
+key 6
+key 6
+key 6
+key Backspace
+key 1
+key 1
+key Space
+wait 300
+key Escape
+wait 500
+shot 01-ask.bmp
+key Down
+wait 300
+shot 02-no.bmp
+key Return
+wait 1000

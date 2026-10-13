@@ -1,0 +1,29 @@
+# The minimap moves the view; a click on the map moves the cursor; Center View
+wait 300
+key Return
+wait 1500
+click 280 40
+wait 800
+shot 01-minimap.bmp
+click 60 150
+wait 800
+shot 02-mapclick.bmp
+click 55 3
+wait 300
+click 80 80
+wait 800
+shot 03-center.bmp
+key 9
+key 9
+key 9
+key 9
+key 9
+key 9
+key 9
+key 9
+key 9
+key 9
+key 9
+key 9
+wait 800
+shot 04-scrolled.bmp

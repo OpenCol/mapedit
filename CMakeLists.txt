@@ -135,4 +135,8 @@ if(Python3_FOUND)
   add_test(NAME oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/oracle/run.py
            --lib $<TARGET_FILE:oracle_lib>)
   set_tests_properties(oracle PROPERTIES SKIP_RETURN_CODE 77)
+  # Screens and saved files of tests/golden's sessions (needs the game in $MAPEDIT_GAME)
+  add_test(NAME golden COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/golden.py
+           --port $<TARGET_FILE:mapedit>)
+  set_tests_properties(golden PROPERTIES SKIP_RETURN_CODE 77)
 endif()

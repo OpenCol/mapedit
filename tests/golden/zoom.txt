@@ -1,0 +1,24 @@
+# The four zoom levels (F1-F4), then Z and X
+wait 300
+key Return
+wait 1500
+key F1
+wait 800
+shot 01-f1.bmp
+key F2
+wait 800
+shot 02-f2.bmp
+key F3
+wait 800
+shot 03-f3.bmp
+key F4
+wait 800
+shot 04-f4.bmp
+key Z
+wait 800
+shot 05-z.bmp
+key X
+wait 800
+key X
+wait 800
+shot 06-xx.bmp

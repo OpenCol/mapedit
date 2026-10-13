@@ -1,0 +1,45 @@
+# Esc at the file menu: a new map, named; paint on it; save
+wait 300
+key Escape
+wait 500
+shot 01-name.bmp
+key Backspace
+key Backspace
+key Backspace
+key Backspace
+key Backspace
+key Backspace
+key Backspace
+key Backspace
+key Backspace
+key Backspace
+key Backspace
+type NEWLAND
+wait 300
+shot 02-typed.bmp
+key Return
+wait 1500
+shot 03-new.bmp
+key M
+wait 800
+click 88 8
+wait 800
+key Space
+key 6
+key Space
+key 3
+key Space
+key 3
+key Space
+key 6
+key Space
+wait 500
+shot 04-painted.bmp
+hold alt
+wait 150
+hold
+wait 300
+key S
+wait 500
+key Return
+wait 800

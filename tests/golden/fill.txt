@@ -1,0 +1,27 @@
+# Map > Fill Mode Change, then pick up and paint with it
+wait 300
+key Return
+wait 1500
+click 84 3
+wait 300
+click 110 24
+wait 500
+shot 01-fillmode.bmp
+key 6
+key 6
+key 6
+key Backspace
+wait 300
+key 1
+key 1
+key Space
+wait 500
+shot 02-filled.bmp
+hold alt
+wait 150
+hold
+wait 300
+key S
+wait 500
+key Return
+wait 800

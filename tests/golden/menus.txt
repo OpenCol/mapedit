@@ -1,0 +1,25 @@
+# Each menu of the bar, opened with the mouse
+wait 300
+key Return
+wait 1500
+click 20 3
+wait 300
+shot 01-editor.bmp
+key Escape
+wait 300
+click 55 3
+wait 300
+shot 02-view.bmp
+key Escape
+wait 300
+click 84 3
+wait 300
+shot 03-map.bmp
+key Escape
+wait 300
+click 300 3
+wait 300
+shot 04-help.bmp
+key Escape
+wait 300
+shot 05-closed.bmp

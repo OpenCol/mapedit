@@ -1,0 +1,38 @@
+# The help texts, through the Help menu
+wait 300
+key Return
+wait 1500
+click 300 3
+wait 300
+click 280 15
+wait 500
+shot 01-general.bmp
+key Escape
+wait 300
+click 300 3
+wait 300
+click 280 23
+wait 500
+shot 02-mouse.bmp
+key Escape
+wait 300
+click 300 3
+wait 300
+click 280 31
+wait 500
+shot 03-keyboard.bmp
+key Escape
+wait 300
+click 300 3
+wait 300
+click 280 39
+wait 500
+shot 04-special.bmp
+key Escape
+wait 300
+click 300 3
+wait 300
+click 280 55
+wait 500
+shot 05-maps.bmp
+key Escape

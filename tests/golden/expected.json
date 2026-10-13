@@ -1,0 +1,79 @@
+{
+ "coast": {
+  "file AMER2.MP": "425632f756284b23b115d4578d1e7a67c2ef61e6544a6d427d81825befcb6763",
+  "shot 01-protect.bmp": "242f77430af619d528ae8028a3501a602ed8a483174b7f396344ebf8c493a7d6",
+  "shot 02-painted.bmp": "3d68be3797870256dcc1a6259847d3dac9b70c426305fc6c75f53ff8cec99ddc"
+ },
+ "continents": {
+  "file AMER2.MP": "81887d0cfddcb35db2ebf2fd53ac4d513cf702c57e4a0914376cc9d79c342901",
+  "shot 01-continents.bmp": "76ff3ac0ba955f98bcbcf10a7422278ca3aede9ee95ec87a4e514ab1555568b5",
+  "shot 02-closed.bmp": "eb6a48cb478ca7b2a7da35a7da8edbe404db8c80288dfb2a2072513b80d306b4"
+ },
+ "create": {
+  "file NEWLAND.MP": "6b7c7245a2a954b583b0d59876606df78439bb23cbee72db37bfa2b97c77407b",
+  "shot 01-name.bmp": "e4ca259627ffeb1b559a7e9401413e4b8c69ab2781b612b7d37c4b396fc8dcaa",
+  "shot 02-typed.bmp": "f868d03172c0d074110f3a26f78d7ff791784bf59a1508c8af4c92a7aa2d4224",
+  "shot 03-new.bmp": "197176f8ac4827c323f7a2fa6949375071a057ddae7fa0bb8e45fcf26aff7a0b",
+  "shot 04-painted.bmp": "6d921436863a1be65f99d5d41e4c50de37550d9cc8717473b0c0bb05a7a32ff2"
+ },
+ "fill": {
+  "file AMER2.MP": "8bff9e1738a34da70d49dc0a4d41772fcf493955ecb7b02920eb348de4add9e4",
+  "shot 01-fillmode.bmp": "a18beb8c2bebfd8a11d34a4dd8285b7ab82c4543cf4b50f99cc7a99673317b1f",
+  "shot 02-filled.bmp": "f589379337b9c02d421a5c7670ed2a86668aa8cf4dfd6c90bd3dfbfaf009d61b"
+ },
+ "help": {
+  "shot 01-general.bmp": "f2777e402b7e0cba379091ce65b786ab7cbe7cae67f9baf581a77359eb2223e6",
+  "shot 02-mouse.bmp": "5c05a628ffe0b976940612f3a384f9be75dc378c053f22a78e2e5f7aa1532f87",
+  "shot 03-keyboard.bmp": "82d32ee42996ee6e85744e7e6e647dd2a0cba734804fc4753563de8f812e4fe2",
+  "shot 04-special.bmp": "53151ac36188634a0fbc8562e63dc50288b1bb0defe1b88d48b29428e1993c57",
+  "shot 05-maps.bmp": "4dcb097e1b0c823013fcc2bc3533e70103fa4bfbe6d38a06b9e8a3be2be601c9"
+ },
+ "keys_edit": {
+  "file AMER2.MP": "6db76b9a26d2304bb5bde8fc02c25eb064ba0965c6c1b3dff2761f79cec0863a",
+  "shot 01-painted.bmp": "699e77351b9cfab0b70a80cf96f8f9510d5fd1fb22ce1f81182c6c2c8c5ecdaf",
+  "shot 02-undone.bmp": "7092cf4a0022c5dcc669115a081077c09129ce00822c92021b95d3c8a903653e"
+ },
+ "load": {
+  "shot 01-list.bmp": "550f0e2ba23944ad5232345e6e22fca9c5a25f589ad8cc02e5dce1147fa8ec02",
+  "shot 02-loaded.bmp": "ae39aa95ae2a9db02683317b92f49295d9d3ad3398cd4d179ce5828fcd2e7bd7"
+ },
+ "menus": {
+  "shot 01-editor.bmp": "75e47accc24604867e68af37dc4e0ac4ae30fefaa198487caf0df34880c277a1",
+  "shot 02-view.bmp": "000c10098225e400997f929fa8563770a2db6f46351121d6e3bf946f6f349294",
+  "shot 03-map.bmp": "f8836f7fd6e52f2040a760583a7453c37c17255bf2f509f3c5fb334e51e84124",
+  "shot 04-help.bmp": "36a56e1c7dccab66b859df6d637eda95a66fa8598c37aa493db98b74e3bd1d20",
+  "shot 05-closed.bmp": "b9bd47f7b43d9db48bd8091141dd3c7fed444babe801944e0de4c6db077b628d"
+ },
+ "navigate": {
+  "shot 01-minimap.bmp": "09074ac7e804ac5861de924603a8b5329d4aff5de628197356044c972ea8452e",
+  "shot 02-mapclick.bmp": "3716b936f176af680b58284acefd3f825053b7b7cb03f09ffd84f00f99e83472",
+  "shot 03-center.bmp": "ef79ec3bf54dd37327a13627d3b7dd837f6f3a78dab8c737ee3a030b8e59ce85",
+  "shot 04-scrolled.bmp": "e91bc8c78113552a6f659d9ef41d040085491382ceedc22df4270fcb1c931d4e"
+ },
+ "paint_mouse": {
+  "file AMER2.MP": "42ad45be6cc838b94e5d8b077e5bc77184855456427ce072ff7466da78a79dbf",
+  "shot 01-painted.bmp": "5401e75bdc4bbf03c9e772317aff6862567ee8261d5382eff43936ebf40c3401",
+  "shot 02-saved.bmp": "5401e75bdc4bbf03c9e772317aff6862567ee8261d5382eff43936ebf40c3401"
+ },
+ "quit": {
+  "shot 01-ask.bmp": "a86fe5fa50d43ed324fe1d00cc429a997ed3ae80094e347cbb78773d4e5b106e",
+  "shot 02-no.bmp": "64e7e7058b086aa310a8e57bd45e766ce039e25adf489cefcf46fdeb51f95ec1"
+ },
+ "start": {
+  "shot 01-files.bmp": "2ee655f7825eec4fe6a35bde28a04a4800251c7a1c26aa909ca2258b1fc0823c",
+  "shot 02-map.bmp": "53fb2d727b8d3ab3f73288603fc331f8a072aa2dd8cb4516eca24338a2c32161"
+ },
+ "tile_select": {
+  "shot 01-tiles.bmp": "db2fa27d3fb57f1c16e7d236413c9ee93a4a0b363f1b8ce78b5ee9c71a4badfa",
+  "shot 02-picked.bmp": "5d6d61de72f1962660aea24e88e95bd073708619778dd8089b783321931b1675",
+  "shot 03-painted.bmp": "734f4e8f29ca2979156436fdc75fab7f251d5d650f184b0c6a0f47035c077956"
+ },
+ "zoom": {
+  "shot 01-f1.bmp": "c6e1273e6a8b0031087c164e1838de706ea38544359b10dff80409e7174d2db2",
+  "shot 02-f2.bmp": "a9bfc43ee32ebb336a610b341a1ea9cdb9835706bafdfd78cedc583a8e287398",
+  "shot 03-f3.bmp": "28da5783f7157c5d39a4f50c27c139de21a0e436cd4341cdce49774b81ce655d",
+  "shot 04-f4.bmp": "53fb2d727b8d3ab3f73288603fc331f8a072aa2dd8cb4516eca24338a2c32161",
+  "shot 05-z.bmp": "53fb2d727b8d3ab3f73288603fc331f8a072aa2dd8cb4516eca24338a2c32161",
+  "shot 06-xx.bmp": "a9bfc43ee32ebb336a610b341a1ea9cdb9835706bafdfd78cedc583a8e287398"
+ }
+}

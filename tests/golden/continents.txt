@@ -1,0 +1,34 @@
+# Paint a land bridge, Map > Find Continents, save
+wait 300
+key Return
+wait 1500
+key 6
+key 6
+key 6
+key Backspace
+key 8
+key 8
+key 8
+key 8
+key Space
+key 8
+key Space
+key 8
+key Space
+wait 300
+click 84 3
+wait 300
+click 110 48
+wait 1500
+shot 01-continents.bmp
+key Escape
+wait 800
+shot 02-closed.bmp
+hold alt
+wait 150
+hold
+wait 300
+key S
+wait 500
+key Return
+wait 800

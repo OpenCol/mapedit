@@ -82,8 +82,11 @@ char *heap_get(i32 n, Arena *a)
     char *r;
 
     r = 0;
-    n = (n + 1) & ~1L;   /* PORT: every piece on an even address -- the records' pointers and
-                            ints need it (/Zp2), which 1994's 8086 did not */
+    /* the menu and popup arenas (0x28, 0x29) hold records, which need an even address
+       (/Zp2) where 1994's 8086 did not; the others keep 1994's layout -- the strings heap
+       (9) is its strings end to end, and strings() finds the n-th by counting them */
+    if ((u8)a->kind == 0x28 || (u8)a->kind == 0x29)
+        n = (n + 1) & ~1L;
     if (a->left < n)
         error_report(-61, 2, (u8)a->kind, n, a->left);
     else {

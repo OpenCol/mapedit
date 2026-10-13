@@ -29,6 +29,8 @@ void fileio_purge_trailing_spaces(char *s)
     i16 more;
 
     len = msc__fstrlen(s);
+    if (len == 0)
+        return;     /* 1994 looked at the byte before an empty string; nothing to purge */
     do {
         more = -1;
         p = &s[msc__fstrlen(s) - 1];

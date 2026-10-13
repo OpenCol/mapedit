@@ -1,0 +1,32 @@
+# Shift + right click picks up, Shift + left click paints; a stroke dragged across; save
+wait 300
+key Return
+wait 1500
+hold shift
+click 180 140 right
+wait 300
+click 100 100
+wait 300
+click 116 100
+wait 300
+down
+move 100 60
+wait 200
+move 140 60
+wait 200
+move 180 60
+wait 200
+up
+wait 300
+hold
+wait 500
+shot 01-painted.bmp
+hold alt
+wait 150
+hold
+wait 300
+key S
+wait 500
+key Return
+wait 800
+shot 02-saved.bmp
