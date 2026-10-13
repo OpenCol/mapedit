@@ -1,4 +1,4 @@
-/* From mapedit-decomp src/editor/terrain (f55aff8), now maintained here: docs/origin.md. */
+/* terrain.c -- terrain: the table of terrain types (NAMES.TXT) and what a square is. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 #include "font.h"

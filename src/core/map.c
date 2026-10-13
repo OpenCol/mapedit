@@ -1,4 +1,4 @@
-/* From mapedit-decomp src/editor/map (f55aff8), now maintained here: docs/origin.md. */
+/* map.c -- the map: its planes (terrain, features, continents), reading and writing a square, what stands on it. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 #include "font.h"

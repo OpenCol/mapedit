@@ -1,4 +1,4 @@
-/* From mapedit-decomp src/editor/write (f55aff8), now maintained here: docs/origin.md. */
+/* write.c -- writing text: strings built from words and numbers, and drawn in the editor's fonts and colours. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 #include "menu.h"

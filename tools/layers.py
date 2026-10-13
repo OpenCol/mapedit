@@ -3,7 +3,7 @@
 
     python3 tools/layers.py [-v]
 
-The layers, from the bottom: sys (src/sys and port/lib: files, memory, packing, input, the
+The layers, from the bottom: sys (src/sys: files, memory, packing, input, the
 clock, errors), core (src/core: the map and its files, no screen), ui (src/ui: drawing,
 widgets, fonts, palettes, screens), editor (src/editor: the commands and the main loop).
 Each may use the layers below it. A function or global used from a lower layer than its
@@ -12,7 +12,7 @@ own is a violation: listed with who uses it. Exit 1 when there are any.
 import collections, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LAYERS = [('sys', ['src/sys', 'port/lib']), ('core', ['src/core']), ('ui', ['src/ui']), ('editor', ['src/editor'])]
+LAYERS = [('sys', ['src/sys']), ('core', ['src/core']), ('ui', ['src/ui']), ('editor', ['src/editor'])]
 RANK = {name: i for i, (name, _) in enumerate(LAYERS)}
 COMMENT = re.compile(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', re.S)
 DEF_FN = re.compile(r'^(?!static)[A-Za-z_][\w \t\*]*?[\s\*]([A-Za-z_]\w*)\s*\([^;{]*\)\s*\{', re.M)

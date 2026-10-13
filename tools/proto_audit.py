@@ -67,9 +67,9 @@ def kind(t):
 
 def scan():
     defs, decls = {}, collections.defaultdict(list)
-    # the imported modules, and the port's own C for the functions it refused (port/lib):
+    # every module of the program:
     # their definitions are the ones the imported declarations must agree with
-    for group in ('src/core', 'src/editor', 'src/ui', 'src/sys', 'port/lib'):
+    for group in ('src/core', 'src/editor', 'src/ui', 'src/sys'):
         d = os.path.join(ROOT, group)
         for f in sorted(os.listdir(d)):
             if not f.endswith('.c'):
@@ -83,8 +83,6 @@ def scan():
                 line = text.count('\n', 0, m.start()) + 1
                 rec = ('%s/%s:%d' % (group, f, line), params(m.group(3)))
                 if m.group(4) == '{':
-                    if name in defs and defs[name][0].startswith('port/lib') and group != 'port/lib':
-                        continue                # the port's C replaces a refused definition
                     if re.match(r'\s*}', text[m.end():]):
                         continue                # an empty body ignores whatever it is passed
                     defs[name] = rec

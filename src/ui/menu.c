@@ -1,4 +1,4 @@
-/* From mapedit-decomp src/editor/menu (f55aff8), now maintained here: docs/origin.md. */
+/* menu.c -- menus: the menu bar and its drop-downs, built, drawn and run. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 #include "game.h"

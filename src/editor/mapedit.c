@@ -1,4 +1,4 @@
-/* From mapedit-decomp src/editor/mapedit (f55aff8), now maintained here: docs/origin.md. */
+/* mapedit.c -- the editor: startup and the command line, the menu bar's commands, the file menu, the session. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 #include "editstate.h"
@@ -686,10 +686,6 @@ done:
 
 /* @@END@@ */
 
-/* mapedit.obj's uninitialised data: communals, placed by the linker in BSS (from DS:0x4999).
- * Sizes are the distance to the next public; a global nothing in the editor reads keeps a
- * plain array of that size. A definition after the last function moves no symbol position. */
-i16 video_mode;                           /* DS:0x49c6 */
 char *file_select;                        /* DS:0x49ee */
 char file_names[10][13];                  /* DS:0x64f0: 130 bytes */
 

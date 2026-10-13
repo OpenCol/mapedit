@@ -21,6 +21,12 @@ time and remembers it.
 
 On macOS the app is not notarized: the first time, right-click it and choose Open.
 
+## The code
+
+Four layers -- `src/sys`, `src/core`, `src/ui`, `src/editor` -- each using only those below
+it, with one header per subsystem in `src/include`; [docs/architecture.md](docs/architecture.md)
+has the map and the checks that keep it so.
+
 ## What you need
 
 - your own copy of *Colonization* for DOS (GOG or Steam). The editor reads the game's art,

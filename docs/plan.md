@@ -21,13 +21,13 @@ The program has three layers, and the port treats each one differently:
 | Layer | Modules | In the port |
 | --- | --- | --- |
 | The editor | `mapedit`, `map*`, `popup`, `menu`, `text`, `write`, `tile`, `terrain`, `me_mini`, ... | converted from the decomp, maintained here |
-| MicroProse's library, C | `buffer_*`, `sprite_*`, `font_*`, `pal_*`, `pack_*`, `loader_*`, `fileio_*`, `hspot_*`, ... | converted; inline `_asm` rewritten in C (`port/lib`) |
+| MicroProse's library, C | `buffer_*`, `sprite_*`, `font_*`, `pal_*`, `pack_*`, `loader_*`, `fileio_*`, `hspot_*`, ... | converted; inline `_asm` rewritten in C |
 | The machine | the 13 asm modules (`mouse_1`, `keys_4`, `timer_3`, `video_1/2`, `sound_1/2`, `stack_1`, `fileio_c`, PKWARE's `pfab*`), the memory managers (`mem_*`, `ems_*`, `xms_*`, `himem_*`), and every DOS/BIOS call | replaced by `platform/`, under the same names |
 
 ## The conversion
 
 `src/` was converted once from mapedit-decomp (16-bit types kept, `far`/`near` and calling
-conventions dropped, inline assembly rewritten in C under `port/lib/`) and is maintained
+conventions dropped, inline assembly rewritten in C) and is maintained
 here since: [origin.md](origin.md) has the details. 16-bit arithmetic that wrapped in 1994
 must still wrap; that remains the main thing to watch when changing it.
 

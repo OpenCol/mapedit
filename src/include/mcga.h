@@ -4,7 +4,6 @@
 
 #include "msc.h"
 
-void MCGA_SHAKE(void);
 void mcga_compute_retrace_parameters(void);
 void mcga_getpal(char *pal);
 void mcga_retrace(void);
@@ -18,6 +17,5 @@ extern i16 mcga_retrace_computed;
 extern i16 mcga_retrace_max_bytes;
 extern i16 mcga_retrace_max_colors;
 extern u16 mcga_retrace_ticks;
-extern i16 MCGA_SHAKES;
 
 #endif

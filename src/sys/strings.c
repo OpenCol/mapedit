@@ -1,7 +1,8 @@
-/* From mapedit-decomp src/editor/strings (f55aff8), now maintained here: docs/origin.md. */
+/* strings.c -- the string store: names and labels read from the text files, kept end to end and found by number. */
 #include <string.h>
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "popup.h"
 #include "error.h"
 #include "pack.h"
 #include "pal.h"

@@ -38,9 +38,11 @@ if(NOT MSVC)
   target_compile_options(msc PUBLIC -fsigned-char)
 endif()
 
-# The editor (src/, from mapedit-decomp: docs/origin.md). Its warnings policy: the leftovers of byte-matching
-# (stand-in declarations, unused locals that fixed MSC's stack layout) are not reported;
-# everything that can change behaviour is.
+# The editor, in layers (docs/architecture.md): src/sys (files, memory, packing, input, the
+# clock, the screen), src/core (the map and its files), src/ui (drawing, widgets, the
+# screens), src/editor (the commands and the main loop). From mapedit-decomp (docs/origin.md);
+# its warnings policy: unused locals the 1994 source kept are not reported, everything that
+# can change behaviour is.
 file(GLOB EDITOR_SOURCES CONFIGURE_DEPENDS src/core/*.c src/editor/*.c src/ui/*.c src/sys/*.c)
 add_library(editor OBJECT ${EDITOR_SOURCES})
 target_include_directories(editor PRIVATE port src/include platform)
@@ -52,25 +54,16 @@ else()
     -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-misleading-indentation)
 endif()
 
-# What the port writes for the functions the import refused (inline assembly): port/lib
-file(GLOB PORT_LIB_SOURCES CONFIGURE_DEPENDS port/lib/*.c)
-add_library(portlib OBJECT ${PORT_LIB_SOURCES})
-target_include_directories(portlib PRIVATE port platform src/include)
-target_compile_options(portlib PRIVATE ${WARN})
-if(NOT MSVC)
-  target_compile_options(portlib PRIVATE -fsigned-char)
-endif()
-
 # The oracle tests (tests/oracle) call the port's functions through this library, beside the
 # original's machine code run in an emulator. Symbols nothing calls yet may stay unresolved.
 add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/stubs.c
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/unresolved.py --stubs ${CMAKE_BINARY_DIR}/stubs.c
-          $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib> $<TARGET_FILE:msc>
-  DEPENDS editor portlib msc ${CMAKE_SOURCE_DIR}/tools/unresolved.py
+          $<TARGET_OBJECTS:editor> $<TARGET_FILE:msc>
+  DEPENDS editor msc ${CMAKE_SOURCE_DIR}/tools/unresolved.py
   COMMAND_EXPAND_LISTS
   COMMENT "weak stand-ins for what nothing defines yet")
-add_library(oracle_lib SHARED $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib> ${CMAKE_BINARY_DIR}/stubs.c)
+add_library(oracle_lib SHARED $<TARGET_OBJECTS:editor> ${CMAKE_BINARY_DIR}/stubs.c)
 target_link_libraries(oracle_lib PRIVATE msc host)
 if(APPLE)
   target_link_options(oracle_lib PRIVATE -undefined dynamic_lookup)
@@ -78,7 +71,7 @@ endif()
 
 # The editor (M2: links; M3: runs)
 set(MAPEDIT_MAIN port/main.c port/game_dir.c)
-add_executable(mapedit ${MAPEDIT_MAIN} $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib>)
+add_executable(mapedit ${MAPEDIT_MAIN} $<TARGET_OBJECTS:editor>)
 target_include_directories(mapedit PRIVATE port platform)
 target_link_libraries(mapedit PRIVATE msc host)
 if(NOT MSVC)
@@ -88,7 +81,7 @@ endif()
 # SDL3 statically (tools/release.py), so the bundle is the one executable; a build against a
 # shared SDL3 (Homebrew's) runs on the machine that has it.
 if(APPLE)
-  add_executable(mapedit_app MACOSX_BUNDLE ${MAPEDIT_MAIN} $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib>)
+  add_executable(mapedit_app MACOSX_BUNDLE ${MAPEDIT_MAIN} $<TARGET_OBJECTS:editor>)
   target_include_directories(mapedit_app PRIVATE port platform)
   target_link_libraries(mapedit_app PRIVATE msc host)
   target_compile_options(mapedit_app PRIVATE -fsigned-char)
@@ -135,6 +128,9 @@ if(Python3_FOUND)
   add_test(NAME oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/oracle/run.py
            --lib $<TARGET_FILE:oracle_lib>)
   set_tests_properties(oracle PROPERTIES SKIP_RETURN_CODE 77)
+  # The structure: each layer uses only those below it; everything declared once
+  add_test(NAME layers COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/layers.py)
+  add_test(NAME declarations COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/proto_audit.py)
   # Screens and saved files of tests/golden's sessions (needs the game in $MAPEDIT_GAME)
   add_test(NAME golden COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/golden.py
            --port $<TARGET_FILE:mapedit>)

@@ -1,4 +1,4 @@
-/* From mapedit-decomp src/editor/text (f55aff8), now maintained here: docs/origin.md. */
+/* text.c -- the text files (MAPEDIT.TXT, NAMES.TXT): sections, lines and their comma-separated items. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 #include "font.h"

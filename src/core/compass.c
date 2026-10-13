@@ -1,4 +1,4 @@
-/* From mapedit-decomp src/editor/compass (f55aff8), now maintained here: docs/origin.md. */
+/* compass.c -- the eight directions as x and y steps, for the map generator and the coast scan. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 #include "font.h"

@@ -1,4 +1,4 @@
-/* From mapedit-decomp src/editor/popup (f55aff8), now maintained here: docs/origin.md. */
+/* popup.c -- popups: boxes of text, choices, check boxes, entry fields and sprites, laid out, drawn and run; the text file's boxes (popup_box). */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
 #include "game.h"

@@ -26,10 +26,10 @@ it is changed here, and mapedit-decomp stays the byte-exact reference it is chec
   machine without them never used: the port always took the conventional-memory and disk
   paths those modules fell back to.
 
-## Functions written anew in port/lib
+## Functions written anew
 
 These were inline assembly in 1994 (or the assembly modules), and have C of their own in
-`port/lib/`; `tests/oracle` checks the ones that compute something against the original's code.
+their subsystem's file (they lived in `port/lib/` until the layering: docs/architecture.md); `tests/oracle` checks the ones that compute something against the original's code.
 
 | Module | Function |
 | --- | --- |
@@ -97,4 +97,7 @@ These were inline assembly in 1994 (or the assembly modules), and have C of thei
   found when the headers went in are fixed (`game` is records.h's GameState, `unit` a Unit,
   the font functions take a DosFont, the editor's own TerrainInfo and MenuEntry no longer
   share names with the game's records).
-
+- The layers (docs/architecture.md): the modules were merged into one file per subsystem
+  (`buffer_1.c` ... `buffer_z.c` and the C written for their assembly became `sys/buffer.c`)
+  and sorted into sys, core, ui and editor; mapedit.c was split among them. EMS, XMS and the
+  high-memory directory, which a machine without them never used, are gone.

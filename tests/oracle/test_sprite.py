@@ -1,4 +1,4 @@
-"""The run-length sprite drawer (port/lib/sprite.c) against the original's machine code."""
+"""The run-length sprite drawer (src/ui/sprite.c) against the original's machine code."""
 import ctypes, struct
 
 from emu import W, P, D
@@ -8,7 +8,7 @@ N = 300
 
 
 class IconRec(ctypes.Structure):
-    _pack_ = 2                  # the imported records' /Zp2 (port/lib/series.h)
+    _pack_ = 2                  # the records' /Zp2 (src/include/sprite.h)
     _fields_ = [('data', ctypes.c_void_p), ('x0', ctypes.c_int16), ('y0', ctypes.c_int16),
                 ('w', ctypes.c_int16), ('h', ctypes.c_int16)]
 

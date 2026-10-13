@@ -1,4 +1,4 @@
-"""font_write (port/lib/font.c) against the original's machine code."""
+"""font_write (src/ui/font.c) against the original's machine code."""
 import ctypes, struct
 
 from emu import W, P, D

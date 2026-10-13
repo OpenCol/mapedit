@@ -1,4 +1,4 @@
-"""The terrain tile drawers (port/lib/tile.c) against the original's machine code."""
+"""The terrain tile drawers (src/ui/tile.c) against the original's machine code."""
 import ctypes, struct
 
 from emu import W, D

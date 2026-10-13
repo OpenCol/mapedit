@@ -1,4 +1,4 @@
-"""The FAB codec (port/lib/fab.c): the game's own packed art, decoded by the original and the
+"""The FAB codec (src/sys/fab.c): the game's own packed art, decoded by the original and the
 port; and the port's encoder read back by the port's decoder."""
 import ctypes, glob, os, struct
 

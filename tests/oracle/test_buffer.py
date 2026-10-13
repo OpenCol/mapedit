@@ -1,4 +1,4 @@
-"""The work-buffer primitives (port/lib/buffer.c) against the original's machine code."""
+"""The work-buffer primitives (src/sys/buffer.c) against the original's machine code."""
 import ctypes, struct
 
 from emu import W, P, Block

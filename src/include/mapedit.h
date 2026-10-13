@@ -44,6 +44,5 @@ extern i16 file_set;
 extern void *game_menu;
 extern i16 load_error;
 extern i16 mads_mode;
-extern i16 video_mode;
 
 #endif

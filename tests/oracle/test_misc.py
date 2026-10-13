@@ -1,4 +1,4 @@
-"""Small library routines (port/lib/misc.c) against the original's machine code."""
+"""Small library routines (src/sys) against the original's machine code."""
 import ctypes, struct
 
 from emu import W, D
@@ -68,7 +68,7 @@ def test_pack_memory_streams(m, lib, rng):
             cn = ctypes.c_uint16(n)
             r = f(cbuf, ctypes.byref(cn))
             what = 'pack_%s_memory case %d: size %d, n %d' % (which, case, size, n)
-            if which == 'read':       # the writer's result is undefined (port/lib/misc.c)
+            if which == 'read':       # the writer's result is undefined (src/sys)
                 assert r == ax, '%s: returned %d, the original %d' % (what, r, ax)
             assert size_c.value == struct.unpack('<i', m.read_ds(m.data('pack_%s_size' % which), 4))[0], what + ': size'
             assert count_c.value == struct.unpack('<i', m.read_ds(m.data('pack_%s_count' % which), 4))[0], what + ': count'
