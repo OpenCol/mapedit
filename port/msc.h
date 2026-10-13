@@ -41,11 +41,13 @@ typedef struct MSC_FILE {
     char _file;         /* the DOS handle (port: an index into msc_runtime.c's handle table) */
 } MSC_FILE;
 typedef i32 msc_fpos_t;
+#ifndef MSC_RUNTIME_IMPL     /* port/msc_runtime.c uses the host's headers beside this one */
 #define fpos_t msc_fpos_t
 #define EOF (-1)
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
+#endif
 
 /* ---- dos.h ---- */
 struct find_t {
@@ -63,7 +65,8 @@ struct find_t {
 #define _A_SUBDIR 0x10
 #define _A_ARCH   0x20
 
-/* ---- fcntl.h / io.h ---- */
+/* ---- fcntl.h / io.h: DOS's values ---- */
+#ifndef MSC_RUNTIME_IMPL
 #define O_RDONLY 0x0000
 #define O_WRONLY 0x0001
 #define O_RDWR   0x0002
@@ -73,6 +76,7 @@ struct find_t {
 #define O_EXCL   0x0400
 #define O_TEXT   0x4000
 #define O_BINARY 0x8000
+#endif
 
 /* ---- ctype.h: MSC's own table, which the source also indexes itself ((_ctype + 1)[c]).
    _ctype[0] is EOF's; characters 128-255 are in no class. */
@@ -85,6 +89,7 @@ extern u8 _ctype[257];
 #define _CONTROL 0x20
 #define _BLANK   0x40
 #define _HEX     0x80
+#ifndef MSC_RUNTIME_IMPL
 #define MSC_CT(c) ((_ctype + 1)[(u8)(c)])
 #define isalpha(c)  (MSC_CT(c) & (_UPPER | _LOWER))
 #define isupper(c)  (MSC_CT(c) & _UPPER)
@@ -101,6 +106,7 @@ extern u8 _ctype[257];
 #define _tolower(c) ((c) - 'A' + 'a')
 #define toupper(c)  (islower(c) ? _toupper(c) : (c))
 #define tolower(c)  (isupper(c) ? _tolower(c) : (c))
+#endif
 
 /* ---- the run-time library the source calls, MSC 6's signatures in the port's types ---- */
 char *msc_strcat(char *d, const char *s);
