@@ -40,6 +40,9 @@ typedef struct MSC_FILE {
     char _flag;         /* _IOREAD 1, _IOWRT 2, _IONBF 4, _IOMYBUF 8, _IOEOF 0x10, _IOERR 0x20, _IORW 0x80 */
     char _file;         /* the DOS handle (port: an index into msc_runtime.c's handle table) */
 } MSC_FILE;
+/* MSC's stdio.h macros over the record */
+#define feof(f)   ((f)->_flag & 0x10)
+#define ferror(f) ((f)->_flag & 0x20)
 typedef i32 msc_fpos_t;
 #ifndef MSC_RUNTIME_IMPL     /* port/msc_runtime.c uses the host's headers beside this one */
 #define fpos_t msc_fpos_t

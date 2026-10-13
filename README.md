@@ -5,8 +5,13 @@ macOS and Linux. It is built from [mapedit-decomp](../mapedit-decomp), the edito
 recovered from the shipped program, compiled with modern compilers, and it runs on
 [SDL3](https://libsdl.org) instead of DOS.
 
-**Status: M0.** The repository and the platform host exist; the editor is not imported yet.
-[docs/plan.md](docs/plan.md) has the milestones and the gate for each one.
+**Status: M1 done, M2 waiting on the decomp.** Every imported module compiles; every
+function that was inline assembly has C in `port/lib/`, each checked against the original
+machine code where it computes something (`tests/oracle`, 21 tests, thousands of random
+cases); the machine layer (screen, mouse cursor, keyboard and keypad mouse, timer, palette,
+BIOS data area, MSC 6's run-time) is written. The program links once mapedit-decomp has the
+editor's main module and every module's data defined. [docs/plan.md](docs/plan.md) has the
+milestones and the gate for each one.
 
 ## What you need
 
@@ -16,8 +21,11 @@ recovered from the shipped program, compiled with modern compilers, and it runs 
 
 ```sh
 cmake -B build && cmake --build build
-ctest --test-dir build                      # the host self-test
+ctest --test-dir build                      # self-tests; the oracle with MAPEDIT_EXE set
 ```
+
+The oracle tests run the player's own `MAPEDIT.EXE` in an emulator beside the port: set
+`MAPEDIT_EXE` to it and install Python's `unicorn` package.
 
 ## The contract
 

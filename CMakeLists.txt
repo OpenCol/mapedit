@@ -37,7 +37,6 @@ endif()
 # (stand-in declarations, unused locals that fixed MSC's stack layout) are not reported;
 # everything that can change behaviour is.
 file(GLOB EDITOR_SOURCES CONFIGURE_DEPENDS src/editor/*.c src/madsdev/*.c)
-list(REMOVE_ITEM EDITOR_SOURCES ${CMAKE_SOURCE_DIR}/src/madsdev/error_1.c)   # unfinished upstream
 add_library(editor OBJECT ${EDITOR_SOURCES})
 target_include_directories(editor PRIVATE port src/include)
 if(MSVC)
