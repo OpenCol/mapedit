@@ -26,31 +26,37 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-i32 *timer_address = (i32 *)0x0040006cL;   /* DS:0x267a: the BIOS tick count until the timer is installed */
+i32 *timer_address = (i32 *)(msc_bda + 0x006c);   /* DS:0x267a: the BIOS tick count until the timer is installed */
 extern i32 timer_600_low;                /* DS:0x8338 */
 extern i32 timer_60_low;                /* DS:0x92e8 */
 extern void timer_install(void);
 extern void sound_manager(void);
 extern void sound_driver_null(void);
 extern void timer_remove(void);
+/* PORT: the counters move when read: the port has no clock interrupt (port/lib/timer.c) */
+extern void timer_sync(void);
 /* timer_read -- 0d18:0006, 12 bytes */
 i32 timer_read(void)
 {
+    timer_sync();   /* PORT */
     return *timer_address;
 }
 /* timer_read_dos -- 0d18:0012, 16 bytes */
 i32 timer_read_dos(void)
 {
-    return *(i32 *)0x0040006cL;
+    timer_sync();   /* PORT */
+    return *(i32 *)(msc_bda + 0x006c);
 }
 /* timer_read_600 -- 0d18:0022, 8 bytes */
 i32 timer_read_600(void)
 {
+    timer_sync();   /* PORT */
     return timer_600_low;
 }
 /* timer_read_60 -- 0d18:002a, 8 bytes */
 i32 timer_read_60(void)
 {
+    timer_sync();   /* PORT */
     return timer_60_low;
 }
 /* timer_hack -- 0d18:0032, 22 bytes */

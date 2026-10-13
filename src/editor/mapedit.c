@@ -193,7 +193,7 @@ void forest_fix(void)
 /* shift_key -- 0000:0186, 16 bytes */
 i16 shift_key(void)
 {
-    return *(u8 *)0x00400017L & 3;
+    return *(u8 *)(msc_bda + 0x0017) & 3;
 }
 /* construct_mapedit_menu -- 0000:0196, 980 bytes */
 typedef struct { i16 f0; } MenuHead;

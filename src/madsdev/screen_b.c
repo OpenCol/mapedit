@@ -19,10 +19,10 @@ extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_i
 // MSC: #pragma optimize("elg", on)
 void screen_dominant_mode(i16 mode)
 {
-    *(u8 *)0x00400010L &= 0xcf;
+    *(u8 *)(msc_bda + 0x0010) &= 0xcf;
     if (mode == 7)
-        *(u8 *)0x00400010L |= 0x30;
+        *(u8 *)(msc_bda + 0x0010) |= 0x30;
     else
-        *(u8 *)0x00400010L |= 0x20;
+        *(u8 *)(msc_bda + 0x0010) |= 0x20;
 }
 

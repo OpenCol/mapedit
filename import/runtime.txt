@@ -12,6 +12,7 @@ _fstrncpy
 _fstrrchr
 _fstrupr
 atoi
+bda
 fclose
 fgets
 filelength

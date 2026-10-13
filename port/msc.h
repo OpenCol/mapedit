@@ -144,11 +144,16 @@ i16   msc_fsetpos(MSC_FILE *f, const msc_fpos_t *pos);
 i16   msc_remove(const char *name);
 i16   msc_printf(const char *fmt, ...);
 i16   msc_open(const char *name, i16 flags, ...);
+i16   msc_close(i16 handle);
 i32   msc_filelength(i16 handle);
 u16   msc__dos_findfirst(char *spec, u16 attrib, struct find_t *f);
 u16   msc__dos_findnext(struct find_t *f);
 u16   msc__dos_read(i16 handle, void *buf, u16 count, u16 *done);
 u16   msc__dos_write(i16 handle, void *buf, u16 count, u16 *done);
+
+/* the BIOS data area (0040:0000-00FF): the shift flags at 17h, the tick count at 6Ch; kept
+   current by port/lib/bios.c */
+extern u8 msc_bda[256];
 
 /* the records modules share, one definition each */
 #include "port_records.h"

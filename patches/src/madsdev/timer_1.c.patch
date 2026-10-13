@@ -1,0 +1,33 @@
+--- src/madsdev/timer_1.c
++++ src/madsdev/timer_1.c
+@@ -33,24 +33,30 @@
+ extern void sound_manager(void);
+ extern void sound_driver_null(void);
+ extern void timer_remove(void);
++/* PORT: the counters move when read: the port has no clock interrupt (port/lib/timer.c) */
++extern void timer_sync(void);
+ /* timer_read -- 0d18:0006, 12 bytes */
+ i32 timer_read(void)
+ {
++    timer_sync();   /* PORT */
+     return *timer_address;
+ }
+ /* timer_read_dos -- 0d18:0012, 16 bytes */
+ i32 timer_read_dos(void)
+ {
++    timer_sync();   /* PORT */
+     return *(i32 *)(msc_bda + 0x006c);
+ }
+ /* timer_read_600 -- 0d18:0022, 8 bytes */
+ i32 timer_read_600(void)
+ {
++    timer_sync();   /* PORT */
+     return timer_600_low;
+ }
+ /* timer_read_60 -- 0d18:002a, 8 bytes */
+ i32 timer_read_60(void)
+ {
++    timer_sync();   /* PORT */
+     return timer_60_low;
+ }
+ /* timer_hack -- 0d18:0032, 22 bytes */

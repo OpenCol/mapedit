@@ -778,7 +778,7 @@ void menu_bar_run(MenuSub *sub)
     sel3 = 0;
     m4 = sub->menu;
     running = 1;
-    alt1 = *(u8 *)0x00400017L & 8;
+    alt1 = *(u8 *)(msc_bda + 0x0017) & 8;
     do {
         switch_sub7 = 0;
         redraw7 = 1;
@@ -923,7 +923,7 @@ void menu_bar_run(MenuSub *sub)
                     break;
                 }
             }
-            alt2j = *(u8 *)0x00400017L & 8;
+            alt2j = *(u8 *)(msc_bda + 0x0017) & 8;
             if (altnav && alt2j == 0) {
                 if (alt1 == 0)
                     running = 0;

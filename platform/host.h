@@ -43,9 +43,22 @@ void host_present(void);                   /* show the framebuffer through the D
 int  host_vretrace(void);                  /* nonzero during vertical retrace (status port 3DAh bit 3) */
 const uint32_t *host_rgb(void);            /* the last presented frame as 0x00RRGGBB, for tests */
 
-/* events: call often; it runs the OS's event loop and fills the queues below */
+/* events: call often; it runs the OS's event loop and fills the queues below, and shows a
+   changed framebuffer at most 70 times a second (the VGA refresh rate) */
 void host_pump(void);
 int  host_quit_requested(void);
+void host_vram_touched(void);              /* the framebuffer changed: show it at the next frame */
+
+/* the mouse driver's event handler (INT 33h function 14h): called from host_pump on every
+   move and button change, with screen pixels and button bits */
+typedef void (*HostMouseHandler)(int x, int y, int buttons);
+void host_set_mouse_handler(HostMouseHandler fn);
+
+/* a keyboard interrupt hook (INT 9): sees each key before the BIOS queue does. scan is the
+   set-1 scan code, keypad nonzero for the numeric keypad (not the grey keys, which sent E0
+   first). A nonzero return swallows the key. */
+typedef int (*HostKeyHook)(int scan, int down, int keypad);
+void host_set_key_hook(HostKeyHook fn);
 
 /* keyboard: the BIOS queue (INT 16h) */
 int      host_key_ready(void);

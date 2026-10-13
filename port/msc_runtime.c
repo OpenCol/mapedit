@@ -172,6 +172,12 @@ static int handle_close(i16 h)
     return 0;
 }
 
+/* close() -- io.h */
+i16 msc_close(i16 h)
+{
+    return (i16)handle_close(h);
+}
+
 i32 msc_filelength(i16 h)
 {
     struct stat st;

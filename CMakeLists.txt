@@ -51,7 +51,7 @@ endif()
 # What the port writes for the functions the import refused (inline assembly): port/lib
 file(GLOB PORT_LIB_SOURCES CONFIGURE_DEPENDS port/lib/*.c)
 add_library(portlib OBJECT ${PORT_LIB_SOURCES})
-target_include_directories(portlib PRIVATE port)
+target_include_directories(portlib PRIVATE port platform)
 target_compile_options(portlib PRIVATE ${WARN})
 if(NOT MSVC)
   target_compile_options(portlib PRIVATE -fsigned-char)
@@ -67,9 +67,17 @@ add_custom_command(
   COMMAND_EXPAND_LISTS
   COMMENT "weak stand-ins for what nothing defines yet")
 add_library(oracle_lib SHARED $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib> ${CMAKE_BINARY_DIR}/stubs.c)
-target_link_libraries(oracle_lib PRIVATE msc)
+target_link_libraries(oracle_lib PRIVATE msc host)
 if(APPLE)
   target_link_options(oracle_lib PRIVATE -undefined dynamic_lookup)
+endif()
+
+# The editor (M2: links; M3: runs)
+add_executable(mapedit port/main.c $<TARGET_OBJECTS:editor> $<TARGET_OBJECTS:portlib>)
+target_include_directories(mapedit PRIVATE port platform)
+target_link_libraries(mapedit PRIVATE msc host)
+if(NOT MSVC)
+  target_compile_options(mapedit PRIVATE -fsigned-char)
 endif()
 
 enable_testing()

@@ -34,6 +34,10 @@ left alone):
   DosPort, whose shapes differed between modules but whose size did not).
 - A function with inline assembly (_asm) is not imported: its definition becomes its
   prototype, and import/REFUSED lists it. port/ holds the C written for it.
+- A far pointer into the BIOS data area written as a constant ((u8 *)0x00400017L, the shift
+  flags) points into msc_bda, the port's copy of that area (port/lib/bios.c).
+- Last, patches/<file>.patch: the port's deliberate edits, each marked PORT:, as diffs
+  against the plain import (tools/import.py --save-patches writes them from src/).
 """
 import argparse, os, re, shutil, subprocess, sys, tarfile, tempfile
 
@@ -174,6 +178,15 @@ def drop_own_decls(text):
     return text
 
 
+# A far pointer into the BIOS data area, written as a constant (0x00400017L: 0040:0017, the
+# shift flags): the port keeps that area in msc_bda (port/lib/bios.c).
+BDA = re.compile(r'\(\s*([A-Za-z_][\w \t]*\*)\s*\)\s*0x0040([0-9a-fA-F]{4})L')
+
+
+def bios_area(text):
+    return BDA.sub(lambda m: '(%s)(msc_bda + 0x%s)' % (m.group(1).strip(), m.group(2).lower()), text)
+
+
 def convert(text, runtime):
     """The token-level conversion (see the module docstring)."""
     toks = [(m.lastgroup, m.group()) for m in TOKEN.finditer(text)]
@@ -265,7 +278,7 @@ def import_module(tree, group, mod, runtime, refused):
     return ('/* Imported from mapedit-decomp src/%s/%s by tools/import.py. Do not edit; mark a\n'
             ' * deliberate change with PORT: (docs/plan.md). */\n#include "msc.h"\n'
             '#pragma pack(2)   /* MSC 6\'s default structure packing (/Zp2) */\n' % (group, mod)
-            + drop_own_decls(convert(text, runtime)))
+            + bios_area(drop_own_decls(convert(text, runtime))))
 
 
 def produce(tree):
@@ -286,8 +299,67 @@ def produce(tree):
     for t in files.values():
         used |= set(re.findall(r'\bmsc_(\w+)', t))
     files['import/REFUSED'] = ''.join('%s/%s\t%s\t%s\n' % r for r in refused)
+    apply_patches(files)
     files['import/runtime.txt'] = ''.join(n + '\n' for n in sorted(used))
     return files
+
+
+PATCHES = os.path.join(ROOT, 'patches')
+
+
+def apply_patches(files):
+    """patches/<path>.patch: the port's deliberate edits to an imported file, as a unified
+    diff against the plain import (made by --save-patches). Applied in place; one that no
+    longer applies stops the import."""
+    for dirpath, _, names in os.walk(PATCHES):
+        for n in sorted(names):
+            if not n.endswith('.patch'):
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, n), PATCHES)[:-len('.patch')]
+            if rel not in files:
+                sys.exit('patches/%s.patch: the import has no %s' % (rel, rel))
+            tmp = tempfile.mkdtemp()
+            try:
+                p = os.path.join(tmp, 'f')
+                open(p, 'w').write(files[rel])
+                r = subprocess.run(['patch', '-s', '-N', p, os.path.join(dirpath, n)],
+                                   capture_output=True, text=True)
+                if r.returncode:
+                    sys.exit('patches/%s.patch no longer applies:\n%s' % (rel, r.stdout + r.stderr))
+                files[rel] = open(p).read()
+            finally:
+                shutil.rmtree(tmp)
+
+
+def save_patches(fresh):
+    """Record every src/ file that differs from the plain import as a patch."""
+    n = 0
+    for rel, text in sorted(fresh.items()):
+        if not rel.startswith('src/'):
+            continue
+        p = os.path.join(ROOT, rel)
+        if not os.path.exists(p):
+            continue
+        have = open(p).read()
+        out = os.path.join(PATCHES, rel + '.patch')
+        if have == text:
+            if os.path.exists(out):
+                os.remove(out)
+            continue
+        if 'PORT:' not in have:
+            sys.exit('%s differs from the import but has no PORT: comment' % rel)
+        tmp = tempfile.mkdtemp()
+        try:
+            a = os.path.join(tmp, 'a')
+            open(a, 'w').write(text)
+            d = subprocess.run(['diff', '-u', '--label', rel, '--label', rel, a, p],
+                               capture_output=True, text=True).stdout
+        finally:
+            shutil.rmtree(tmp)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        open(out, 'w').write(d)
+        n += 1
+    print('%d patch(es) in patches/' % n)
 
 
 def main(argv):
@@ -295,6 +367,8 @@ def main(argv):
     ap.add_argument('--decomp')
     ap.add_argument('--source')
     ap.add_argument('--check', action='store_true')
+    ap.add_argument('--save-patches', action='store_true',
+                    help='record the PORT: edits in src/ as patches/ (against a plain import)')
     a = ap.parse_args(argv)
     decomp = decomp_path(a.decomp)
     src_file = os.path.join(ROOT, 'import', 'SOURCE')
@@ -304,9 +378,15 @@ def main(argv):
                                 text=True, check=True).stdout.strip()
     tmp = tempfile.mkdtemp()
     try:
+        if a.save_patches:
+            global apply_patches
+            apply_patches = lambda files: None      # compare with the plain import
         files = produce(unpack(decomp, commit, tmp))
     finally:
         shutil.rmtree(tmp)
+    if a.save_patches:
+        save_patches(files)
+        return 0
     files['import/SOURCE'] = commit + '\n'
     if a.check:
         bad = 0

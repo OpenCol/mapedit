@@ -33,6 +33,10 @@ static struct {
     uint64_t t0;
     int virtual_time;
     uint32_t virtual_ms;
+    int dirty;
+    uint32_t last_present;
+    HostMouseHandler mouse_handler;
+    HostKeyHook key_hook;
 } H;
 
 /* ---- keyboard ---------------------------------------------------------------------------- */
@@ -154,6 +158,17 @@ int host_shift_flags(void) { host_pump(); return H.shift; }
 
 /* ---- events ------------------------------------------------------------------------------ */
 
+void host_set_mouse_handler(HostMouseHandler fn) { H.mouse_handler = fn; }
+void host_set_key_hook(HostKeyHook fn) { H.key_hook = fn; }
+void host_vram_touched(void) { H.dirty = 1; }
+
+static void present_if_due(void);
+
+static int is_keypad(SDL_Scancode sc)
+{
+    return sc >= SDL_SCANCODE_KP_DIVIDE && sc <= SDL_SCANCODE_KP_PERIOD;
+}
+
 static void shift_from(SDL_Keymod m)
 {
     H.shift = (m & SDL_KMOD_RSHIFT ? HOST_SHIFT_RIGHT : 0) | (m & SDL_KMOD_LSHIFT ? HOST_SHIFT_LEFT : 0)
@@ -170,16 +185,23 @@ void host_pump(void)
             break;
         case SDL_EVENT_KEY_DOWN: {
             uint16_t code;
+            const KeyDef *k = keydef(e.key.scancode);
             shift_from(e.key.mod);
+            if (k && H.key_hook && H.key_hook(k->scan, 1, is_keypad(e.key.scancode)))
+                break;
             code = host_key_translate(e.key.scancode, (e.key.mod & SDL_KMOD_SHIFT) != 0,
                                       (e.key.mod & SDL_KMOD_CTRL) != 0, (e.key.mod & SDL_KMOD_ALT) != 0);
             if (code)
                 key_push(code);
             break;
         }
-        case SDL_EVENT_KEY_UP:
+        case SDL_EVENT_KEY_UP: {
+            const KeyDef *k = keydef(e.key.scancode);
             shift_from(e.key.mod);
+            if (k && H.key_hook)
+                H.key_hook(k->scan, 0, is_keypad(e.key.scancode));
             break;
+        }
         case SDL_EVENT_MOUSE_MOTION:
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
         case SDL_EVENT_MOUSE_BUTTON_UP: {
@@ -199,15 +221,32 @@ void host_pump(void)
                 y = y * HOST_H / 240;       /* the logical screen is 320x240 at 4:3 */
             H.mouse_x = x < 0 ? 0 : x >= HOST_W ? HOST_W - 1 : (int)x;
             H.mouse_y = y < 0 ? 0 : y >= HOST_H ? HOST_H - 1 : (int)y;
+            if (H.mouse_handler)
+                H.mouse_handler(H.mouse_x, H.mouse_y, H.buttons);
             break;
         }
         default:
             break;
         }
     }
+    present_if_due();
 }
 
 int host_quit_requested(void) { return H.quit; }
+
+/* the end of host_pump: a changed framebuffer is shown once per VGA frame (70 Hz) */
+static void present_if_due(void)
+{
+    uint32_t now;
+    if (!H.dirty)
+        return;
+    now = host_ms();
+    if (now - H.last_present < 1000 / 70)
+        return;
+    H.dirty = 0;
+    H.last_present = now;
+    host_present();
+}
 
 void host_mouse(int *x, int *y, int *buttons)
 {
@@ -267,7 +306,6 @@ void host_present(void)
     SDL_RenderClear(H.renderer);
     SDL_RenderTexture(H.renderer, H.texture, NULL, NULL);
     SDL_RenderPresent(H.renderer);
-    host_pump();
 }
 
 int host_vretrace(void)
