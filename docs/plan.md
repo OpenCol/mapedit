@@ -67,7 +67,8 @@ The C implementations of what the asm modules and DOS did, keeping the original 
 | M4 | **faithful** | the same input script, run in the original (DOSBox-X) and in the port, writes byte-identical `.MP` files, and the screens match at each checkpoint |
 | M5 | improvements | each one behind an option, M4 still green with all of them off |
 
-Status (2026-10-13): M2 done; M3's session runs (`--script`: the editor opens AMER2.MP,
+Status (2026-10-13): Windows x64 builds (MinGW-w64) and passes every M4 session under Wine;
+macOS likewise natively. M2 done; M3's session runs (`--script`: the editor opens AMER2.MP,
 paints, saves). M4 has its harness, `tools/m4.py`: a keyboard session (`tests/m4/*.txt`,
 in DOSBox-X's AUTOTYPE key names) is typed into the original under DOSBox-X and played
 into the port, each in a fresh copy of the game directory, and every file is compared

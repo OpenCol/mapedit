@@ -16,6 +16,8 @@ if(MSVC)
   set(WARN /W4)
 else()
   set(WARN -Wall -Wextra)
+  # a global defined in two places is an error everywhere, as it is on Windows
+  add_compile_options(-fno-common)
 endif()
 
 add_library(host STATIC platform/host_sdl.c)
@@ -28,6 +30,7 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 # MSC 6's run-time library as the editor calls it (msc_*)
 add_library(msc STATIC port/msc_runtime.c)
 target_include_directories(msc PUBLIC port)
+target_link_libraries(msc PUBLIC SDL3::SDL3)
 target_compile_options(msc PRIVATE ${WARN})
 if(NOT MSVC)
   target_compile_options(msc PUBLIC -fsigned-char)
@@ -77,6 +80,12 @@ target_include_directories(mapedit PRIVATE port platform)
 target_link_libraries(mapedit PRIVATE msc host)
 if(NOT MSVC)
   target_compile_options(mapedit PRIVATE -fsigned-char)
+endif()
+if(WIN32)
+  # SDL3.dll beside mapedit.exe, where Windows looks for it
+  add_custom_command(TARGET mapedit POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:mapedit> $<TARGET_FILE_DIR:mapedit>
+    COMMAND_EXPAND_LISTS)
 endif()
 
 enable_testing()

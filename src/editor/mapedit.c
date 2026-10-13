@@ -1752,7 +1752,7 @@ void load_data(void)
     char name[16] = "names";
     char labels[16] = "labels";
     i16 i;
-    TerrainRow *p;
+    TerrainRec *p;
     i16 *q;
 
     text_open(name, "UNFORESTED");

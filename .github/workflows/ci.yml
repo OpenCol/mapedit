@@ -25,3 +25,41 @@ jobs:
           sudo cmake --build /tmp/SDL/build --target install -j4
       - run: cmake -B build && cmake --build build
       - run: ctest --test-dir build --output-on-failure
+
+  # Windows with MinGW-w64 (MSYS2): the configuration the port is tested in (cross-built and
+  # run under Wine on macOS, tools/m4.py --wine)
+  windows-mingw:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-python
+      - run: cmake -B build -G Ninja && cmake --build build --target mapedit msc_selftest host_selftest
+      - run: ctest --test-dir build --output-on-failure -R selftest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mapedit-windows-x64
+          path: |
+            build/mapedit.exe
+            build/*.dll
+
+  # Windows with MSVC: not yet seen to build; it reports without failing the run
+  windows-msvc:
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: SDL3 (VC development package)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/libsdl-org/SDL/releases/download/release-3.2.24/SDL3-devel-3.2.24-VC.zip -OutFile sdl.zip
+          Expand-Archive sdl.zip -DestinationPath C:\sdl
+      - run: cmake -B build -DCMAKE_PREFIX_PATH=C:\sdl\SDL3-3.2.24\cmake
+      - run: cmake --build build --config Release --target mapedit msc_selftest host_selftest

@@ -30,6 +30,23 @@ build/mapedit --game /path/to/COLONIZE
 build/mapedit --game /path/to/COLONIZE --headless --script session.txt
 ```
 
+Without `--game` (or `$MAPEDIT_GAME`) it uses the current directory if the game is there,
+else its own: copy `mapedit` (on Windows `mapedit.exe` and `SDL3.dll`) into the game's
+directory and start it from there.
+
+### Windows
+
+With MSYS2 (UCRT64: `pacman -S mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,sdl3,python}`):
+
+```sh
+cmake -B build -G Ninja && cmake --build build --target mapedit
+```
+
+`build/mapedit.exe` and `build/SDL3.dll` are the program. From macOS or Linux, cross-build
+with MinGW-w64 and SDL3's MinGW development package (`cmake/mingw-w64-x86_64.cmake` says
+how); `tools/m4.py --wine` checks the result under Wine. MSVC is in CI but not yet seen to
+build.
+
 A script is one command a line: `wait MS`, `key NAME`, `type TEXT`, `move X Y`, `click X Y`,
 `shot FILE.bmp`, `exit` (platform/host_sdl.c has them all).
 

@@ -1558,8 +1558,8 @@ void popup_draw_sprites(i16 labels, i16 full, i16 hilite, DosPopup *p)
 /* popup_box_draw -- 033d:2286, 534 bytes */
 extern i16 pad_was_popup_border_color_up;     /* was this global's first declaration; it is now defined at the top */
 extern i16 pad_was_popup_border_color_down;
-extern void buffer_vline(DosPort port, i16 x, i16 y0, i16 y1, char color);
-extern void buffer_hline(DosPort port, i16 x0, i16 x1, i16 y, char color);
+extern void buffer_vline(i16 x, i16 y0, i16 y1, DosPort port, char color);
+extern void buffer_hline(i16 x0, i16 x1, i16 y, DosPort port, char color);
 
 void popup_box_draw(DosPopup *p, i16 x, i16 y, i16 w, i16 h)
 {
@@ -1587,10 +1587,10 @@ void popup_box_draw(DosPopup *p, i16 x, i16 y, i16 w, i16 h)
     if (p == 0 || (p->flags & 0x10) == 0) {
         buffer_draw_box(x, y, w + x - 1, scr_work, h + y - 1, 0);
         buffer_draw_box(x + 1, y + 1, w + x - 2, scr_work, h + y - 2, (char)popup_border_color);
-        buffer_vline(scr_work, x + 2, y + 2, h + y - 3, (char)popup_border_color_down);
-        buffer_vline(scr_work, w + x - 3, y + 2, h + y - 3, (char)popup_border_color_up);
-        buffer_hline(scr_work, x + 2, w + x - 3, y + 2, (char)popup_border_color_up);
-        buffer_hline(scr_work, x + 2, w + x - 3, h + y - 3, (char)popup_border_color_down);
+        buffer_vline(x + 2, y + 2, h + y - 3, scr_work, (char)popup_border_color_down);
+        buffer_vline(w + x - 3, y + 2, h + y - 3, scr_work, (char)popup_border_color_up);
+        buffer_hline(x + 2, w + x - 3, y + 2, scr_work, (char)popup_border_color_up);
+        buffer_hline(x + 2, w + x - 3, h + y - 3, scr_work, (char)popup_border_color_down);
     }
     ix = (havepx ? ((p->flags & 0x10) ? 0 : 3) : 3) + x;
     iy = (havepx ? ((p->flags & 0x10) ? 0 : 3) : 3) + y;

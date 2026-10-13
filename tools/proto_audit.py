@@ -67,8 +67,10 @@ def kind(t):
 
 def scan():
     defs, decls = {}, collections.defaultdict(list)
-    for group in ('editor', 'madsdev'):
-        d = os.path.join(ROOT, 'src', group)
+    # the imported modules, and the port's own C for the functions it refused (port/lib):
+    # their definitions are the ones the imported declarations must agree with
+    for group in ('src/editor', 'src/madsdev', 'port/lib'):
+        d = os.path.join(ROOT, group)
         for f in sorted(os.listdir(d)):
             if not f.endswith('.c'):
                 continue
@@ -79,8 +81,10 @@ def scan():
                 if name in KEYWORDS or m.group(1).strip() in KEYWORDS | {'typedef'}:
                     continue
                 line = text.count('\n', 0, m.start()) + 1
-                rec = ('src/%s/%s:%d' % (group, f, line), params(m.group(3)))
+                rec = ('%s/%s:%d' % (group, f, line), params(m.group(3)))
                 if m.group(4) == '{':
+                    if name in defs and defs[name][0].startswith('port/lib') and group != 'port/lib':
+                        continue                # the port's C replaces a refused definition
                     if re.match(r'\s*}', text[m.end():]):
                         continue                # an empty body ignores whatever it is passed
                     defs[name] = rec

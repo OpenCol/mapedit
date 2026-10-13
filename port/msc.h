@@ -84,6 +84,15 @@ struct find_t {
 /* ---- ctype.h: MSC's own table, which the source also indexes itself ((_ctype + 1)[c]).
    _ctype[0] is EOF's; characters 128-255 are in no class. */
 extern u8 _ctype[257];
+/* (MSVC's and MinGW's headers define these too, with the same values) */
+#undef _UPPER
+#undef _LOWER
+#undef _DIGIT
+#undef _SPACE
+#undef _PUNCT
+#undef _CONTROL
+#undef _BLANK
+#undef _HEX
 #define _UPPER   0x01
 #define _LOWER   0x02
 #define _DIGIT   0x04
@@ -105,6 +114,8 @@ extern u8 _ctype[257];
 #define isprint(c)  (MSC_CT(c) & (_BLANK | _PUNCT | _UPPER | _LOWER | _DIGIT))
 #define isgraph(c)  (MSC_CT(c) & (_PUNCT | _UPPER | _LOWER | _DIGIT))
 #define iscntrl(c)  (MSC_CT(c) & _CONTROL)
+#undef _toupper
+#undef _tolower
 #define _toupper(c) ((c) - 'a' + 'A')
 #define _tolower(c) ((c) - 'A' + 'a')
 #define toupper(c)  (islower(c) ? _toupper(c) : (c))

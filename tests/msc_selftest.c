@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+
+#include <SDL3/SDL.h>
 
 #define MSC_RUNTIME_IMPL
 #include "msc.h"
@@ -24,9 +25,22 @@ static void write_file(const char *dir, const char *name, const char *bytes, siz
     fclose(f);
 }
 
-int main(void)
+/* the directory holds an entry spelled exactly `name` (a case-insensitive file system would
+   find any spelling by path) */
+static SDL_EnumerationResult SDLCALL spelled(void *ud, const char *dir, const char *name)
 {
-    char buf[64], dir[] = "/tmp/msc_selftest_XXXXXX";
+    (void)dir;
+    if (strcmp(name, *(const char **)ud) == 0) {
+        *(const char **)ud = NULL;
+        return SDL_ENUM_SUCCESS;
+    }
+    return SDL_ENUM_CONTINUE;
+}
+
+int main(int argc, char **argv)
+{
+    char buf[64], dir[] = "msc_selftest.tmp";
+    const char *want;
     MSC_FILE *f;
     struct find_t ft;
     int count;
@@ -44,8 +58,10 @@ int main(void)
     CHECK((_ctype + 1)['a'] & _LOWER && (_ctype + 1)['F'] & _HEX && !((_ctype + 1)[0xe9] & 0xff), "ctype");
 
     /* files: DOS names in the root, without regard to case */
-    if (!mkdtemp(dir)) {
-        printf("FAIL mkdtemp\n");
+    (void)argc; (void)argv;
+    SDL_RemovePath(dir);
+    if (!SDL_CreateDirectory(dir)) {
+        printf("FAIL cannot create %s\n", dir);
         return 1;
     }
     msc_set_root(dir);
@@ -77,8 +93,9 @@ int main(void)
         CHECK(f && msc_fread(buf, 1, 10, f) == 4 && memcmp(buf, "a\r\nb", 4) == 0, "CR-LF on write");
         if (f)
             msc_fclose(f);
-        snprintf(buf, sizeof buf, "%s/NEW.MP", dir);
-        CHECK(access(buf, F_OK) == 0, "created as NEW.MP");
+        want = "NEW.MP";
+        SDL_EnumerateDirectory(dir, spelled, &want);
+        CHECK(want == NULL, "created as NEW.MP");
     }
 
     /* _dos_findfirst: DOS wildcards */
@@ -87,7 +104,8 @@ int main(void)
     if (msc__dos_findfirst("*.MP", _A_NORMAL, &ft) == 0) {
         do {
             count++;
-            CHECK(strcmp(ft.name, "NEW.MP") == 0 || strcmp(ft.name, "AMER2.MP") == 0, "found %s", ft.name);
+            /* in name order, case ignored, on every host */
+            CHECK(strcmp(ft.name, count == 1 ? "AMER2.MP" : "NEW.MP") == 0, "found %s", ft.name);
         } while (msc__dos_findnext(&ft) == 0);
     }
     CHECK(count == 2, "*.MP found %d files", count);
@@ -95,7 +113,7 @@ int main(void)
     msc_remove("new.mp");
     msc_remove("amer2.mp");
     msc_remove("mapedit.txt");
-    rmdir(dir);
+    SDL_RemovePath(dir);
     printf("%s (%d failure%s)\n", failures ? "FAILED" : "msc run-time self-test passed", failures,
            failures == 1 ? "" : "s");
     return failures ? 1 : 0;

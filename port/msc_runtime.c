@@ -14,16 +14,16 @@
  *     default) drops the CR of each CR-LF on input and ends the file at a Ctrl-Z, and adds a
  *     CR before each LF on output.
  *   - Integers are 16 bits wide where MSC's were: atoi wraps, itoa writes a 16-bit value.
+ *
+ * The host side is SDL3's (files, directories, path information), so the same code runs on
+ * Windows, macOS and Linux. A directory is listed in name order, case ignored: DOS gave its
+ * own order (the directory's), which no host file system keeps.
  */
-#include <ctype.h>
-#include <dirent.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
-#include <sys/stat.h>
-#include <unistd.h>
+
+#include <SDL3/SDL.h>
 
 #define MSC_RUNTIME_IMPL
 #include "msc.h"
@@ -59,6 +59,61 @@ void msc_set_root(const char *dir)
     snprintf(root, sizeof root, "%s", dir && *dir ? dir : ".");
 }
 
+/* a directory's entries, sorted by name without regard to case (dot files left out) */
+typedef struct { char **names; int n, cap; } Listing;
+
+static SDL_EnumerationResult SDLCALL list_one(void *ud, const char *dir, const char *name)
+{
+    Listing *l = ud;
+    (void)dir;
+    if (name[0] == '.')
+        return SDL_ENUM_CONTINUE;
+    if (l->n == l->cap) {
+        l->cap = l->cap ? l->cap * 2 : 64;
+        l->names = realloc(l->names, (size_t)l->cap * sizeof *l->names);
+    }
+    l->names[l->n++] = SDL_strdup(name);
+    return SDL_ENUM_CONTINUE;
+}
+
+static int by_name(const void *a, const void *b)
+{
+    int r = SDL_strcasecmp(*(char *const *)a, *(char *const *)b);
+    return r ? r : strcmp(*(char *const *)a, *(char *const *)b);
+}
+
+static void list_dir(const char *dir, Listing *l)
+{
+    memset(l, 0, sizeof *l);
+    SDL_EnumerateDirectory(dir, list_one, l);
+    if (l->n)
+        qsort(l->names, (size_t)l->n, sizeof *l->names, by_name);
+}
+
+static void list_free(Listing *l)
+{
+    int i;
+    for (i = 0; i < l->n; i++)
+        SDL_free(l->names[i]);
+    free(l->names);
+    memset(l, 0, sizeof *l);
+}
+
+/* the entry of dir whose name is `name` without regard to case, into found; 0 if none */
+static int find_entry(const char *dir, const char *name, char *found, size_t cap)
+{
+    Listing l;
+    int i, ok = 0;
+    list_dir(dir, &l);
+    for (i = 0; i < l.n && !ok; i++)
+        if (SDL_strcasecmp(l.names[i], name) == 0) {
+            snprintf(found, cap, "%s", l.names[i]);
+            ok = 1;
+        }
+    list_free(&l);
+    return ok;
+}
+
 /* host path for a DOS name: the drive and leading directories that do not exist under the
    root are skipped (the shipped game lived in C:\MPS\COLONIZE), the rest matched without
    regard to case. Returns 0 when the file exists, 1 when it does not (out holds the path to
@@ -86,22 +141,13 @@ static int host_path(const char *dos, char *out, size_t cap)
         snprintf(cur, sizeof cur, "%s", root);
         missing = 0;
         for (i = k; i < n; i++) {
-            DIR *d = opendir(cur);
-            struct dirent *e;
             char found[256] = "";
-            if (d) {
-                while ((e = readdir(d)) != NULL)
-                    if (strcasecmp(e->d_name, parts[i]) == 0) {
-                        snprintf(found, sizeof found, "%s", e->d_name);
-                        break;
-                    }
-                closedir(d);
-            }
-            if (!found[0]) {
+            if (!find_entry(cur, parts[i], found, sizeof found)) {
+                size_t j;
                 if (i < n - 1) { missing = -1; break; }
                 /* a new file: DOS names are upper case */
-                for (size_t j = 0; parts[i][j]; j++)
-                    found[j] = (char)toupper((unsigned char)parts[i][j]), found[j + 1] = 0;
+                for (j = 0; parts[i][j]; j++)
+                    found[j] = (char)SDL_toupper((unsigned char)parts[i][j]), found[j + 1] = 0;
                 missing = 1;
             }
             snprintf(cur + strlen(cur), sizeof cur - strlen(cur), "/%s", found);
@@ -117,58 +163,54 @@ static int host_path(const char *dos, char *out, size_t cap)
 
 /* ---- handles ------------------------------------------------------------------------------ */
 
-static struct { int fd; int text; } handles[NHANDLES];
-static int handles_ready;
+/* DOS's handles: 0-4 the standard devices (1 and 2 write to the console), 5 up files */
+static struct { SDL_IOStream *io; int open; int text; } handles[NHANDLES];
 
-static void handles_init(void)
+static SDL_IOStream *handle_io(i16 h)
 {
-    int i;
-    if (handles_ready)
-        return;
-    for (i = 0; i < NHANDLES; i++)
-        handles[i].fd = -1;
-    handles[0].fd = 0; handles[1].fd = 1; handles[2].fd = 2;
-    handles_ready = 1;
-}
-
-static int handle_fd(i16 h)
-{
-    handles_init();
-    return h >= 0 && h < NHANDLES ? handles[h].fd : -1;
+    return h >= 5 && h < NHANDLES && handles[h].open ? handles[h].io : NULL;
 }
 
 i16 msc_open(const char *name, i16 flags, ...)
 {
     char path[1024];
-    int oflags, fd, h;
-    handles_init();
+    const char *mode;
+    int h, acc = flags & 3, exists;
+    SDL_IOStream *io;
     host_path(name, path, sizeof path);
-    oflags = (flags & 3) == DOS_WRONLY ? O_WRONLY : (flags & 3) == DOS_RDWR ? O_RDWR : O_RDONLY;
-    if (flags & DOS_CREAT) oflags |= O_CREAT;
-    if (flags & DOS_TRUNC) oflags |= O_TRUNC;
-    if (flags & DOS_EXCL) oflags |= O_EXCL;
-    if (flags & DOS_APPEND) oflags |= O_APPEND;
-    fd = open(path, oflags, 0644);
-    if (fd < 0)
+    exists = SDL_GetPathInfo(path, NULL);
+    if ((flags & DOS_CREAT) && (flags & DOS_EXCL) && exists)
         return -1;
-    for (h = 5; h < NHANDLES; h++)
-        if (handles[h].fd < 0) {
-            handles[h].fd = fd;
-            handles[h].text = !(flags & DOS_BINARY);
-            return (i16)h;
-        }
-    close(fd);
-    return -1;
+    if (!exists && !(flags & DOS_CREAT))
+        return -1;
+    if ((flags & DOS_TRUNC) || !exists)
+        mode = acc == DOS_WRONLY ? "wb" : "w+b";
+    else if (flags & DOS_APPEND)
+        mode = acc == DOS_RDWR ? "a+b" : "ab";
+    else
+        mode = acc == 0 ? "rb" : "r+b";
+    for (h = 5; h < NHANDLES && handles[h].open; h++)
+        ;
+    if (h == NHANDLES)
+        return -1;
+    io = SDL_IOFromFile(path, mode);
+    if (!io)
+        return -1;
+    handles[h].io = io;
+    handles[h].open = 1;
+    handles[h].text = !(flags & DOS_BINARY);
+    return (i16)h;
 }
 
 static int handle_close(i16 h)
 {
-    int fd = handle_fd(h);
-    if (fd < 0)
+    if (h >= 0 && h < 5)
+        return 0;
+    if (!handle_io(h))
         return -1;
-    if (h >= 5)
-        close(fd);
-    handles[h].fd = -1;
+    SDL_CloseIO(handles[h].io);
+    handles[h].io = NULL;
+    handles[h].open = 0;
     return 0;
 }
 
@@ -180,21 +222,42 @@ i16 msc_close(i16 h)
 
 i32 msc_filelength(i16 h)
 {
-    struct stat st;
-    int fd = handle_fd(h);
-    if (fd < 0 || fstat(fd, &st) != 0)
+    SDL_IOStream *io = handle_io(h);
+    Sint64 n = io ? SDL_GetIOSize(io) : -1;
+    return n < 0 ? -1 : (i32)n;
+}
+
+/* raw reads and writes on a handle, as DOS made them: the count moved, -1 on an error */
+static long handle_read(i16 h, void *buf, size_t count)
+{
+    SDL_IOStream *io = handle_io(h);
+    size_t n;
+    if (!io)
         return -1;
-    return (i32)st.st_size;
+    if (count == 0)
+        return 0;
+    n = SDL_ReadIO(io, buf, count);
+    return n == 0 && SDL_GetIOStatus(io) == SDL_IO_STATUS_ERROR ? -1 : (long)n;
+}
+
+static long handle_write(i16 h, const void *buf, size_t count)
+{
+    SDL_IOStream *io;
+    if (h == 1 || h == 2)
+        return (long)fwrite(buf, 1, count, h == 1 ? stdout : stderr);
+    io = handle_io(h);
+    if (!io)
+        return -1;
+    return SDL_WriteIO(io, buf, count) == count ? (long)count : -1;
 }
 
 /* _dos_read / _dos_write: INT 21h AH=3Fh/40h. Raw bytes, no text translation. 0 or a DOS error. */
 u16 msc__dos_read(i16 h, void *buf, u16 count, u16 *done)
 {
-    int fd = handle_fd(h);
-    ssize_t n;
-    if (fd < 0)
+    long n;
+    if (h != 0 && !handle_io(h))
         return 6;                                   /* invalid handle */
-    n = read(fd, buf, count);
+    n = h == 0 ? 0 : handle_read(h, buf, count);
     if (n < 0)
         return 5;                                   /* access denied */
     *done = (u16)n;
@@ -203,11 +266,10 @@ u16 msc__dos_read(i16 h, void *buf, u16 count, u16 *done)
 
 u16 msc__dos_write(i16 h, void *buf, u16 count, u16 *done)
 {
-    int fd = handle_fd(h);
-    ssize_t n;
-    if (fd < 0)
+    long n;
+    if (h != 1 && h != 2 && !handle_io(h))
         return 6;
-    n = write(fd, buf, count);
+    n = handle_write(h, buf, count);
     if (n < 0)
         return 5;
     *done = (u16)n;
@@ -255,9 +317,8 @@ static int flush(MSC_FILE *f)
 {
     int s = stream(f);
     if ((f->_flag & (M_IOWRT | M_IORW)) && f->_base && f->_ptr > f->_base) {
-        int fd = handle_fd(f->_file);
         size_t n = (size_t)(f->_ptr - f->_base);
-        if (fd < 0 || write(fd, f->_base, n) != (ssize_t)n) {
+        if (handle_write(f->_file, f->_base, n) != (long)n) {
             f->_flag |= M_IOERR;
             return MSC_EOF;
         }
@@ -300,17 +361,16 @@ void msc_setbuf(MSC_FILE *f, char *buf)
 /* refill the buffer; the next byte, or EOF */
 static int fill(MSC_FILE *f)
 {
-    int fd = handle_fd(f->_file);
-    ssize_t n;
+    long n;
     size_t size;
-    if (f->_flag & (M_IOEOF | M_IOERR) || fd < 0)
+    if (f->_flag & (M_IOEOF | M_IOERR) || !handle_io(f->_file))
         return MSC_EOF;
     if (!f->_base) {
         f->_base = malloc(MSC_BUFSIZ);
         f->_flag |= M_IOMYBUF;
     }
     size = f->_flag & M_IONBF ? 1 : MSC_BUFSIZ;
-    n = read(fd, f->_base, size);
+    n = handle_read(f->_file, f->_base, size);
     if (n <= 0) {
         f->_flag |= n < 0 ? M_IOERR : M_IOEOF;
         f->_cnt = 0;
@@ -406,8 +466,8 @@ char *msc_fgets(char *s, i16 n, MSC_FILE *f)
 
 static i32 tell(MSC_FILE *f)
 {
-    int fd = handle_fd(f->_file);
-    off_t at = fd < 0 ? -1 : lseek(fd, 0, SEEK_CUR);
+    SDL_IOStream *io = handle_io(f->_file);
+    Sint64 at = io ? SDL_TellIO(io) : -1;
     if (at < 0)
         return -1;
     if (f->_flag & M_IOREAD || (f->_flag & M_IORW && f->_cnt > 0))
@@ -417,12 +477,12 @@ static i32 tell(MSC_FILE *f)
 
 static i16 seek(MSC_FILE *f, i32 pos)
 {
-    int fd = handle_fd(f->_file);
+    SDL_IOStream *io = handle_io(f->_file);
     flush(f);
     f->_flag &= ~(M_IOEOF | M_IOERR);
     f->_cnt = 0;
     f->_ptr = f->_base;
-    return fd >= 0 && lseek(fd, pos, SEEK_SET) >= 0 ? 0 : -1;
+    return io && SDL_SeekIO(io, pos, SDL_IO_SEEK_SET) >= 0 ? 0 : -1;
 }
 
 void msc_rewind(MSC_FILE *f) { seek(f, 0); }
@@ -458,7 +518,7 @@ i16 msc_remove(const char *name)
     char path[1024];
     if (host_path(name, path, sizeof path) != 0)
         return -1;
-    return unlink(path) == 0 ? 0 : -1;
+    return SDL_RemovePath(path) ? 0 : -1;
 }
 
 /* MSC's printf formatting: int is 16 bits and long 32, so %d takes an int promoted from i16
@@ -554,7 +614,7 @@ static int wild_match(const char *pat, const char *name)
     for (i = 0; i < 11; i++) {
         char p = i < 8 ? pb[i] : pe[i - 8], n = i < 8 ? nb[i] : ne[i - 8];
         if (p == '*') { i = i < 8 ? 7 : 10; continue; }
-        if (p != '?' && toupper((unsigned char)p) != toupper((unsigned char)n))
+        if (p != '?' && SDL_toupper((unsigned char)p) != SDL_toupper((unsigned char)n))
             return 0;
     }
     return 1;
@@ -562,33 +622,35 @@ static int wild_match(const char *pat, const char *name)
 
 static u16 find_next_in(struct find_t *f, FindState *st)
 {
-    DIR *d = opendir(st->dir);
-    struct dirent *e;
-    long i = 0;
-    if (!d)
-        return 18;                                  /* no more files */
-    while ((e = readdir(d)) != NULL) {
+    Listing l;
+    long i;
+    list_dir(st->dir, &l);
+    for (i = st->index; i < l.n; i++) {
         char full[1300];
-        struct stat sb;
-        if (i++ < st->index || e->d_name[0] == '.')
+        SDL_PathInfo info;
+        const char *e = l.names[i];
+        int is_dir;
+        size_t k;
+        if (!wild_match(st->pattern, e))
             continue;
-        if (!wild_match(st->pattern, e->d_name))
+        snprintf(full, sizeof full, "%s/%s", st->dir, e);
+        if (!SDL_GetPathInfo(full, &info))
             continue;
-        snprintf(full, sizeof full, "%s/%s", st->dir, e->d_name);
-        if (stat(full, &sb) != 0 || (S_ISDIR(sb.st_mode) && !(st->attrib & _A_SUBDIR)))
+        is_dir = info.type == SDL_PATHTYPE_DIRECTORY;
+        if (is_dir && !(st->attrib & _A_SUBDIR))
             continue;
-        st->index = i;
+        st->index = i + 1;
         memset(f->name, 0, sizeof f->name);
-        for (size_t k = 0; e->d_name[k] && k < 12; k++)
-            f->name[k] = (char)toupper((unsigned char)e->d_name[k]);
-        f->attrib = (char)(S_ISDIR(sb.st_mode) ? _A_SUBDIR : _A_ARCH);
-        f->size = (i32)sb.st_size;
+        for (k = 0; e[k] && k < 12; k++)
+            f->name[k] = (char)SDL_toupper((unsigned char)e[k]);
+        f->attrib = (char)(is_dir ? _A_SUBDIR : _A_ARCH);
+        f->size = (i32)info.size;
         f->wr_time = f->wr_date = 0;
-        closedir(d);
+        list_free(&l);
         return 0;
     }
-    closedir(d);
-    return 18;
+    list_free(&l);
+    return 18;                                      /* no more files */
 }
 
 u16 msc__dos_findfirst(char *spec, u16 attrib, struct find_t *f)
@@ -634,7 +696,7 @@ static void fwd(char *d, const char *s, size_t n)
 char *msc_strcat(char *d, const char *s) { fwd(d + strlen(d), s, strlen(s) + 1); return d; }
 char *msc_strncat(char *d, const char *s, u16 n)
 {
-    size_t k = strnlen(s, n);
+    size_t k = SDL_strnlen(s, n);
     char *e = d + strlen(d);
     fwd(e, s, k);
     e[k] = 0;
@@ -644,7 +706,7 @@ i16 msc__fmemcmp(const void *a, const void *b, u16 n) { int r = memcmp(a, b, n);
 char *msc_strcpy(char *d, const char *s) { fwd(d, s, strlen(s) + 1); return d; }
 char *msc_strncpy(char *d, const char *s, u16 n)
 {
-    size_t k = strnlen(s, n);
+    size_t k = SDL_strnlen(s, n);
     fwd(d, s, k);
     memset(d + k, 0, n - k);
     return d;
@@ -655,7 +717,7 @@ i16 msc_strncmp(const char *a, const char *b, u16 n) { int r = strncmp(a, b, n);
 i16 msc_strnicmp(const char *a, const char *b, u16 n)
 {
     for (; n; n--, a++, b++) {
-        int x = tolower((unsigned char)*a), y = tolower((unsigned char)*b);
+        int x = SDL_tolower((unsigned char)*a), y = SDL_tolower((unsigned char)*b);
         if (x != y)
             return (i16)(x < y ? -1 : 1);
         if (!x)
@@ -680,7 +742,7 @@ void *msc__fmemmove(void *d, const void *s, u16 n) { return memmove(d, s, n); }
 i16 msc__fstricmp(const char *a, const char *b)
 {
     for (;; a++, b++) {
-        int x = tolower((unsigned char)*a), y = tolower((unsigned char)*b);
+        int x = SDL_tolower((unsigned char)*a), y = SDL_tolower((unsigned char)*b);
         if (x != y)
             return (i16)(x < y ? -1 : 1);
         if (!x)

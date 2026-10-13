@@ -7,7 +7,7 @@
 #include "msc.h"
 #include "host.h"
 
-i16 video_mode;                 /* video_1.ASM's DS:49c6, mapedit.obj's public */
+extern i16 video_mode;          /* DS:49c6: mapedit.c defines it (video_1.ASM read it) */
 
 /* VIDEO_ADDRESS -- 1114:0002: the screen address of (x, y), x in CX and y in DX */
 char *VIDEO_ADDRESS(i16 x, i16 y)

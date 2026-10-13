@@ -2,6 +2,7 @@
 """Gate M4: one keyboard session, played into the original under DOSBox-X and into the port.
 
     python3 tools/m4.py --game DIR [--port build/mapedit] SESSION...
+    python3 tools/m4.py --game DIR --port build-win/mapedit.exe --wine SESSION...
 
 DIR is the player's Colonization for DOS directory (MAPEDIT.EXE and the game's files). For
 each SESSION, two fresh copies of DIR are made; the original runs in one under DOSBox-X
@@ -92,9 +93,13 @@ def run_dos(gdir, keys, pace, wait):
         p.wait()
 
 
-def run_port(gdir, port, script, timeout):
-    p = subprocess.run([port, '--headless', '--game', gdir, '--script', script],
-                       capture_output=True, text=True, timeout=timeout)
+def run_port(gdir, port, script, timeout, wine=None):
+    cmd = [port, '--headless', '--game', gdir, '--script', script]
+    env = None
+    if wine:                                    # a Windows build: its paths are Wine's Z: drive
+        cmd = [wine, port, '--headless', '--game', 'Z:' + gdir, '--script', 'Z:' + script]
+        env = dict(os.environ, WINEDEBUG='-all')
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
     return p.returncode, p.stdout
 
 
@@ -113,6 +118,8 @@ def main():
     ap.add_argument('--game', default=os.environ.get('MAPEDIT_GAME'))
     ap.add_argument('--port', default=os.path.join(ROOT, 'build', 'mapedit'))
     ap.add_argument('--keep', action='store_true', help='keep the two directories')
+    ap.add_argument('--wine', action='store_const', const=os.environ.get('WINE', 'wine64'),
+                    help='--port is a Windows build: run it under Wine ($WINE, default wine64)')
     ap.add_argument('sessions', nargs='+')
     a = ap.parse_args()
     if not a.game or not os.path.exists(os.path.join(a.game, 'MAPEDIT.EXE')):
@@ -141,7 +148,7 @@ def main():
             print('  %s: the original wrote nothing (attempt %d); again' % (os.path.basename(s), attempt + 1))
             shutil.rmtree(dos)
             copy_game(a.game, dos)
-        rc, out = run_port(prt, a.port, script, wait + pace * len(keys) + 30)
+        rc, out = run_port(prt, a.port, script, wait + pace * len(keys) + 60, a.wine)
         B = snapshot(prt)
         differ = sorted(n for n in set(A) | set(B)
                         if n not in A or n not in B or not filecmp.cmp(A[n], B[n], shallow=False))
