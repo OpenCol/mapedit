@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: SDL3 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sdl3
+      - name: SDL3 (Linux, from source)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y libx11-dev libxext-dev
+          git clone --depth 1 --branch release-3.2.24 https://github.com/libsdl-org/SDL.git /tmp/SDL
+          cmake -S /tmp/SDL -B /tmp/SDL/build -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=OFF
+          sudo cmake --build /tmp/SDL/build --target install -j4
+      - run: cmake -B build && cmake --build build
+      - run: ctest --test-dir build --output-on-failure
