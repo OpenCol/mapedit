@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/editor/stuff (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "menu.h"
+#include "pal.h"
+#include "popup.h"
 #include "loader.h"
 #include "mapedit.h"
 #include "records.h"
@@ -25,8 +29,6 @@
  * The whole file is "elg" (/Ox-style engine code): registers by lifetime throughout.
  */
 
-#define max(a, b) ((a) >= (b) ? (a) : (b))
-#define min(a, b) ((a) <= (b) ? (a) : (b))
 /* minimax -- 0865:000e, 30 bytes */
 i16 minimax(i16 value, i16 lo, i16 hi)
 {

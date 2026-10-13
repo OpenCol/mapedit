@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/editor/menu (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "game.h"
+#include "map.h"
+#include "pal.h"
+#include "popup.h"
 #include "buffer.h"
 #include "error.h"
 #include "font.h"
@@ -264,7 +268,6 @@
 
 #include "msc.h"
 #include "msc.h"
-#define max(a, b) ((a) >= (b) ? (a) : (b))
 
 
 /* A text style: the extra spacing after each character, the plain colour, the highlighted

@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/sort_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "pal.h"
 #include "loader.h"
 #include "records.h"
 #include "sort.h"

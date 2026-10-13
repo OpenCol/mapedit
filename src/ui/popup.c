@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/editor/popup (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "game.h"
+#include "menu.h"
+#include "theme.h"
 #include "buffer.h"
 #include "error.h"
 #include "font.h"
@@ -656,8 +659,6 @@ void popup_set_active_item(DosPopup *p, i16 key)
     p->sel_item = Popup_find_item(key, p);
 }
 /* popup_add_item -- 033d:0a0e, 488 bytes */
-#define max(a, b) ((a) >= (b) ? (a) : (b))
-#define min(a, b) ((a) <= (b) ? (a) : (b))
 
 DosItem *popup_add_item(DosPopup *p, char *s, i16 key)
 {

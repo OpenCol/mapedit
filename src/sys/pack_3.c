@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/pack_3 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "pal.h"
+#include "popup.h"
 #include "fileio.h"
 #include "loader.h"
 #include "pack.h"
@@ -21,7 +24,6 @@
 
 
 
-#define min(a, b) (((a) < (b)) ? (a) : (b))     /* <stdlib.h>'s */
 /* pack_read_file -- 1367:0008, 122 bytes */
 u16 pack_read_file(void *data, u16 *n)
 {

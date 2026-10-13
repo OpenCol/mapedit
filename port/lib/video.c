@@ -5,6 +5,10 @@
  * the VGA did.
  */
 #include "msc.h"
+#include "map.h"
+#include "menu.h"
+#include "pal.h"
+#include "popup.h"
 #include "mapedit.h"
 #include "records.h"
 #include "sprite.h"

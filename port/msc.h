@@ -171,6 +171,14 @@ u16   msc__dos_findnext(struct find_t *f);
 u16   msc__dos_read(i16 handle, void *buf, u16 count, u16 *done);
 u16   msc__dos_write(i16 handle, void *buf, u16 count, u16 *done);
 
+/* MSC's <stdlib.h> min and max, which the source uses (some modules define their own) */
+#ifndef max
+#define max(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+#ifndef min
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+
 /* the BIOS data area (0040:0000-00FF): the shift flags at 17h, the tick count at 6Ch; kept
    current by port/lib/bios.c */
 extern u8 msc_bda[256];

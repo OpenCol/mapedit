@@ -14,6 +14,7 @@
  * only ever looks at the clock is the same thing.
  */
 #include "msc.h"
+#include "pal.h"
 #include "keys.h"
 #include "machine.h"
 #include "records.h"

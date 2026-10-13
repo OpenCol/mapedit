@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/pack_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
 #include "loader.h"
 #include "pack.h"
 /* MODULE pack_1: MAPEDIT.EXE segment 1359 (PACK_1.C), file 0x14b96-0x14c0a, 1 functions in source order.

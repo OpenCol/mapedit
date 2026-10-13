@@ -19,6 +19,10 @@
 #include <string.h>
 
 #include "msc.h"
+#include "menu.h"
+#include "pal.h"
+#include "popup.h"
+#include "sprite.h"
 #include "mouse.h"
 #include "records.h"
 #include "units.h"

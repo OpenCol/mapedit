@@ -4,6 +4,9 @@
  * own critical-error handler in place so a missing floppy fails instead of asking Abort,
  * Retry, Fail; -1 when it opened. */
 #include "msc.h"
+#include "loader.h"
+#include "map.h"
+#include "popup.h"
 #include "fileio.h"
 #include "mapedit.h"
 #include "units.h"

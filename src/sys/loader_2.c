@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/loader_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "popup.h"
 #include "fileio.h"
 #include "mem.h"
 #include "pack.h"

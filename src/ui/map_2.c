@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/editor/map_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "menu.h"
+#include "popup.h"
+#include "sprite.h"
 #include "buffer.h"
 #include "loader.h"
 #include "map.h"
@@ -28,8 +32,6 @@
 /* plain flags */
 #include "records.h"
 
-#define max(a, b) ((a) >= (b) ? (a) : (b))
-#define min(a, b) ((a) <= (b) ? (a) : (b))
 
 
 /* conform_to_view -- 087b:0004, 70 bytes */

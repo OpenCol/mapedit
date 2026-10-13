@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/buffer_i (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "menu.h"
+#include "popup.h"
 #include "buffer.h"
 #include "loader.h"
 #include "records.h"
@@ -45,7 +48,6 @@
  *     saves si/di), 11 bytes for the shipped 7. The 7-byte frameless stub is assembled.
  */
 
-#define min(a, b) ((a) <= (b) ? (a) : (b))
 
 
 /* buffer_pointer -- 0c91:0000, 68 bytes */

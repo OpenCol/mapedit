@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/mem_2 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "popup.h"
 #include "loader.h"
 #include "mem.h"
 #include "records.h"
@@ -57,7 +59,6 @@
  * ahead of the literal "$sys$" (DS:0x770).
  */
 
-#define min(a, b) ((a) < (b) ? (a) : (b))
 
 
 

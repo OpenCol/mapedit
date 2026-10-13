@@ -13,6 +13,10 @@
 #include <string.h>
 
 #include "msc.h"
+#include "assets.h"
+#include "menu.h"
+#include "pal.h"
+#include "popup.h"
 #include "buffer.h"
 #include "font.h"
 #include "mapedit.h"

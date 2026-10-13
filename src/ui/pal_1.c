@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/madsdev/pal_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "menu.h"
+#include "popup.h"
+#include "sprite.h"
 #include "error.h"
 #include "loader.h"
 #include "map.h"
@@ -70,8 +74,6 @@
  *     pal_count_free(&first) (near) counts the free entries and returns the first.
  *   - pal_allocate(flags, sh, list) (_fastcall) assigns palette entries to a request list.
  */
-#define min(a, b) ((a) <= (b) ? (a) : (b))
-#define max(a, b) ((a) >= (b) ? (a) : (b))
 
 typedef union { i32 l; struct { u8 b0, b1, b2, b3; } b; } ColorStatus;
 typedef void (*PalFn)(void);

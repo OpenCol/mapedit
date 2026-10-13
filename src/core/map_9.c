@@ -1,6 +1,13 @@
 /* From mapedit-decomp src/editor/map_9 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "menu.h"
+#include "buffer.h"
+#include "error.h"
+#include "pack.h"
+#include "pal.h"
+#include "popup.h"
 #include "fileio.h"
 #include "loader.h"
 #include "map.h"
@@ -28,8 +35,6 @@
  */
 
 #include "records.h"
-
-
 
 /* set_plane_ports -- 09f9:000a, 88 bytes */
 /* DOS only: the four planes are plain far blocks, and each has a port record (height, width,
@@ -248,3 +253,35 @@ i16 map_startup(i16 big)
     return err;
 }
 
+/* Old map files: a hills/mountain bit (0x20) on a forest square keeps only its base terrain
+ * (bits 0xe0 and the low 3), and a plain forest (0x10-0x17) becomes its unforested type.
+ * The `type -= 0x10; type += 8;` pair is what gives the shipped `add word [type],-8`: a
+ * single -8 in any spelling comes out as `sub ..,8`. */
+void forest_fix(void)
+{
+    i16 type;
+    i16 byte;
+    i16 x;
+    i16 y;
+
+    for (x = 0; x < map_file.w; x++) {
+        for (y = 0; y < map_file.h; y++) {
+            byte = buffer_get(x, y, scr_map);
+            type = (u8)(byte & 0x1f);
+            if (type >= 0x18)
+                continue;
+            if (byte & 0x20) {
+                byte = byte & 0xe0;
+                type = type & 7;
+                buffer_put(x, y, byte | type, scr_map);
+                continue;
+            }
+            if (type < 0x10 || type >= 0x18)
+                continue;
+            type = buffer_get(x, y, scr_map);
+            type -= 0x10;
+            type += 8;
+            buffer_put(x, y, type, scr_map);
+        }
+    }
+}

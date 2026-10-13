@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/mcga_d (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
 #include "loader.h"
 #include "mcga.h"
 /* MODULE mcga_d: MAPEDIT.EXE segment 12ad (mcga_d.c), file 0x140dc-0x14100, 1 functions in source order.

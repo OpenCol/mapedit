@@ -16,6 +16,9 @@
  * step.
  */
 #include "msc.h"
+#include "menu.h"
+#include "pal.h"
+#include "popup.h"
 #include "records.h"
 #include "units.h"
 

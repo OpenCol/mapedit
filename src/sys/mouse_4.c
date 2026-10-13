@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/mouse_4 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "menu.h"
+#include "popup.h"
 #include "loader.h"
 #include "mouse.h"
 #include "records.h"

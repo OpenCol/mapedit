@@ -13,6 +13,9 @@
 #include <string.h>
 
 #include "msc.h"
+#include "loader.h"
+#include "map.h"
+#include "popup.h"
 #include "mem.h"
 #include "records.h"
 #include "units.h"

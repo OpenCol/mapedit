@@ -7,6 +7,10 @@
 #include <string.h>
 
 #include "msc.h"
+#include "loader.h"
+#include "menu.h"
+#include "popup.h"
+#include "sprite.h"
 #include "error.h"
 #include "hspot.h"
 #include "pack.h"

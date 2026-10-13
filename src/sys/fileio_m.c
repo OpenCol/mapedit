@@ -1,6 +1,9 @@
 /* From mapedit-decomp src/madsdev/fileio_m (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "map.h"
+#include "popup.h"
 #include "fileio.h"
 #include "loader.h"
 #include "units.h"

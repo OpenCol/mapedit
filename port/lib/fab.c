@@ -20,6 +20,12 @@
 #include <string.h>
 
 #include "msc.h"
+#include "loader.h"
+#include "map.h"
+#include "menu.h"
+#include "pal.h"
+#include "popup.h"
+#include "sprite.h"
 #include "pack.h"
 #include "records.h"
 #include "units.h"

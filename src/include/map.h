@@ -3,6 +3,10 @@
 #define MAPEDIT_MAP_H
 
 #include "msc.h"
+
+#pragma pack(push, 2)
+typedef struct { i16 name; char f2; char f3; char f4; char pad[2]; char v[9]; } TerrainInfo;
+#pragma pack(pop)
 #include "records.h"
 #include "terrain.h"
 
@@ -195,5 +199,10 @@ extern i16 scan_y;
 extern i16 mini_x;
 extern i16 mini_y;
 extern u8 terrain_colors[30];
+extern TerrainInfo terrain[29];
+extern i16 terrain_names[5];
+void load_terrain(i16 n);
+void load_data(void);
+void forest_fix(void);
 
 #endif

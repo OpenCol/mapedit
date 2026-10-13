@@ -1,6 +1,11 @@
 /* From mapedit-decomp src/editor/map_6 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "game.h"
+#include "menu.h"
+#include "popup.h"
+#include "sprite.h"
 #include "buffer.h"
 #include "keys.h"
 #include "loader.h"
@@ -20,8 +25,6 @@
 
 
 
-#define max(a, b) ((a) >= (b) ? (a) : (b))
-#define min(a, b) ((a) <= (b) ? (a) : (b))
 
 /* map_find_continents -- 09c4:0002, 856 bytes */
 i16 map_find_continents(void)

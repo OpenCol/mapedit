@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/editor/write (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "menu.h"
+#include "pal.h"
+#include "popup.h"
+#include "theme.h"
 #include "font.h"
 #include "loader.h"
 #include "map.h"
@@ -94,7 +98,6 @@
  *     PARAMETER and x a register LOCAL, but its load sinks to the call) do not either.
  */
 
-#define max(a, b) ((a) >= (b) ? (a) : (b))
 
 
 /* space_string -- 08ad:0000, 16 bytes */

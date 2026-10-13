@@ -7,6 +7,9 @@
 #include <string.h>
 
 #include "msc.h"
+#include "loader.h"
+#include "menu.h"
+#include "popup.h"
 #include "error.h"
 #include "font.h"
 #include "keys.h"

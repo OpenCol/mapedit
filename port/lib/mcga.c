@@ -8,6 +8,8 @@
  * measurement would on anything later than a 386: every colour in one retrace.
  */
 #include "msc.h"
+#include "loader.h"
+#include "pal.h"
 #include "mcga.h"
 #include "records.h"
 #include "timer.h"

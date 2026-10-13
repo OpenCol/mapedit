@@ -1,6 +1,8 @@
 /* From mapedit-decomp src/madsdev/buffer_9 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "font.h"
+#include "popup.h"
 #include "loader.h"
 /* MODULE buffer_9: MAPEDIT.EXE segment 0c79 (buffer_9.c), file 0xdd96-0xde00, 1 functions in source order.
  * cl /c /AM /G2 /Gs /Ot /Ow
@@ -14,8 +16,6 @@
  * loop does not add the port's offset.
  */
 
-#define max(a, b) ((a) >= (b) ? (a) : (b))
-#define min(a, b) ((a) <= (b) ? (a) : (b))
 
 /* buffer_hline -- 0c79:0006, 106 bytes */
 /* PORT: buffer_hline is in port/ (inline assembly) */

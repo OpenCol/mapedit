@@ -1,6 +1,10 @@
 /* From mapedit-decomp src/editor/me_mini (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "assets.h"
+#include "font.h"
+#include "menu.h"
+#include "popup.h"
 #include "buffer.h"
 #include "loader.h"
 #include "map.h"
@@ -172,8 +176,6 @@ void blast_mini(i16 viewer)
     blast_mini_region(mini_x, mini_y, 0x38, 0x27, viewer, 0);
 }
 /* show_mini_region -- 0b56:028e, 294 bytes */
-#define max(a, b) ((a) >= (b) ? (a) : (b))
-#define min(a, b) ((a) <= (b) ? (a) : (b))
 
 void show_mini_region(i16 x, i16 y, i16 w, i16 h, i16 update, i16 viewer, i16 white)
 {

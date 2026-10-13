@@ -3,6 +3,9 @@
  * pixel that is not 0 is "under" something already drawn: the _mask variants leave it.
  */
 #include "msc.h"
+#include "menu.h"
+#include "pal.h"
+#include "popup.h"
 #include "buffer.h"
 #include "map.h"
 #include "records.h"

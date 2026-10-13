@@ -10,6 +10,8 @@
  * cursor by them: 4 pixels, 8 with shift, 1 with scroll lock on.
  */
 #include "msc.h"
+#include "menu.h"
+#include "popup.h"
 #include "keys.h"
 #include "machine.h"
 #include "mcga.h"

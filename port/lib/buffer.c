@@ -7,6 +7,10 @@
  * none of that; what is kept is every pixel each routine writes, and the order.
  */
 #include "msc.h"
+#include "menu.h"
+#include "pal.h"
+#include "popup.h"
+#include "sprite.h"
 #include "buffer.h"
 #include "mem.h"
 #include "records.h"
