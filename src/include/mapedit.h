@@ -38,14 +38,12 @@ i16 construct_main_menu(void);
 extern char env_path[60];
 extern i16 env_search_mode;
 extern i16 env_special_path;
-extern i16 exit_value;
 extern char file_names[10][13];
 extern char *file_select;
 extern i16 file_set;
 extern void *game_menu;
 extern i16 load_error;
 extern i16 mads_mode;
-extern Menu *menu_bar;
 extern i16 video_mode;
 
 #endif

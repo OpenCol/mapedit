@@ -14,5 +14,6 @@ extern volatile i16 error_abort;
 extern void (*error_service_routine)(void);
 extern void (*error_service_routine_2)(void);
 extern char error_string[80];
+extern i16 exit_value;
 
 #endif

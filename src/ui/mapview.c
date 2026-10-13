@@ -1,6 +1,7 @@
 /* mapview.c -- the map view on screen: refreshing it, and the blinking cursor square. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "editstate.h"
 #include "font.h"
 #include "assets.h"
 #include "buffer.h"
@@ -50,3 +51,5 @@ void cursor_update(void)
         mouse_video_update(sx, sy + 8, sx, sy + 8, map_tile_size_x, map_tile_size_y);
     }
 }
+
+Menu *menu_bar = 0;                         /* DS:0x0078 */

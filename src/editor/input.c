@@ -1,6 +1,7 @@
 /* input.c -- the editor's input: the main loop, the keys, mouse strokes over the map and the minimap. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "editstate.h"
 #include "font.h"
 #include "edit.h"
 #include "error.h"
@@ -32,8 +33,6 @@ i16 mouse_stroke_type;                    /* DS:0x4e8e */
 i16 mouse_current_area;                   /* DS:0x5ace */
 
 i32 cursor_clock;                        /* DS:0x4ea0 */
-
-i16 cursor_on;                            /* DS:0x6972 */
 
 /* Waits for a key or a mouse stroke; returns the key (0 for the mouse). */
 i16 event_wait(void)

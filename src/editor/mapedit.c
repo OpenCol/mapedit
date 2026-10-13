@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/editor/mapedit (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "editstate.h"
 #include "assets.h"
 #include "edit.h"
 #include "error.h"
@@ -126,8 +127,6 @@
 i16 mads_mode = 0;                              /* DS:0x0042 */
 i16 file_set = 0;                               /* DS:0x0044 */
 i16 load_error = 0;                             /* DS:0x0060 */
-i16 exit_value = 0;                             /* DS:0x0062 */
-Menu *menu_bar = 0;                         /* DS:0x0078 */
 void *game_menu = 0;                        /* DS:0x007c */
 
 /* construct_mapedit_menu -- 0000:0196, 980 bytes */

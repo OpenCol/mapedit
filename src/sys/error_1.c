@@ -1,6 +1,7 @@
 /* From mapedit-decomp src/madsdev/error_1 (f55aff8), now maintained here: docs/origin.md. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "pack.h"
 #include "font.h"
 #include "map.h"
 #include "pal.h"
@@ -49,7 +50,6 @@
 #include "msc.h"
 #include "msc.h"
 #include "msc.h"
-
 
 /* errno (DS:0x4568) comes from <stdlib.h>: the runtime's */
 
@@ -143,3 +143,4 @@ void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2)
     }
 }
 
+i16 exit_value = 0;                             /* DS:0x0062 */

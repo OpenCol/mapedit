@@ -9,7 +9,6 @@ extern i16 mykey;
 extern i16 mouse_stroke_type;
 extern i16 mouse_current_area;
 extern i32 cursor_clock;
-extern i16 cursor_on;
 i16 event_wait(void);
 i16 shift_key(void);
 i16 mouse_area(void);

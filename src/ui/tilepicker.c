@@ -1,6 +1,7 @@
 /* tilepicker.c -- Map Tile Select: the palette of terrains and features to paint with. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "editstate.h"
 #include "font.h"
 #include "menu.h"
 #include "buffer.h"

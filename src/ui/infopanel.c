@@ -1,6 +1,7 @@
 /* infopanel.c -- the information window at the right of the map: size, cursor, the terrain under it, the selection, the brush. */
 #include "msc.h"
 #pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#include "editstate.h"
 #include "assets.h"
 #include "buffer.h"
 #include "edit.h"
