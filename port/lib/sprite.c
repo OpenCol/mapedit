@@ -17,16 +17,7 @@
  */
 #include "msc.h"
 
-typedef struct { u8 *data; i16 x0; i16 y0; i16 w; i16 h; } IconRec;
-
-/* only the frame table matters here; the series' layout up to it is sprite_e.c's */
-typedef struct {
-    i16 flag0, x2, count, pal_handle, tab[16], x28, x2a;
-    char packed, pad2d;
-    void *info, *sizes;
-    char *color_flags, *arena, *extra;
-    IconRec icon[1];
-} SpriteSeriesView;
+#include "series.h"
 
 static IconRec *frame(void *sheet, i16 n)
 {

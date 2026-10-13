@@ -22,16 +22,14 @@ extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_i
 
 typedef struct { u8 c[4]; } Colours;
 
-extern Colours font_colors;             /* DS:0x269e */
+extern Colours font_colors;             /* DS:0x3aaa */
 extern char *buffer_pointer(DosPort *port, i16 x, i16 y);
 /* font_write -- 0d53:0008, 366 bytes */
 /* PORT: font_write is in port/ (inline assembly) */
 i16 font_write(DosPort *port, i16 x, i16 y, u8 *font, char *s, i16 gap);
 
 
-/* DGROUP data (DS:0x268a-0x26a1): the popup font pointer and the text colours, in address order after the last function (so no
- * function's symbol count moves; the externs above stay as they were). Shipped values. */
-void * font_inter = 0;                        /* DS:0x268a */
-u8 font_main[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };/* DS:0x268e */
-Colours font_colors = { { 0xff, 0x0f, 0x07, 0x08 } };        /* DS:0x269e */
+/* The module's data (DS:0x3aaa): the text colours, after the last function (so no function's
+ * symbol count moves). The five font pointers before it (DS:0x3a96-0x3aa9) are font_1.c's. */
+Colours font_colors = { { 0xff, 0x0f, 0x07, 0x08 } };        /* DS:0x3aaa */
 

@@ -111,7 +111,7 @@ i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
         pack_read_memory_ptr = src;
     } else {
         pack_read_routine = pack_read_file;
-        pack_read_file_handle = (MSC_FILE *)far_to_near(src);
+        pack_read_file_handle = (MSC_FILE *)src;   /* PORT: the whole pointer (1994: its offset, far_to_near) */
     }
     if (to_file == 2) {
         pack_write_routine = pack_write_ems;
@@ -124,7 +124,7 @@ i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
         pack_write_memory_ptr = dst;
     } else {
         pack_write_routine = pack_write_file;
-        pack_write_file_handle = (MSC_FILE *)far_to_near(dst);
+        pack_write_file_handle = (MSC_FILE *)dst;   /* PORT: the whole pointer (1994: its offset, far_to_near) */
     }
     pack_read_count = pack_write_count = 0;
     switch (method) {

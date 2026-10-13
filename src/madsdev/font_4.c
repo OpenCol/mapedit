@@ -20,7 +20,7 @@
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
 extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_in_12;
 
-extern char *font_main;               /* only its SEG (DGROUP) is used */
+extern void *font_main;               /* DS:0x3a9a (font_1.c); only its SEG (DGROUP) is used */
 /* font_string_width -- 0d6c:0002, 72 bytes */
 /* PORT: font_string_width is in port/ (inline assembly) */
 i16 font_string_width(i16 spacing, void *font, char *s);

@@ -1,0 +1,12 @@
+--- src/madsdev/himem_6.c
++++ src/madsdev/himem_6.c
+@@ -49,7 +49,8 @@
+     if (himem_activate_directory() == 0) {
+         for (i = 0; i < 150; i++) {
+             himem_get_directory_entry(i);
+-            if (himem_directory_entry->kind == 4)
++            /* PORT: with no directory the pointer is null; DOS read DS:0000 there, which is 0 */
++            if (himem_directory_entry && himem_directory_entry->kind == 4)
+                 xms_free(himem_directory_entry->handle);
+         }
+     }

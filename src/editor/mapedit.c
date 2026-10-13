@@ -74,9 +74,10 @@
  * THE MAP EDITOR'S MAIN MODULE. The first twelve functions are empty stubs standing in for
  * game functions the shared madsdev/game modules reference (popup.obj calls cycle_save,
  * reset_sprite_memory, sprite_load, pissed, piss_factor; the others are the game's hooks).
- * The module's own data: the colour bytes and editor state at DS:0x42-0x9b (mads_mode ..
- * border2), myspot at DS:0x1ce, and the BSS globals from DS:0x49c6 (video_mode .. country_names).
- * All of it is declared extern here, so the file grades without defining the data.
+ * The module's own data is defined here: the editor state and colour bytes at DS:0x42-0x9b
+ * (mads_mode .. border2, above shift_key, so they precede the first literal), myspot at
+ * DS:0x1ce (after info_window_draw's literals), and the BSS communals from DS:0x49c6
+ * (video_mode .. country_names) after the last function.
  */
 
 extern i16 stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5, stand_in_6;
@@ -230,14 +231,83 @@ void forest_fix(void)
     }
 }
 /* shift_key -- 0000:0186, 16 bytes */
+/* mapedit.obj's initialised data, defined here (the 42 land at DS:0x0042-0x009c in this
+ * order, ahead of construct_mapedit_menu's "game", the module's first literal: MSC emits a
+ * global after the literals of the function that follows its definition, and shift_key has
+ * none). A global first declared further down keeps a pad there; 2 pads after the block bring
+ * the 32 symbols it adds to 0 mod 17. */
+i16 mads_mode = 0;                              /* DS:0x0042 */
+i16 file_set = 0;                               /* DS:0x0044 */
+i16 map_changes = 0;                            /* DS:0x0046 */
+i16 small_map_needs_update = 0;                 /* DS:0x0048 */
+i16 fill_radius = 0;                            /* DS:0x004a */
+i16 map_selected = 0;                           /* DS:0x004c */
+i16 coastline_protect = 0;                      /* DS:0x004e */
+i16 undo_available = 0;                         /* DS:0x0050 */
+i16 undo_active = 0;                            /* DS:0x0052 */
+i16 create_me_now = 0;                          /* DS:0x0054 */
+/* 11 unused declarations before selected_terrain and 6 after it set its own position (mod 17)
+ * for parse_spot's `cmp [bp-0xa],al` without moving any other symbol. */
+extern i16 pad_selected_terrain_0;
+extern i16 pad_selected_terrain_1;
+extern i16 pad_selected_terrain_2;
+extern i16 pad_selected_terrain_3;
+extern i16 pad_selected_terrain_4;
+extern i16 pad_selected_terrain_5;
+extern i16 pad_selected_terrain_6;
+extern i16 pad_selected_terrain_7;
+extern i16 pad_selected_terrain_8;
+extern i16 pad_selected_terrain_9;
+extern i16 pad_selected_terrain_10;
+char selected_terrain = 0x19;                   /* DS:0x0056 */
+extern i16 pad_selected_terrain_11;
+extern i16 pad_selected_terrain_12;
+extern i16 pad_selected_terrain_13;
+extern i16 pad_selected_terrain_14;
+extern i16 pad_selected_terrain_15;
+extern i16 pad_selected_terrain_16;
+u8 selected_physical_and_mask = 0x40;/* DS:0x0057 */
+u8 selected_physical_or_mask = 0;    /* DS:0x0058 */
+char selected_right_mouse_change = 0;           /* DS:0x0059 */
+void *map_undo_memory = 0;                  /* DS:0x005a */
+i16 map_undo_ems_handle = -1;                   /* DS:0x005e */
+i16 load_error = 0;                             /* DS:0x0060 */
+i16 exit_value = 0;                             /* DS:0x0062 */
+void *cursor = 0;                           /* DS:0x0064 */
+void *icons = 0;                            /* DS:0x0068 */
+void *buildings = 0;                        /* DS:0x006c */
+i16 game_mode = 1;                              /* DS:0x0070 */
+i16 active_unit = 0;                            /* DS:0x0072 */
+i16 active_player = 0;                          /* DS:0x0074 */
+i16 colony_screen_on = 0;                       /* DS:0x0076 */
+void *menu_bar = 0;                         /* DS:0x0078 */
+void *game_menu = 0;                        /* DS:0x007c */
+DosFont *menu_font = 0;                     /* DS:0x0080 */
+char game_text_name[6] = "GAME";                /* DS:0x0084 */
+i16 automate = 0;                               /* DS:0x008a */
+i16 *sprite_base = 0;                       /* DS:0x008c */
+DosPort *main_tile = 0;                         /* DS:0x0090 */
+u8 basic_color = 0x44;               /* DS:0x0092 */
+u8 hilite_color = 0x95;              /* DS:0x0093 */
+u8 grey_color = 0x08;                /* DS:0x0094 */
+u8 enhance_color = 0x80;             /* DS:0x0095 */
+u8 shadow_color = 0x2f;              /* DS:0x0096 */
+u8 select_color = 0x8a;              /* DS:0x0097 */
+u8 notice_color = 0x95;              /* DS:0x0098 */
+u8 border0 = 0x86;                   /* DS:0x0099 */
+u8 border1 = 0x80;                   /* DS:0x009a */
+u8 border2 = 0x8a;                   /* DS:0x009b */
+extern i16 pad_medata_0;
+extern i16 pad_medata_1;
+
 i16 shift_key(void)
 {
     return *(u8 *)(msc_bda + 0x0017) & 3;
 }
 /* construct_mapedit_menu -- 0000:0196, 980 bytes */
 typedef struct { i16 f0; } MenuHead;
-extern void *menu_bar;                                      /* DS:0x78 */
-extern DosFont *menu_font;                                  /* DS:0x80 */
+extern i16 pad_was_menu_bar;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_menu_font;     /* was this global's first declaration; it is defined above shift_key */
 extern void *menu_create(i16 size, DosFont *font);
 extern i16 text_open(char *name, char *key);
 extern char *text_get(void);
@@ -380,9 +450,9 @@ out:
     return choice;
 }
 /* make_undo -- 0000:0750, 46 bytes */
-extern i16 undo_available;                                      /* DS:0x50 */
-extern i16 undo_active;                                         /* DS:0x52 */
-extern void *map_undo_memory;                               /* DS:0x5a */
+extern i16 pad_was_undo_available;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_undo_active;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_map_undo_memory;     /* was this global's first declaration; it is defined above shift_key */
 extern void *map;                                           /* DS:0x4a8 */
 
 /* Copies the terrain plane (0x2ee0 bytes) into the undo buffer. Both have a dead
@@ -411,7 +481,7 @@ void perform_undo(void)
         msc__fmemcpy(map, map_undo_memory, 0x2ee0);
 }
 /* info_window_clear -- 0000:07a6, 134 bytes */
-extern DosPort *main_tile;                                      /* DS:0x90 */
+extern i16 pad_was_main_tile;     /* was this global's first declaration; it is defined above shift_key */
 extern DosPort scr_work;                                        /* DS:0x3af4 */
 extern void buffer_rect_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, char color);
 extern void buffer_tile(DosPort dst, DosPort src, i16 x, i16 y, i16 w, i16 h, i16 sx, i16 sy);
@@ -477,12 +547,12 @@ extern void *tiles;                                         /* DS:0x4c0 */
 extern void *terrain_1;                                     /* DS:0x4b8 */
 extern void sprite_draw(i16 icon, void *sheet, DosPort *port, i16 x, i16 y);
 extern void tile_draw(void *tiles, i16 tile, DosPort *port, i16 x, i16 y);
-extern char selected_terrain;                                   /* DS:0x56 */
-extern u8 selected_physical_and_mask;                /* DS:0x57 */
-extern u8 selected_physical_or_mask;                 /* DS:0x58 */
-extern char selected_right_mouse_change;                        /* DS:0x59 */
-extern i16 fill_radius;                                         /* DS:0x4a */
-extern i16 coastline_protect;                                   /* DS:0x4e */
+extern i16 pad_was_selected_terrain;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_selected_physical_and_mask;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_selected_physical_or_mask;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_selected_right_mouse_change;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_fill_radius;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_coastline_protect;     /* was this global's first declaration; it is defined above shift_key */
 
 /* 2 pads: the operand order of the `selected_terrain != terr` byte compare (mod 17) */
 extern i16 pad_iw0;
@@ -599,7 +669,7 @@ extern i16 hspot_add(i16 x0, i16 y0, i16 x1, i16 y1, i16 v1, i16 v2, i16 id);
 extern i16 hspot_which(u16 x, u16 y, i16 id);
 extern i16 numspots;                                            /* DS:0x716 */
 extern HotSpot spot[];                                          /* DS:0x530a */
-extern i16 myspot;                                              /* DS:0x1ce */
+i16 myspot = 1;                                                 /* DS:0x01ce (defined here: lands after info_window_draw's "Coast Protect: OFF") */
 
 /* A 16x16 icon on the selection screen with its hot spot (id 0x13, values 3 and n); the
  * selected one is boxed in white and remembered in myspot. */
@@ -869,7 +939,7 @@ extern i16 map_tile_size_x;                                     /* DS:0x4e8a */
 extern i16 map_tile_size_y;                                     /* DS:0x4e8c */
 extern i16 map_scale;                                           /* DS:0x4d0 */
 extern DosPort scr_orig;                                        /* DS:0x3afc */
-extern void *icons;                                         /* DS:0x68 */
+extern i16 pad_was_icons;     /* was this global's first declaration; it is defined above shift_key */
 extern void buffer_rect_copy_2(i16 sx, i16 sy, i16 dx, DosPort src, DosPort dst, i16 dy, i16 w, i16 h);
 
 /* Toggles the cursor: redraws the info window, restores the square from the backdrop and
@@ -899,7 +969,7 @@ void cursor_update(void)
 extern i16 on_map(i16 x, i16 y);
 extern i16 map_center_x;                                        /* DS:0x4c8 */
 extern i16 map_center_y;                                        /* DS:0x4ca */
-extern i16 game_mode;                                           /* DS:0x70 */
+extern i16 pad_was_game_mode;     /* was this global's first declaration; it is defined above shift_key */
 
 /* Centres the view on (x, y); in the editor (game_mode 1) the cursor goes there too, with
  * the cursor toggled off and on around the move when flag is set. */
@@ -1022,7 +1092,7 @@ extern char popup_text_buffer[];                                /* DS:0x4b64 */
 extern void fileio_new_ext(char *dst, char *src, char *ext);
 extern char map_name[];                                         /* DS:0x4a18 */
 extern i16 create_blank_map(i16 w, i16 h);
-extern i16 map_changes;                                         /* DS:0x46 */
+extern i16 pad_was_map_changes;     /* was this global's first declaration; it is defined above shift_key */
 
 // MSC: #pragma optimize("e", off)
 /* A new blank map: asks for its name (UNTITLED.MP), 0x3a x 0x48. 0 when created. Plain flags
@@ -1050,7 +1120,7 @@ i16 create_me(void)
 }
 /* continent_check -- 0000:1670, 368 bytes */
 // MSC: #pragma optimize("e", on)
-extern i16 *sprite_base;                                    /* DS:0x8c */
+extern i16 pad_was_sprite_base;     /* was this global's first declaration; it is defined above shift_key */
 extern u8 *continent;                            /* DS:0x4b0 */
 extern DosPort scr_video;                                       /* DS:0x3b1c */
 extern void * mem_get(i32 n);
@@ -1105,7 +1175,7 @@ void continent_check(void)
 /* execute_menu_event -- 0000:17e0, 932 bytes */
 // MSC: #pragma optimize("elg", off)
 // MSC: #pragma optimize("e", on)
-typedef struct { char pad[0x42]; i16 game_in_progress; } GameState_;
+typedef struct { char pad[0x42]; i16 game_in_progress; char rest[0x4a]; } GameState_;   /* 142 bytes: game's BSS extent */
 extern GameState_ game;                                          /* DS:0x5e2c */
 extern char popup_subst_string[][0x40];                         /* DS:0x634e */
 extern i16 write_map_file(void);
@@ -1720,11 +1790,11 @@ void load_data(void)
 /* start_new_game -- 0000:247a, 156 bytes */
 // MSC: #pragma optimize("elg", off)
 // MSC: #pragma optimize("e", on)
-extern i16 map_selected;                                        /* DS:0x4c */
-extern i16 create_me_now;                                       /* DS:0x54 */
+extern i16 pad_was_map_selected;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_create_me_now;     /* was this global's first declaration; it is defined above shift_key */
 extern i16 map_force;                                           /* DS:0x4d8 */
 extern i16 map_error;                                           /* DS:0x4a4 */
-extern i16 exit_value;                                          /* DS:0x62 */
+extern i16 pad_was_exit_value;     /* was this global's first declaration; it is defined above shift_key */
 extern i16 map_startup(i16 big);
 
 /* Picks the map to edit (MAPTOEDIT, or -m:file; Esc creates one), allocates the map and
@@ -1781,7 +1851,7 @@ extern void popup_init(void *font, i16 size);
 extern void mcga_setpal(char *pal);
 extern i16 load_terrain_tiles(void);
 extern void *sprite_series_load(char *name, i16 flags);
-extern void *cursor;                                        /* DS:0x64 */
+extern i16 pad_was_cursor;     /* was this global's first declaration; it is defined above shift_key */
 extern void *tiles2;                                        /* DS:0x4c4 */
 extern DosPort *menu_tile;                                      /* DS:0x632 */
 extern i16 menu_select_color_0, menu_bar_select_color_0;        /* DS:0x61c, 0x620 */
@@ -1806,7 +1876,7 @@ void viceroy_game(void)
     mouse_init(1, 0x13);
     mouse_show();
     mcga_compute_retrace_parameters();
-    if (pal_load_2("viceroy.pal", (char *)0xa000fc00L)) {
+    if (pal_load_2("viceroy.pal", (char *)(msc_vga + 0xfc00))) {
         exit_value = 0x13;
         goto out;
     }
@@ -1834,7 +1904,7 @@ void viceroy_game(void)
         goto out;
     }
     popup_init(font_inter, 0x800);
-    mcga_setpal((char *)0xa000fc00L);
+    mcga_setpal((char *)(msc_vga + 0xfc00));
     if (load_terrain_tiles())
         goto out;
     cursor = sprite_series_load("cursor", 0x4000);
@@ -1878,7 +1948,7 @@ void viceroy_game(void)
     if (map_undo_memory != 0)
         undo_available = 1;
     if (start_new_game() == 0) {
-        mcga_setpal((char *)0xa000fc00L);
+        mcga_setpal((char *)(msc_vga + 0xfc00));
         game.game_in_progress = 1;
         turn_control_loop();
     }
@@ -1954,8 +2024,8 @@ extern i16 xms_disabled;                                        /* DS:0x3c6a */
 extern void pack_enable_pfab(void);
 extern void himem_startup(void);
 extern void himem_shutdown(void);
-extern i16 mads_mode;                                           /* DS:0x42 */
-extern i16 file_set;                                            /* DS:0x44 */
+extern i16 pad_was_mads_mode;     /* was this global's first declaration; it is defined above shift_key */
+extern i16 pad_was_file_set;     /* was this global's first declaration; it is defined above shift_key */
 
 // MSC: #pragma optimize("elg", on)
 void editor_main(i16 argc, char **argv)
@@ -1988,4 +2058,40 @@ done:
 }
 
 /* @@END@@ */
+
+/* mapedit.obj's uninitialised data: communals, placed by the linker in BSS (from DS:0x4999).
+ * Sizes are the distance to the next public; a global nothing in the editor reads keeps a
+ * plain array of that size. A definition after the last function moves no symbol position. */
+i16 video_mode;                           /* DS:0x49c6 */
+i16 cargo_names[16];                      /* DS:0x49ce: 32 bytes, unused */
+char *file_select;                        /* DS:0x49ee */
+i16 any_action_this_turn;                 /* DS:0x49f0 */
+i16 season_name[2];                       /* DS:0x49f6: 4 bytes, unused */
+DosPort scr_back;                         /* DS:0x49fa */
+i32 game_clock;                          /* DS:0x4a14 */
+i16 key_parsed;                           /* DS:0x4a68 */
+i16 nationality[4];                       /* DS:0x4a74: 8 bytes, unused */
+i16 depth_list_id[45];                    /* DS:0x4a8e: 90 bytes, unused */
+i16 job_names[25];                        /* DS:0x4b18: 50 bytes, unused */
+DosPort scr_slide;                        /* DS:0x4b4a */
+i16 cursor_x;                             /* DS:0x4b52 */
+i16 cursor_y;                             /* DS:0x4b54 */
+i16 terrain_names[5];                     /* DS:0x4b5a: five word numbers */
+i16 depth_list[90];                       /* DS:0x4bb6: 180 bytes, unused */
+i16 num_screens;                          /* DS:0x4e78 */
+i16 europe;                               /* DS:0x4e80: 2 bytes here (map.c reads it as Nation[]) */
+i16 mouse_stroke_type;                    /* DS:0x4e8e */
+i32 cursor_clock;                        /* DS:0x4ea0 */
+TerrainRec terrain[29];                   /* DS:0x4ee6: 464 bytes, NAMES.TXT's terrain rows */
+i16 num_names;                            /* DS:0x521c */
+char unit[28];                            /* DS:0x521e: one 28-byte Unit record */
+char label[50];                           /* DS:0x523a: 50 bytes, unused */
+i16 mykey;                                /* DS:0x526c */
+i16 mouse_current_area;                   /* DS:0x5ace */
+i16 order_names[13];                      /* DS:0x5ada: 26 bytes, unused */
+GameState_ game;                          /* DS:0x5e2c: 142 bytes */
+char file_names[10][13];                  /* DS:0x64f0: 130 bytes */
+i16 cursor_on;                            /* DS:0x6972 */
+i16 going;                                /* DS:0x6976 */
+i16 country_names[4];                     /* DS:0x697a: 8 bytes, unused */
 

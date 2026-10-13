@@ -45,3 +45,4 @@ strncmp
 strncpy
 strnicmp
 strupr
+vga

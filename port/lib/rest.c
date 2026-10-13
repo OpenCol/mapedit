@@ -44,14 +44,7 @@ i16 pal_get_hash(u8 *b, u8 *a)
    colour c becomes map[5 + 6c] (the palette list's index field). A frame's rows end with a
    row opening FCh; FFh is an empty row, FDh a row of runs, anything else a plain row whose
    FEh runs keep their count. Transparent FDh pixels stay. A frame with no pixels ends it. */
-typedef struct { u8 *data; i16 x0, y0, w, h; } IconRec;
-typedef struct {
-    i16 flag0, x2, count, pal_handle, tab[16], x28, x2a;
-    char packed, pad2d;
-    void *info, *sizes;
-    char *color_flags, *arena, *extra;
-    IconRec icon[1];
-} SpriteSeriesView;
+#include "series.h"
 
 void sprite_color_translate(void *sheet, char *map)
 {

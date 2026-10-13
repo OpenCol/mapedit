@@ -202,52 +202,79 @@ extern i16 stand_in_7, stand_in_8, stand_in_9, stand_in_10, stand_in_11, stand_i
 
 typedef struct { u8 height; } DosFont;
 
-/* The popup module's data, defined here at the top (the 27 land at DS:0x053c-0x0572 in this
- * order, ahead of popup_set_dude_name's "KING": MSC emits a global after the literals of the
- * function that follows its definition). */
-i16 popup_background_color_0 = 7;         /* DS:0x053c */
-i16 popup_background_color_1 = 7;         /* DS:0x053e */
-i16 popup_select_color_0 = 8;             /* DS:0x0540 */
-i16 popup_select_color_1 = 8;             /* DS:0x0542 */
-i16 popup_border_color = 0;               /* DS:0x0544 */
-i16 popup_border_color_up = 0;            /* DS:0x0546 */
-i16 popup_border_color_down = 0;          /* DS:0x0548 */
-i16 popup_font_main_color = 0;            /* DS:0x054a */
-i16 popup_font_grey_color = 8;            /* DS:0x054c */
-i16 popup_font_hilite_color = 0xf;        /* DS:0x054e */
-i16 popup_enhance_color = 7;              /* DS:0x0550 */
-i16 popup_shadow_color = 8;               /* DS:0x0552 */
-i16 popup_checkbox = 0;                   /* DS:0x0554 */
-i16 popup_flags = 0;                      /* DS:0x0556, the next popup's flags */
-i16 popup_x = -1;                         /* DS:0x0558, the next popup's position */
-i16 popup_y = -1;                         /* DS:0x055a */
-i16 popup_indian = -1;                    /* DS:0x055c */
-i16 popup_messenger = -1;                 /* DS:0x055e */
-i16 popup_foreign = -1;                   /* DS:0x0560 */
-i16 popup_hiliting = 0;                   /* DS:0x0562 */
-i16 popup_pal = 1;                        /* DS:0x0564 */
-i16 popup_help = 0;                       /* DS:0x0566 */
-i16 popup_help_me = 0;                    /* DS:0x0568 */
-i16 popup_no_draw = 0;                    /* DS:0x056a */
-DosPort *popup_tile = 0;                  /* DS:0x056c, the popup background tile */
-i16 king_active = 0;                      /* DS:0x056e */
-i16 sprite_tight = 0;                     /* DS:0x0570 */
-extern i16 pad_pd_0;
-extern i16 pad_pd_1;
-extern i16 pad_pd_2;
-extern i16 pad_pd_3;
-extern i16 pad_pd_4;
-extern i16 pad_pd_5;
-extern i16 pad_pd_6;
-extern i16 pad_pd_7;
-extern i16 pad_pd_8;
-extern i16 pad_pd_9;
-extern i16 pad_pd_10;
-extern i16 pad_pd_11;
-extern i16 pad_pd_12;
-extern i16 pad_pd_13;
-extern i16 pad_pd_14;
-extern i16 pad_pd_15;
+/* The popup module's initialised data, defined here (the 27 land at DS:0x053c-0x0572 in this
+ * order, ahead of the "KING" literal: MSC emits a global after the literals of the function
+ * that follows its definition, and popup_set_dude_name has none). Each was first declared by
+ * an extern further down; those lines are now unused pads of the same count, and 41 more pads
+ * here bring the symbols added at this point to 0 mod 17, so every function keeps its count. */
+i16 popup_background_color_0 = 7;       /* DS:0x053c */
+i16 popup_background_color_1 = 7;       /* DS:0x053e */
+i16 popup_select_color_0 = 8;           /* DS:0x0540 */
+i16 popup_select_color_1 = 8;           /* DS:0x0542 */
+i16 popup_border_color = 0;             /* DS:0x0544 */
+i16 popup_border_color_up = 0;          /* DS:0x0546 */
+i16 popup_border_color_down = 0;        /* DS:0x0548 */
+i16 popup_font_main_color = 0;          /* DS:0x054a */
+i16 popup_font_grey_color = 8;          /* DS:0x054c */
+i16 popup_font_hilite_color = 0xf;      /* DS:0x054e */
+i16 popup_enhance_color = 7;            /* DS:0x0550 */
+i16 popup_shadow_color = 8;             /* DS:0x0552 */
+i16 popup_checkbox = 0;                 /* DS:0x0554 */
+i16 popup_flags = 0;                    /* DS:0x0556 */
+i16 popup_x = -1;                       /* DS:0x0558 */
+i16 popup_y = -1;                       /* DS:0x055a */
+i16 popup_indian = -1;                  /* DS:0x055c */
+i16 popup_messenger = -1;               /* DS:0x055e */
+i16 popup_foreign = -1;                 /* DS:0x0560 */
+i16 popup_hiliting = 0;                 /* DS:0x0562 */
+i16 popup_pal = 1;                      /* DS:0x0564 */
+i16 popup_help = 0;                     /* DS:0x0566 */
+i16 popup_help_me = 0;                  /* DS:0x0568 */
+i16 popup_no_draw = 0;                  /* DS:0x056a */
+DosPort *popup_tile = 0;                /* DS:0x056c */
+i16 king_active = 0;                    /* DS:0x056e */
+i16 sprite_tight = 0;                   /* DS:0x0570 */
+extern i16 pad_pdata_0;
+extern i16 pad_pdata_1;
+extern i16 pad_pdata_2;
+extern i16 pad_pdata_3;
+extern i16 pad_pdata_4;
+extern i16 pad_pdata_5;
+extern i16 pad_pdata_6;
+extern i16 pad_pdata_7;
+extern i16 pad_pdata_8;
+extern i16 pad_pdata_9;
+extern i16 pad_pdata_10;
+extern i16 pad_pdata_11;
+extern i16 pad_pdata_12;
+extern i16 pad_pdata_13;
+extern i16 pad_pdata_14;
+extern i16 pad_pdata_15;
+extern i16 pad_pdata_16;
+extern i16 pad_pdata_17;
+extern i16 pad_pdata_18;
+extern i16 pad_pdata_19;
+extern i16 pad_pdata_20;
+extern i16 pad_pdata_21;
+extern i16 pad_pdata_22;
+extern i16 pad_pdata_23;
+extern i16 pad_pdata_24;
+extern i16 pad_pdata_25;
+extern i16 pad_pdata_26;
+extern i16 pad_pdata_27;
+extern i16 pad_pdata_28;
+extern i16 pad_pdata_29;
+extern i16 pad_pdata_30;
+extern i16 pad_pdata_31;
+extern i16 pad_pdata_32;
+extern i16 pad_pdata_33;
+extern i16 pad_pdata_34;
+extern i16 pad_pdata_35;
+extern i16 pad_pdata_36;
+extern i16 pad_pdata_37;
+extern i16 pad_pdata_38;
+extern i16 pad_pdata_39;
+extern i16 pad_pdata_40;
 /* A text style: the extra spacing after each character, the plain colour, the colour of a
  * highlighted line, the colour of a {}-marked span, two more colours font_set_colors takes, the font. */
 typedef struct { i16 spacing; i16 color; i16 hi_color; i16 alt_color; i16 c8; i16 ca; DosFont *font; } TextStyle;
@@ -269,6 +296,9 @@ typedef struct DosEdit {
  * the next sprite. 0x14 bytes. */
 typedef struct { i16 x0, y0, f4, f6, w, h; } IconEntry;
 typedef struct { char hdr[0x36]; IconEntry icon[1]; } IconSheet;
+/* PORT: the frames are read through the port's view of the series (port/series.h): this
+   sheet's frame idx is its icon[idx - 1], and DosAnim's w and h are icon[0]'s */
+#include "series.h"
 /* What a dude's animation header holds that the layout reads. */
 typedef struct { char pad0[0x10]; i16 f10; i16 f12; i16 f14; char pad16[0x34]; i16 w; i16 h; } DosAnim;
 typedef struct DosSprite {
@@ -285,11 +315,15 @@ typedef struct {
     DosItem *sel_item; DosSprite *first_sprite; DosItem *items; DosLine *lines;
     DosSprite *sprites; DosEdit *edits; DosAttach *attach;
     DosSprite *dude; char *dude_name; void *f70;
-    TextStyle style; char arena[0x12];
+    TextStyle style; Arena arena[1];   /* PORT: the port's Arena (0x12 bytes in 1994) */
 } DosPopup;
 
 extern void * heap_get(i32 n, void *arena);
+extern i16 pad_was_popup_indian;     /* was this global's first declaration; it is now defined at the top */
+extern i16 pad_was_popup_messenger;     /* was this global's first declaration; it is now defined at the top */
+extern i16 pad_was_popup_foreign;     /* was this global's first declaration; it is now defined at the top */
 extern GameState game;
+extern i16 pad_was_king_active;     /* was this global's first declaration; it is now defined at the top */
 extern i16 king_frame;
 extern i32 king_clock;
 extern i32 timer_read(void);
@@ -340,6 +374,7 @@ void popup_dude_myr(DosPopup *p)
 /* popup_load_dude -- 033d:0124, 550 bytes */
 extern i16 cycling_active;                     /* DS:0x3c64 */
 extern char *put_palette;            /* DS:0x3ae0 */
+extern i16 pad_was_sprite_tight;     /* was this global's first declaration; it is now defined at the top */
 extern void cycle_save(i16 on);
 extern void reset_sprite_memory(void);
 extern void * sprite_load(char *name, i16 a);
@@ -370,15 +405,15 @@ void popup_load_dude(DosPopup *p)
     old = cycling_active;
     cycling_active = 0;
     cycle_save(1);
-    msc__fmemcpy(colors, (char *)0xa000fc00L, 0x30);
-    put_palette = (char *)0xa000fc00L;
+    msc__fmemcpy(colors, (char *)(msc_vga + 0xfc00), 0x30);
+    put_palette = (char *)(msc_vga + 0xfc00);
     dd->sheet = sprite_series_load(fname, 0);
     if (dd->sheet == 0) {
         reset_sprite_memory();
         sprite_tight = 1;
         dd->sheet = sprite_load(fname, 0);
     }
-    msc__fmemcpy((char *)0xa000fc00L, colors, 0x30);
+    msc__fmemcpy((char *)(msc_vga + 0xfc00), colors, 0x30);
     put_palette = 0;
     if (dd->sheet == 0) {
         p->dude = 0;
@@ -400,12 +435,13 @@ void popup_load_dude(DosPopup *p)
                 mem_free(dd->sheet);
             p->dude = 0;
         }
-        mcga_setpal((char *)0xa000fc00L);
+        mcga_setpal((char *)(msc_vga + 0xfc00));
     }
     put_palette = 0;
     cycling_active = old;
 }
 /* popup_fill -- 033d:034a, 148 bytes */
+extern i16 pad_was_popup_tile;     /* was this global's first declaration; it is now defined at the top */
 i16 orig_flag = 0;                       /* DS:0x1f8a (defined here: lands after popup_load_dude's literals) */
 extern DosPort scr_orig;               /* DS:0x3afc */
 extern void buffer_rect_copy(i16 x, i16 y, i16 w, DosPort src, DosPort dst, i16 h);
@@ -498,6 +534,7 @@ void style_color(i16 hi, i16 alt, TextStyle *st)
         font_set_colors(-1, st->color, st->c8, st->ca);
 }
 /* style_draw_text -- 033d:0546, 266 bytes */
+extern i16 pad_was_popup_hiliting;     /* was this global's first declaration; it is now defined at the top */
 extern DosPort scr_work;               /* DS:0x3af4 */
 extern i16 font_write(DosPort *port, i16 x, i16 y, DosFont *font, char *s, i16 flags);
 
@@ -556,6 +593,19 @@ i16 hotkey_of(u8 *s)
     return r;
 }
 /* popup_create -- 033d:06de, 458 bytes */
+extern i16 pad_was_popup_background_color_0;     /* was this global's first declaration; it is now defined at the top */
+extern i16 pad_was_popup_background_color_1;
+extern i16 pad_was_popup_select_color_0;
+extern i16 pad_was_popup_select_color_1;
+extern i16 pad_was_popup_border_color;
+extern i16 pad_was_popup_font_main_color;     /* was this global's first declaration; it is now defined at the top */
+extern i16 pad_was_popup_font_grey_color;
+extern i16 pad_was_popup_font_hilite_color;
+extern i16 pad_was_popup_enhance_color;
+extern i16 pad_was_popup_shadow_color;
+extern i16 pad_was_popup_flags;     /* was this global's first declaration; it is now defined at the top */
+extern i16 pad_was_popup_x;     /* was this global's first declaration; it is now defined at the top */
+extern i16 pad_was_popup_y;
 extern i16 mouse_driver;                     /* DS:0x49c0 */
 extern void * mem_get(i32 n);
 extern void heap_declare(i16 kind, void *arena, void *base, i32 size);
@@ -571,14 +621,16 @@ DosPopup *popup_create(i16 size, DosFont *font)
     result = 0;
     king_active = 0;
     sprite_tight = 0;
-    m = (char *)mem_get((i32)((u16)size + sizeof(DosPopup)));   /* PORT: 0x96 bytes in 1994 */
+    /* PORT: the arena twice the 1994 size -- its records hold pointers, twice as wide now
+       (and /Zp2 adds no padding), so none is more than twice what it was */
+    m = (char *)mem_get((i32)(2 * (i32)(u16)size + sizeof(DosPopup)));   /* PORT: 0x96 bytes in 1994 */
     if (m == 0)
         goto skip;
     {
         dp = (DosPopup *)m;
         e = m + sizeof(DosPopup);   /* PORT */
         a = dp->arena;
-        heap_declare(0x29, a, e, (i32)size);
+        heap_declare(0x29, a, e, 2 * (i32)(u16)size);   /* PORT */
         dp->sel_item = 0;
         dp->first_sprite = 0;
         (*(volatile i16 *)&dp->flags) = popup_flags;
@@ -921,8 +973,8 @@ DosSprite *popup_add_sprite(DosPopup *p, IconSheet *sheet, i16 idx, char *label,
     if (p->flags & 2)
         x1 = a = 0x10;
     else {
-        a = sheet->icon[idx].w;
-        x1 = sheet->icon[idx].h;
+        a = ((SpriteSeriesView *)sheet)->icon[idx - 1].w;
+        x1 = ((SpriteSeriesView *)sheet)->icon[idx - 1].h;
     }
     spr->x2 = max(x1, h) + p->f46 + spr->x;
     p->spr_h = max(p->spr_h, a);
@@ -1032,11 +1084,13 @@ i16 popup_wrap_lines(i16 draw, DosPopup *p)
 }
 /* popup_layout -- 033d:14d4, 1398 bytes */
 extern DosFont *menu_font;                 /* DS:0x0080 */
+extern i16 pad_was_popup_help;     /* was this global's first declaration; it is now defined at the top */
 extern void error_report(i16 code, i16 a, i16 b, i32 c, i32 d);
 
 /* Sizes and places the popup: its box from the sprites, the wrapped text, the items and the
  * edit fields; centred on the 320x200 screen unless a position was given, then moved to make
  * room for the dude's portrait. Returns 1 when the popup is empty. */
+/* 16 pads here (14 before the data was defined at the top) and 16 before popup_exec (15). */
 extern i16 pad_popup_layout_0, pad_popup_layout_1, pad_popup_layout_2, pad_popup_layout_3, pad_popup_layout_4, pad_popup_layout_5, pad_popup_layout_6, pad_popup_layout_7, pad_popup_layout_8, pad_popup_layout_9;
 extern i16 pad_popup_xa0;
 extern i16 pad_popup_xa1;
@@ -1052,6 +1106,8 @@ extern i16 pad_popup_xa10;
 extern i16 pad_popup_xa11;
 extern i16 pad_popup_xa12;
 extern i16 pad_popup_xa13;
+extern i16 pad_popup_xa14;
+extern i16 pad_popup_xa15;
 i16 popup_layout(DosPopup *p)
 {
     i16 a14;
@@ -1168,9 +1224,9 @@ i16 popup_layout(DosPopup *p)
         if (p->dude != 0) {
             spr5 = p->dude;
             if (popup_indian >= 0) {
-                dh = ((DosAnim *)spr5->sheet)->h + 3;
+                dh = ((SpriteSeriesView *)spr5->sheet)->icon[0].h + 3;
                 off = -3;
-                dw1 = ((DosAnim *)spr5->sheet)->w + 3;
+                dw1 = ((SpriteSeriesView *)spr5->sheet)->icon[0].w + 3;
                 tw1 = p->w + dw1 + 3;
                 if (tw1 > 320) {
                     off = tw1 - 0x143;
@@ -1196,8 +1252,8 @@ i16 popup_layout(DosPopup *p)
             }
             if (popup_messenger < 0 && popup_foreign < 0)
                 goto done;
-            dw1 = ((DosAnim *)spr5->sheet)->w;
-            dh = ((DosAnim *)spr5->sheet)->h;
+            dw1 = ((SpriteSeriesView *)spr5->sheet)->icon[0].w;
+            dh = ((SpriteSeriesView *)spr5->sheet)->icon[0].h;
             a10x = ((DosAnim *)spr5->sheet)->f10;
             a12v = ((DosAnim *)spr5->sheet)->f12;
             a14 = ((DosAnim *)spr5->sheet)->f14;
@@ -1274,6 +1330,7 @@ extern i16 pad_popup_xb0;
 extern i16 pad_popup_xb1;
 extern i16 pad_popup_xb2;
 
+extern i16 pad_was_popup_no_draw;     /* was this global's first declaration; it is now defined at the top */
 extern void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 
 void popup_show(DosPopup *p)
@@ -1282,7 +1339,8 @@ void popup_show(DosPopup *p)
         mouse_video_update(p->r_x, p->r_y, p->r_x, p->r_y, p->r_w, p->r_h);
 }
 /* popup_help_draw -- 033d:1a86, 112 bytes */
-extern i16 g_word_2f34;                     /* DS:0x53b4 */
+extern i16 spot[];                          /* DS:0x530a (hspot_1.c's HotSpot spot[121]): the help word is
+                                             * read from DS:0x53b4, spot[10].v2 -- no public lies there */
 extern u8 hilite_color;          /* DS:0x0093 */
 extern void say_string(char *buf, i16 word);
 extern void write_right(char *s, i16 x, i16 y, i16 color);
@@ -1299,7 +1357,7 @@ void popup_help_draw(DosPopup *p)
         if (p->style.font == menu_font)
             yv -= 2;
         buf[0] = 0;
-        say_string(buf, g_word_2f34);
+        say_string(buf, spot[0x55]);
         write_right(buf, x, yv, hilite_color);
     }
 }
@@ -1473,7 +1531,7 @@ void popup_draw_sprites(i16 labels, i16 full, i16 hilite, DosPopup *p)
     if (p->flags & 2)
         ihx = 0x10;
     else
-        ihx = sprs->sheet->icon[sprs->idx].w;
+        ihx = ((SpriteSeriesView *)sprs->sheet)->icon[sprs->idx - 1].w;
     uc = lastx - sprs->x + 1;
     if (full)
         popup_fill(ox - 1, sprs->x + oyn - 1, ihx + 2, scr_work, uc + 2,
@@ -1498,6 +1556,8 @@ void popup_draw_sprites(i16 labels, i16 full, i16 hilite, DosPopup *p)
     }
 }
 /* popup_box_draw -- 033d:2286, 534 bytes */
+extern i16 pad_was_popup_border_color_up;     /* was this global's first declaration; it is now defined at the top */
+extern i16 pad_was_popup_border_color_down;
 extern void buffer_vline(DosPort port, i16 x, i16 y0, i16 y1, char color);
 extern void buffer_hline(DosPort port, i16 x0, i16 x1, i16 y, char color);
 
@@ -1580,6 +1640,7 @@ void popup_set_active_sprite(DosPopup *p, DosSprite *spr)
 }
 /* popup_exec -- 033d:258e, 2820 bytes */
 extern Unit unit[];                      /* DS:0x521e */
+extern i16 pad_was_popup_checkbox;     /* was this global's first declaration; it is now defined at the top */
 extern char popup_text_buffer[];                /* DS:0x4b64 */
 extern i16 mouse_x, mouse_y;            /* DS:0x0724, 0x07ea */
 extern i16 mouse_button;                   /* DS:0x0720 */
@@ -1588,6 +1649,8 @@ extern i16 mouse_changed;                    /* DS:0x072c */
 extern i16 mouse_stop_stroke;                 /* DS:0x0730 */
 extern i16 mouse_any_stroke;                    /* DS:0x0732 */
 extern i16 automate;                      /* DS:0x008a */
+extern i16 pad_was_popup_pal;     /* was this global's first declaration; it is now defined at the top */
+extern i16 pad_was_popup_help_me;     /* was this global's first declaration; it is now defined at the top */
 extern void text_close(void);
 extern i16 keys_any(void);
 extern i16 keys_get(void);
@@ -1595,7 +1658,11 @@ extern void mouse_init_cycle(void);
 extern void check_music(void);
 extern void mouse_begin_cycle(i16 a);
 extern void mouse_end_cycle(i16 a, i16 hold);
-extern i16 buffer_preserve(DosPort *port, i32 flags, i16 x, i16 y, i16 w, i16 h);
+/* buffer_preserve is (port, int mode, int src, x, y, w, h): -8L below is mode -8 and src -1 in
+   ax:dx. Spelled as the two ints, MSC orders an unrelated addition differently; a modern
+   compiler needs the two ints (the port patches this call). */
+/* PORT: mode and src as the two ints they are (MSC passed -8L in ax:dx) */
+extern i16 buffer_preserve(DosPort *port, i16 mode, i16 src, i16 x, i16 y, i16 w, i16 h);
 extern void buffer_restore(DosPort *port, i16 handle, i16 flag, i16 x, i16 y, i16 w, i16 h);
 extern void load_main_sprites(void);
 
@@ -1617,6 +1684,7 @@ extern i16 pad_Popup_xa11;
 extern i16 pad_Popup_xa12;
 extern i16 pad_Popup_xa13;
 extern i16 pad_Popup_xa14;
+extern i16 pad_Popup_xa15;
 i16 popup_exec(DosPopup *p)
 {
     i16 redraw;
@@ -1674,14 +1742,14 @@ i16 popup_exec(DosPopup *p)
     if (king_active != 0)
         buffer_rect_copy(0, 0, 0x140, scr_work, scr_orig, 200);
     if ((p->flags & 8) == 0)
-        savedv = buffer_preserve(&scr_work, -8L, p->r_x, p->r_y, p->r_w, p->r_h);
+        savedv = buffer_preserve(&scr_work, -8, -1, p->r_x, p->r_y, p->r_w, p->r_h);
     runningx = 1;
     t05 = timer_read();
     mouse_init_cycle();
     if (popup_pal) {
         oldn = cycling_active;
         cycling_active = 0;
-        mcga_setpal((char *)0xa000fc00L);
+        mcga_setpal((char *)(msc_vga + 0xfc00));
         cycling_active = oldn;
     }
     if (p->flags & 0x20) {
@@ -2347,8 +2415,19 @@ void popup_read_colors(void)
         popup_font_hilite_color = pix[0];
         sprite_draw(7, colr, &port, 0, 0);
         popup_font_grey_color = pix[0];
-        mcga_setpal((char *)0xa000fc00L);
+        mcga_setpal((char *)(msc_vga + 0xfc00));
         mem_free(colr);
     }
 }
+
+/* The popup module's uninitialised data (communals, placed by the linker in BSS). A
+ * definition after the last function moves no symbol position. */
+char popup_text_buffer[80];               /* DS:0x4b64 */
+i16 king_frame;                           /* DS:0x4e7e */
+i32 king_clock;                          /* DS:0x4e86 */
+i16 popup_start_max_len;                  /* DS:0x5ad0 */
+i16 popup_number;                         /* DS:0x5ad4 */
+char *popup_start_string;                 /* DS:0x5e2a */
+char popup_subst_string[5][0x40];         /* DS:0x634e: 320 bytes */
+i32 popup_subst_number[9];               /* DS:0x698a: 38 bytes to the next public; 9 longs */
 

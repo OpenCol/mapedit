@@ -1,6 +1,25 @@
 --- src/editor/popup.c
 +++ src/editor/popup.c
-@@ -317,11 +317,11 @@
+@@ -296,6 +296,9 @@
+  * the next sprite. 0x14 bytes. */
+ typedef struct { i16 x0, y0, f4, f6, w, h; } IconEntry;
+ typedef struct { char hdr[0x36]; IconEntry icon[1]; } IconSheet;
++/* PORT: the frames are read through the port's view of the series (port/series.h): this
++   sheet's frame idx is its icon[idx - 1], and DosAnim's w and h are icon[0]'s */
++#include "series.h"
+ /* What a dude's animation header holds that the layout reads. */
+ typedef struct { char pad0[0x10]; i16 f10; i16 f12; i16 f14; char pad16[0x34]; i16 w; i16 h; } DosAnim;
+ typedef struct DosSprite {
+@@ -312,7 +315,7 @@
+     DosItem *sel_item; DosSprite *first_sprite; DosItem *items; DosLine *lines;
+     DosSprite *sprites; DosEdit *edits; DosAttach *attach;
+     DosSprite *dude; char *dude_name; void *f70;
+-    TextStyle style; char arena[0x12];
++    TextStyle style; Arena arena[1];   /* PORT: the port's Arena (0x12 bytes in 1994) */
+ } DosPopup;
+ 
+ extern void * heap_get(i32 n, void *arena);
+@@ -391,11 +394,11 @@
      if (p->dude_name == 0)
          return;
      king = popup_indian > 7 ? 1 : 0;
@@ -14,7 +33,7 @@
          dd->next = second;
      }
      msc__fstrcpy(fname, p->dude_name);
-@@ -527,7 +527,7 @@
+@@ -610,7 +613,7 @@
  DosPopup *popup_create(i16 size, DosFont *font)
  {
      DosPopup *result;
@@ -23,12 +42,14 @@
      DosPopup *dp;
      void *a;
      void *e;
-@@ -535,12 +535,12 @@
+@@ -618,14 +621,16 @@
      result = 0;
      king_active = 0;
      sprite_tight = 0;
 -    m = (i32)mem_get((u16)(size + 0x96));
-+    m = (char *)mem_get((i32)((u16)size + sizeof(DosPopup)));   /* PORT: 0x96 bytes in 1994 */
++    /* PORT: the arena twice the 1994 size -- its records hold pointers, twice as wide now
++       (and /Zp2 adds no padding), so none is more than twice what it was */
++    m = (char *)mem_get((i32)(2 * (i32)(u16)size + sizeof(DosPopup)));   /* PORT: 0x96 bytes in 1994 */
      if (m == 0)
          goto skip;
      {
@@ -36,9 +57,12 @@
 -        e = (char *)m + 0x96;
 +        e = m + sizeof(DosPopup);   /* PORT */
          a = dp->arena;
-         heap_declare(0x29, a, e, (i32)size);
+-        heap_declare(0x29, a, e, (i32)size);
++        heap_declare(0x29, a, e, 2 * (i32)(u16)size);   /* PORT */
          dp->sel_item = 0;
-@@ -709,7 +709,7 @@
+         dp->first_sprite = 0;
+         (*(volatile i16 *)&dp->flags) = popup_flags;
+@@ -792,7 +797,7 @@
          prev = item;
          item = item->next;
      }
@@ -47,7 +71,7 @@
      if (prev != 0) {
          prev->next = item;
          item->prev = prev;
-@@ -771,7 +771,7 @@
+@@ -854,7 +859,7 @@
          prev = item;
          item = item->next;
      }
@@ -56,7 +80,7 @@
      if (prev != 0)
          prev->next = item;
      else
-@@ -804,7 +804,7 @@
+@@ -887,7 +892,7 @@
          prev = ed;
          ed = ed->next;
      }
@@ -65,7 +89,7 @@
      if (prev != 0)
          prev->next = ed;
      else
-@@ -858,7 +858,7 @@
+@@ -941,7 +946,7 @@
          last = spr;
          spr = spr->next;
      }
@@ -74,7 +98,18 @@
      if (last != 0) {
          last->next = spr;
          spr->x = last->x2;
-@@ -897,7 +897,7 @@
+@@ -968,8 +973,8 @@
+     if (p->flags & 2)
+         x1 = a = 0x10;
+     else {
+-        a = sheet->icon[idx].w;
+-        x1 = sheet->icon[idx].h;
++        a = ((SpriteSeriesView *)sheet)->icon[idx - 1].w;
++        x1 = ((SpriteSeriesView *)sheet)->icon[idx - 1].h;
+     }
+     spr->x2 = max(x1, h) + p->f46 + spr->x;
+     p->spr_h = max(p->spr_h, a);
+@@ -980,7 +985,7 @@
  /* popup_add_cursor -- 033d:1138, 66 bytes */
  DosAttach *popup_add_cursor(DosPopup *p, void *a, i16 b)
  {
@@ -83,3 +118,54 @@
      p->attach->a = a;
      p->attach->b = b;
      return p->attach;
+@@ -1219,9 +1224,9 @@
+         if (p->dude != 0) {
+             spr5 = p->dude;
+             if (popup_indian >= 0) {
+-                dh = ((DosAnim *)spr5->sheet)->h + 3;
++                dh = ((SpriteSeriesView *)spr5->sheet)->icon[0].h + 3;
+                 off = -3;
+-                dw1 = ((DosAnim *)spr5->sheet)->w + 3;
++                dw1 = ((SpriteSeriesView *)spr5->sheet)->icon[0].w + 3;
+                 tw1 = p->w + dw1 + 3;
+                 if (tw1 > 320) {
+                     off = tw1 - 0x143;
+@@ -1247,8 +1252,8 @@
+             }
+             if (popup_messenger < 0 && popup_foreign < 0)
+                 goto done;
+-            dw1 = ((DosAnim *)spr5->sheet)->w;
+-            dh = ((DosAnim *)spr5->sheet)->h;
++            dw1 = ((SpriteSeriesView *)spr5->sheet)->icon[0].w;
++            dh = ((SpriteSeriesView *)spr5->sheet)->icon[0].h;
+             a10x = ((DosAnim *)spr5->sheet)->f10;
+             a12v = ((DosAnim *)spr5->sheet)->f12;
+             a14 = ((DosAnim *)spr5->sheet)->f14;
+@@ -1526,7 +1531,7 @@
+     if (p->flags & 2)
+         ihx = 0x10;
+     else
+-        ihx = sprs->sheet->icon[sprs->idx].w;
++        ihx = ((SpriteSeriesView *)sprs->sheet)->icon[sprs->idx - 1].w;
+     uc = lastx - sprs->x + 1;
+     if (full)
+         popup_fill(ox - 1, sprs->x + oyn - 1, ihx + 2, scr_work, uc + 2,
+@@ -1656,7 +1661,8 @@
+ /* buffer_preserve is (port, int mode, int src, x, y, w, h): -8L below is mode -8 and src -1 in
+    ax:dx. Spelled as the two ints, MSC orders an unrelated addition differently; a modern
+    compiler needs the two ints (the port patches this call). */
+-extern i16 buffer_preserve(DosPort *port, i32 flags, i16 x, i16 y, i16 w, i16 h);
++/* PORT: mode and src as the two ints they are (MSC passed -8L in ax:dx) */
++extern i16 buffer_preserve(DosPort *port, i16 mode, i16 src, i16 x, i16 y, i16 w, i16 h);
+ extern void buffer_restore(DosPort *port, i16 handle, i16 flag, i16 x, i16 y, i16 w, i16 h);
+ extern void load_main_sprites(void);
+ 
+@@ -1736,7 +1742,7 @@
+     if (king_active != 0)
+         buffer_rect_copy(0, 0, 0x140, scr_work, scr_orig, 200);
+     if ((p->flags & 8) == 0)
+-        savedv = buffer_preserve(&scr_work, -8L, p->r_x, p->r_y, p->r_w, p->r_h);
++        savedv = buffer_preserve(&scr_work, -8, -1, p->r_x, p->r_y, p->r_w, p->r_h);
+     runningx = 1;
+     t05 = timer_read();
+     mouse_init_cycle();

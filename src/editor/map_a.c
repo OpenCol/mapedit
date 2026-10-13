@@ -189,7 +189,7 @@ extern u8 *scan_map;           /* DS:0x5afa, plane 0 (terrain) */
 extern u8 *scan_site;          /* DS:0x52da, plane 3 (who has seen it) */
 extern u8 scan_index;              /* DS:0x6974 */
 extern u8 scan_flags;              /* DS:0x5ad3 */
-extern u8 edata[];           /* DS:0x499a, 4; no public (the module's BSS) */
+static u8 nb_flags[4];      /* DS:0x499a: the module's BSS, first after the initialised data (where the linker's _edata label falls); no public */
 extern u8 gen_base_tile;           /* DS:0x4e84 */
 extern u8 gen_map_tile;            /* DS:0x5acc */
 extern i8 move_x[];                  /* DS:0x06c0, 8 (compass.obj) */
@@ -209,7 +209,7 @@ i16 coast_scan(void)
 
     scan_flags = scan_index = 0;
     for (i = 0; i < 4; i++)
-        edata[i] = 0;
+        nb_flags[i] = 0;
     if (map_scale == 0) {
         for (i = 0; i < 8; i++) {
             ter = scan_map[move_x[i] + (move_y[i] < 0 ? -map_area_size_x : 0) + (move_y[i] > 0 ? map_area_size_x : 0)] & 0x1f;
@@ -223,13 +223,13 @@ i16 coast_scan(void)
             scan_flags |= 1 << i;
             scan_index++;
             if (i & 1) {
-                edata[((i + 1) & 6) >> 1] |= 2;
+                nb_flags[((i + 1) & 6) >> 1] |= 2;
             } else {
                 gen_base_tile = ter;
                 j = i >> 1;
                 k = (j + 1) & 3;
-                edata[j] |= 4;
-                edata[k] |= 1;
+                nb_flags[j] |= 4;
+                nb_flags[k] |= 1;
             }
         next:
             ;
@@ -656,7 +656,7 @@ void draw_square(i16 hidden)
             k2_k = (i_m + 1) & 3;
             g_icon_dx = (k2_k >> 1) * 8;
             g_icon_dy = (i_m >> 1) * 8;
-            draw_map_icon(edata[i_m] * 4 + i_m + 0x6d);
+            draw_map_icon(nb_flags[i_m] * 4 + i_m + 0x6d);
         }
         g_icon_dx = g_icon_dy = 0;
     } else {

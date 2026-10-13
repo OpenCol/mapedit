@@ -164,6 +164,11 @@ u16   msc__dos_write(i16 handle, void *buf, u16 count, u16 *done);
    current by port/lib/bios.c */
 extern u8 msc_bda[256];
 
+/* VGA memory, segment A000 (64 KB): the screen is its first 64000 bytes; the editor keeps its
+   palette at FC00. The host's (platform/host.h). */
+extern u8 host_vga[0x10000];
+#define msc_vga host_vga
+
 /* the records modules share, one definition each */
 #include "port_records.h"
 

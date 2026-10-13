@@ -30,13 +30,15 @@ typedef struct HostOptions {
     int scale;          /* window size as a multiple of 320x200 (or 320x240 with aspect) */
     int aspect;         /* nonzero: show 320x200 at 4:3, as a 1994 monitor did */
     int headless;       /* nonzero: no window (tests); the framebuffer still works */
+    const char *script; /* a session to play instead of the user's input (host_sdl.c) */
 } HostOptions;
 
 int  host_init(const HostOptions *opt);    /* 0 on success */
 void host_quit(void);
 
 /* video: mode 13h */
-uint8_t *host_vram(void);                  /* HOST_W * HOST_H palette indices, row-major */
+extern uint8_t host_vga[0x10000];          /* segment A000: the screen, then 1536 bytes nothing shows */
+uint8_t *host_vram(void);                  /* host_vga: HOST_W * HOST_H palette indices, row-major */
 void host_set_dac(int first, int count, const uint8_t *rgb6);   /* 3 bytes each, 0..63 */
 void host_get_dac(int first, int count, uint8_t *rgb6);
 void host_present(void);                   /* show the framebuffer through the DAC */

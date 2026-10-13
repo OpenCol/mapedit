@@ -8,12 +8,14 @@ N = 300
 
 
 class IconRec(ctypes.Structure):
+    _pack_ = 2                  # the imported records' /Zp2 (port/lib/series.h)
     _fields_ = [('data', ctypes.c_void_p), ('x0', ctypes.c_int16), ('y0', ctypes.c_int16),
                 ('w', ctypes.c_int16), ('h', ctypes.c_int16)]
 
 
 def series_type(n):
     class Series(ctypes.Structure):
+        _pack_ = 2
         _fields_ = [('head', ctypes.c_int16 * 22), ('packed', ctypes.c_char), ('pad', ctypes.c_char),
                     ('ptrs', ctypes.c_void_p * 5), ('icon', IconRec * n)]
     return Series

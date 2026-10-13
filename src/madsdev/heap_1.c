@@ -82,6 +82,8 @@ char *heap_get(i32 n, Arena *a)
     char *r;
 
     r = 0;
+    n = (n + 1) & ~1L;   /* PORT: every piece on an even address -- the records' pointers and
+                            ints need it (/Zp2), which 1994's 8086 did not */
     if (a->left < n)
         error_report(-61, 2, (u8)a->kind, n, a->left);
     else {

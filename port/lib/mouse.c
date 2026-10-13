@@ -16,6 +16,8 @@
  * so the driver's halving of x (640-wide virtual coordinates) is gone. Only the mode 13h
  * paths exist; the editor runs in nothing else. Offsets are mouse_1.ASM's.
  */
+#include <string.h>
+
 #include "msc.h"
 #include "host.h"
 
@@ -169,10 +171,48 @@ void mouse_hide(void)
     }
 }
 
+/* The cursor image: mouse_1.ASM's initialised data (DS:42D8, a 16 x 16 arrow), which the
+   editor never changes. This repository carries none of MicroProse's bytes, so the port
+   reads it from the player's own MAPEDIT.EXE in the game directory -- the 1.0 editor, whose
+   data segment is paragraph 15E7h -- and, without one, draws an arrow of its own. */
+#define EXE_SIZE 0x2378cL
+#define EXE_CURSOR (0x15e7L * 16 + 0x42d8)
+
+static void cursor_image(void)
+{
+    MSC_FILE *f = msc_fopen("MAPEDIT.EXE", "rb");
+    char hdr[0x1c];
+    i16 y, x;
+    if (f) {
+        i32 at;
+        int ok = msc_fread(hdr, 1, sizeof hdr, f) == sizeof hdr && hdr[0] == 'M' && hdr[1] == 'Z';
+        if (ok) {
+            at = (i32)((u8)hdr[8] | (u8)hdr[9] << 8) * 16 + EXE_CURSOR;
+            ok = msc_filelength(f->_file) == EXE_SIZE && msc_fseek(f, at, SEEK_SET) == 0
+                 && msc_fread(cursor, 1, sizeof cursor, f) == sizeof cursor;
+        }
+        msc_fclose(f);
+        if (ok)
+            return;
+    }
+    /* the port's own: black outline, white inside, FFh around it */
+    memset(cursor, 0xff, sizeof cursor);
+    for (y = 0; y < 13; y++)
+        for (x = 0; x <= y && x < 10; x++) {
+            int edge = x == 0 || x == y || y == 12 || (y >= 10 && x >= 9 - (y - 10));
+            cursor[y * 16 + x] = (char)(edge ? 0 : 15);
+        }
+}
+
 /* mouse_init -- 0086: start the mouse for a video mode (on = 0 turns it off). Returns
    mouse_driver. The port always has a mouse. */
 i16 mouse_init(i16 on, i16 mode)
 {
+    static int have_image;
+    if (!have_image) {
+        cursor_image();
+        have_image = 1;
+    }
     video_init(mode, 0);
     MOUSE_CURSOR_BUFFER.h = 16;
     MOUSE_CURSOR_BUFFER.w = 16;

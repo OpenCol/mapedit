@@ -176,8 +176,8 @@ typedef struct {                /* a himem directory entry (HIMEM_1.C) */
 } HimemEntry;
 
 extern MSC_FILE *env_open(char *name, char *mode);                     /* 0297:0104 */
-extern i32 fileio_fread_f(void *p, i32 size, MSC_FILE *fp, i32 n);   /* 0bca:0000 */
-extern i32 fileio_fwrite_f(void *p, i32 size, MSC_FILE *fp, i32 n);  /* 0bea:0008 */
+extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);   /* 0bca:0000 */
+extern i32 fileio_fwrite_f(void *p, i32 size, i32 n, MSC_FILE *fp);  /* 0bea:0008 */
 extern i16 himem_resident(char *name);                                       /* 1345:000a */
 extern HimemEntry *himem_directory_entry;                                    /* DS:0x4b56 */
 
@@ -250,11 +250,11 @@ i16 loader_open(char *how, i16 mode, FileIO *fh, char *name)
         fh->next = 0;
         if (reading) {
             msc_fgetpos(fh->fp, &pos);
-            if (fileio_fread_f(fh->magic, 16L, fh->fp, 1L) == 0)
+            if (fileio_fread_f(fh->magic, 16L, 1L, fh->fp) == 0)
                 goto out;
             if (msc__fstrncmp(fh->magic, "MADSPACK 2.0\x1a", 12) != 0)
                 goto out;
-            if (fileio_fread_f(fh->ent, (i32)(u16)(fh->count * sizeof(FFEntry)), fh->fp, 1L) == 0)
+            if (fileio_fread_f(fh->ent, (i32)(u16)(fh->count * sizeof(FFEntry)), 1L, fh->fp) == 0)
                 goto out;
             pos += 0xb0;
             msc_fsetpos(fh->fp, &pos);
@@ -265,7 +265,7 @@ i16 loader_open(char *how, i16 mode, FileIO *fh, char *name)
             fh->count = 0;
             fh->ent[0].type = (char)mode;
             msc__fstrcpy(fh->magic, "MADSPACK 2.0\x1a");
-            if (fileio_fwrite_f(fh->magic, 0xb0L, fh->fp, 1L) == 0)
+            if (fileio_fwrite_f(fh->magic, 0xb0L, 1L, fh->fp) == 0)
                 goto out;
             fh->total = 0;
         }
@@ -297,7 +297,7 @@ i16 loader_close(FileIO *fh)
         } else {
             if (fh->reading == 0) {
                 msc_rewind(fh->fp);
-                err = fileio_fwrite_f(fh->magic, 0xb0L, fh->fp, 1L) == 0;
+                err = fileio_fwrite_f(fh->magic, 0xb0L, 1L, fh->fp) == 0;
             }
             msc_fclose(fh->fp);
         }

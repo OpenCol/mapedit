@@ -29,11 +29,11 @@ extern char *env_catint(char *s, i16 value, i16 digits);
 extern i32 fileio_fwrite_f(void *p, i32 size, i32 n, MSC_FILE *fp);
 extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);
 
-char g_swap_wb[] = "wb";                 /* DS:0x2630 */
+static char g_swap_wb[] = "wb";          /* DS:0x43e8: a module static (no public) */
 char buffer_disk_filename[] = "$MPOP.$";          /* DS:0x2634 */
 u8 buffer_accum = 0;           /* DS:0x263c */
 u8 buffer_tracking[10] = { 0 };   /* DS:0x263e */
-char g_swap_rb[] = "rb";                 /* DS:0x2648 */
+static char g_swap_rb[] = "rb";          /* DS:0x4400: a module static (no public) */
 /* buffer_to_disk -- 1025:000c, 222 bytes */
 i16 buffer_to_disk(DosPort *port, i16 x, i16 y, i16 w, i16 h)
 {

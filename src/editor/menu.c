@@ -278,7 +278,7 @@ typedef struct Menu {
     i16 f0; i16 n_subs; i16 bar_h; i16 title_gap; i16 item_gap; i16 gap; i16 item_pad;
     i16 bar_col; i16 bar_col2; i16 drop_col; i16 drop_col2; i16 sel_col; i16 sel_col2;
     i16 title_col; i16 title_col2; i16 frame_col;
-    MenuStyle bar; MenuStyle drop; MenuSub *subs; char arena[0x12];
+    MenuStyle bar; MenuStyle drop; MenuSub *subs; Arena arena[1];   /* PORT: the port's Arena (0x12 bytes in 1994) */
 } Menu;
 /* menu_font_height -- 06d7:0008, 22 bytes */
 i16 menu_font_height(DosFont *f)
@@ -417,10 +417,12 @@ Menu *menu_create(i16 size, DosFont *font)
     Menu *dp;
 
     result = 0;
-    m = mem_get((i32)(size + sizeof(Menu)));   /* PORT: 0x4e bytes in 1994 */
+    /* PORT: the arena twice the 1994 size -- its records hold pointers, twice as wide now
+       (and /Zp2 adds no padding), so none is more than twice what it was */
+    m = mem_get((i32)(2 * (i32)size + sizeof(Menu)));   /* PORT: 0x4e bytes in 1994 */
     if (m != 0) {
         dp = m;
-        heap_declare(0x28, m->arena, (char *)m + sizeof(Menu), (i32)size);   /* PORT */
+        heap_declare(0x28, m->arena, (char *)m + sizeof(Menu), 2 * (i32)size);   /* PORT */
         m->subs = 0;
         m->n_subs = 0;
         m->title_gap = 0xc;
@@ -751,7 +753,11 @@ extern i16 keys_any(void);
 extern i16 keys_get(void);
 extern void mouse_init_cycle(void);
 extern void mouse_end_cycle(i16 a, i16 hold);
-extern i16 buffer_preserve(DosPort *port, i32 flags, i16 x, i16 y, i16 w, i16 h);
+/* buffer_preserve is (port, int mode, int src, x, y, w, h): -8L below is mode -8 and src -1 in
+   ax:dx. Spelled as the two ints, MSC orders an unrelated addition differently; a modern
+   compiler needs the two ints (the port patches this call). */
+/* PORT: mode and src as the two ints they are (MSC passed -8L in ax:dx) */
+extern i16 buffer_preserve(DosPort *port, i16 mode, i16 src, i16 x, i16 y, i16 w, i16 h);
 extern void buffer_restore(DosPort *port, i16 handle, i16 flag, i16 x, i16 y, i16 w, i16 h);
 
 /* The drop-down's event loop: the mouse picks an item or moves to another title, the arrow
@@ -804,7 +810,7 @@ void menu_bar_run(MenuSub *sub)
         menu_draw_bar(m4, sub, 1);
         menu_compute_size(sub, &xj, &y9, &w, &h, &ix, &iy);
         row_h1 = menu_font_height(m4->drop.font) + m4->item_gap;
-        save3 = buffer_preserve(&scr_work, -8L, xj, y9, w, h);
+        save3 = buffer_preserve(&scr_work, -8, -1, xj, y9, w, h);
         drag8 = mouse_stroke_going;
         if (drag8 == 0)
             sel3 = sub->items;

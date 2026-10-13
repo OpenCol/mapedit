@@ -1,10 +1,12 @@
 /* main.c -- the port's entry: the host, the game directory, then the 1994 editor's main.
  *
- *     mapedit [--game DIR] [--scale N] [--aspect] [editor options: -c, -m:FILE]
+ *     mapedit [--game DIR] [--scale N] [--aspect] [--script FILE] [--headless]
+ *             [editor options: -c, -m:FILE]
  *
  * DIR is the player's Colonization for DOS directory (the one holding VICEROY.EXE and
  * MAPEDIT.TXT); by default $MAPEDIT_GAME, else the current directory. The editor reads its
- * art, fonts and texts there and writes its maps there, as it did.
+ * art, fonts and texts there and writes its maps there, as it did. --script plays a session
+ * (platform/host_sdl.c has the commands); --headless opens no window.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +34,10 @@ int main(int argc, char **argv)
             opt.scale = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--aspect"))
             opt.aspect = 1;
+        else if (!strcmp(argv[i], "--script") && i + 1 < argc)
+            opt.script = argv[++i];
+        else if (!strcmp(argv[i], "--headless"))
+            opt.headless = 1;
         else if (n < 15)
             args[n++] = argv[i];
     }

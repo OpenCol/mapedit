@@ -13,16 +13,19 @@
 #include "host.h"
 
 #include <SDL3/SDL.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define QUEUE 32                    /* the BIOS buffer held 15; the editor drains it often */
+
+uint8_t host_vga[0x10000];
 
 static struct {
     HostOptions opt;
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *texture;
-    uint8_t vram[HOST_W * HOST_H];
     uint8_t dac[256 * 3];
     uint32_t rgb[HOST_W * HOST_H];
     uint16_t keys[QUEUE];
@@ -37,6 +40,8 @@ static struct {
     uint32_t last_present;
     HostMouseHandler mouse_handler;
     HostKeyHook key_hook;
+    FILE *script;
+    uint32_t script_due;            /* the next command runs at this host_ms() */
 } H;
 
 /* ---- keyboard ---------------------------------------------------------------------------- */
@@ -175,9 +180,160 @@ static void shift_from(SDL_Keymod m)
             | (m & SDL_KMOD_CTRL ? HOST_CTRL : 0) | (m & SDL_KMOD_ALT ? HOST_ALT : 0);
 }
 
+/* ---- scripted sessions -------------------------------------------------------------------
+ *
+ * --script FILE plays a session instead of the user's input, one command a line, each when
+ * the one before it is done (# starts a comment):
+ *
+ *     wait MS                  let MS milliseconds pass
+ *     key [shift+|ctrl+|alt+]NAME   press and release a key; NAME is SDL's (Return, F1, A, Keypad 8)
+ *     type TEXT                the keys of TEXT (a US keyboard)
+ *     move X Y                 the mouse to screen pixel X,Y
+ *     down [left|right]        press a button; up releases it
+ *     click X Y [left|right]   move, press, wait 50 ms, release
+ *     shot FILE                the screen as it is now, a 320x200 BMP
+ *     exit                     end the program
+ *
+ * Every command is logged to stderr with the time it ran. */
+
+static void script_mouse(int x, int y, int buttons)
+{
+    H.mouse_x = x < 0 ? 0 : x >= HOST_W ? HOST_W - 1 : x;
+    H.mouse_y = y < 0 ? 0 : y >= HOST_H ? HOST_H - 1 : y;
+    H.buttons = buttons;
+    if (H.mouse_handler)
+        H.mouse_handler(H.mouse_x, H.mouse_y, H.buttons);
+}
+
+static void script_key(SDL_Scancode sc, int shift, int ctrl, int alt)
+{
+    const KeyDef *k = keydef(sc);
+    uint16_t code;
+    H.shift = (shift ? HOST_SHIFT_LEFT : 0) | (ctrl ? HOST_CTRL : 0) | (alt ? HOST_ALT : 0);
+    if (!(k && H.key_hook && H.key_hook(k->scan, 1, is_keypad(sc)))) {
+        code = host_key_translate(sc, shift, ctrl, alt);
+        if (code)
+            key_push(code);
+    }
+    if (k && H.key_hook)
+        H.key_hook(k->scan, 0, is_keypad(sc));
+    H.shift = 0;
+}
+
+static void write_bmp(const char *path)
+{
+    FILE *f = fopen(path, "wb");
+    uint8_t h[54] = {'B', 'M'};
+    uint32_t size = 54 + HOST_W * HOST_H * 3;
+    int x, y;
+    if (!f) {
+        fprintf(stderr, "script: cannot write %s\n", path);
+        return;
+    }
+    host_present();
+#define LE32(o, v) (h[o] = (uint8_t)(v), h[o + 1] = (uint8_t)((v) >> 8), h[o + 2] = (uint8_t)((v) >> 16), h[o + 3] = (uint8_t)((v) >> 24))
+    LE32(2, size); LE32(10, 54); LE32(14, 40); LE32(18, HOST_W); LE32(22, HOST_H);
+    h[26] = 1; h[28] = 24; LE32(34, HOST_W * HOST_H * 3);
+#undef LE32
+    fwrite(h, 1, 54, f);
+    for (y = HOST_H - 1; y >= 0; y--)
+        for (x = 0; x < HOST_W; x++) {
+            uint32_t c = H.rgb[y * HOST_W + x];
+            uint8_t px[3] = {(uint8_t)c, (uint8_t)(c >> 8), (uint8_t)(c >> 16)};
+            fwrite(px, 1, 3, f);
+        }
+    fclose(f);
+}
+
+static int button_of(const char *s)
+{
+    return s && !strcmp(s, "right") ? HOST_BUTTON_RIGHT : HOST_BUTTON_LEFT;
+}
+
+static void script_step(void)
+{
+    char line[256], *cmd, *arg;
+    static int clicking;                    /* a click's release, 50 ms after its press */
+    while (H.script && host_ms() >= H.script_due) {
+        if (clicking) {
+            script_mouse(H.mouse_x, H.mouse_y, H.buttons & ~clicking);
+            clicking = 0;
+            continue;
+        }
+        if (!fgets(line, sizeof line, H.script)) {
+            fclose(H.script);
+            H.script = NULL;
+            fprintf(stderr, "script: end\n");
+            return;
+        }
+        line[strcspn(line, "\r\n")] = 0;
+        cmd = line + strspn(line, " \t");
+        if (!*cmd || *cmd == '#')
+            continue;
+        fprintf(stderr, "script %6u: %s\n", (unsigned)host_ms(), cmd);
+        arg = cmd + strcspn(cmd, " \t");
+        if (*arg)
+            *arg++ = 0;
+        if (!strcmp(cmd, "wait"))
+            H.script_due = host_ms() + (uint32_t)atoi(arg);
+        else if (!strcmp(cmd, "key")) {
+            int shift = 0, ctrl = 0, alt = 0;
+            SDL_Scancode sc;
+            for (;;) {
+                if (!SDL_strncasecmp(arg, "shift+", 6)) { shift = 1; arg += 6; }
+                else if (!SDL_strncasecmp(arg, "ctrl+", 5)) { ctrl = 1; arg += 5; }
+                else if (!SDL_strncasecmp(arg, "alt+", 4)) { alt = 1; arg += 4; }
+                else break;
+            }
+            sc = SDL_GetScancodeFromName(arg);
+            if (sc == SDL_SCANCODE_UNKNOWN)
+                fprintf(stderr, "script: no key %s\n", arg);
+            else
+                script_key(sc, shift, ctrl, alt);
+        } else if (!strcmp(cmd, "type")) {
+            for (; *arg; arg++) {
+                char c = *arg, name[2] = {0, 0};
+                int shift = (c >= 'A' && c <= 'Z');
+                SDL_Scancode sc;
+                if (c == ' ')
+                    sc = SDL_SCANCODE_SPACE;
+                else if (c == '.')
+                    sc = SDL_SCANCODE_PERIOD;
+                else {
+                    name[0] = c;
+                    sc = SDL_GetScancodeFromName(name);
+                }
+                if (sc != SDL_SCANCODE_UNKNOWN)
+                    script_key(sc, shift, 0, 0);
+            }
+        } else if (!strcmp(cmd, "move")) {
+            int x = 0, y = 0;
+            sscanf(arg, "%d %d", &x, &y);
+            script_mouse(x, y, H.buttons);
+        } else if (!strcmp(cmd, "down") || !strcmp(cmd, "up")) {
+            int b = button_of(*arg ? arg : NULL);
+            script_mouse(H.mouse_x, H.mouse_y, cmd[0] == 'd' ? H.buttons | b : H.buttons & ~b);
+        } else if (!strcmp(cmd, "click")) {
+            int x = 0, y = 0;
+            char which[16] = "";
+            sscanf(arg, "%d %d %15s", &x, &y, which);
+            clicking = button_of(which[0] ? which : NULL);
+            script_mouse(x, y, H.buttons);
+            script_mouse(x, y, H.buttons | clicking);
+            H.script_due = host_ms() + 50;
+        } else if (!strcmp(cmd, "shot"))
+            write_bmp(arg);
+        else if (!strcmp(cmd, "exit"))
+            exit(0);
+        else
+            fprintf(stderr, "script: unknown command %s\n", cmd);
+    }
+}
+
 void host_pump(void)
 {
     SDL_Event e;
+    script_step();
     while (SDL_PollEvent(&e)) {
         switch (e.type) {
         case SDL_EVENT_QUIT:
@@ -270,7 +426,7 @@ void host_mouse_warp(int x, int y)
 
 /* ---- video ------------------------------------------------------------------------------- */
 
-uint8_t *host_vram(void) { return H.vram; }
+uint8_t *host_vram(void) { return host_vga; }
 
 void host_set_dac(int first, int count, const uint8_t *rgb6)
 {
@@ -298,7 +454,7 @@ void host_present(void)
         pal[i] = (r << 2 | r >> 4) << 16 | (g << 2 | g >> 4) << 8 | (b << 2 | b >> 4);
     }
     for (i = 0; i < HOST_W * HOST_H; i++)
-        H.rgb[i] = pal[H.vram[i]];
+        H.rgb[i] = pal[host_vga[i]];
     if (!H.renderer)
         return;
     SDL_UpdateTexture(H.texture, NULL, H.rgb, HOST_W * 4);
@@ -347,6 +503,8 @@ int host_init(const HostOptions *opt)
     if (!SDL_Init(SDL_INIT_VIDEO))
         return -1;
     H.t0 = SDL_GetTicksNS();
+    if (opt->script && !(H.script = fopen(opt->script, "r")))
+        return -1;
     if (opt->headless)
         return 0;
     scale = opt->scale > 0 ? opt->scale : 3;

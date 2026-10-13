@@ -62,7 +62,7 @@ extern i16 ems_copy_it_down(i16 handle, i16 *page, i16 *offset, void *buf, i32 n
 extern i16 xms_copy(i32 n, i16 handle, i32 pos, i16 dir, void *buf);                                  /* 1343:0004 */
 extern void *mem_get(i32 size);                  /* 0cc9:02e2 */
 extern i16 mem_free(void *p);                        /* 0cc9:0310 */
-extern i32 fileio_fread_f(void *p, i32 size, MSC_FILE *fp, i32 n);   /* 0bca:0000: the first long takes ax:dx */
+extern i32 fileio_fread_f(void *p, i32 size, i32 n, MSC_FILE *fp);   /* 0bca:0000: the first long takes ax:dx */
 extern i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes, void *src, void *dst); /* 1309:004a */
 /* loader_read -- 1258:0002, 558 bytes */
 i32 loader_read(i32 size, void *buf, i32 count, FileIO *fh)
@@ -105,7 +105,7 @@ i32 loader_read(i32 size, void *buf, i32 count, FileIO *fh)
         if (kind2 == 1) {
             tmp9 = mem_get(packed);
             if (tmp9 != 0) {
-                if (fileio_fread_f(tmp9, packed, fh->fp, 1L) == 0)
+                if (fileio_fread_f(tmp9, packed, 1L, fh->fp) == 0)
                     goto out;
                 got = pack_data(kind2, 0, 0, total, tmp9, buf);
                 done4 = -1;

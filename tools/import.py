@@ -36,7 +36,9 @@ left alone):
 - A function with inline assembly (_asm) is not imported: its definition becomes its
   prototype, and import/REFUSED lists it. port/ holds the C written for it.
 - A far pointer into the BIOS data area written as a constant ((u8 *)0x00400017L, the shift
-  flags) points into msc_bda, the port's copy of that area (port/lib/bios.c).
+  flags) points into msc_bda, the port's copy of that area (port/lib/bios.c). One into VGA
+  memory ((char *)0xa000fc00L: A000:FC00, where the editor keeps its palette past the
+  screen's 64000 bytes) points into msc_vga, the host's 64 KB of it.
 - Last, patches/<file>.patch: the port's deliberate edits, each marked PORT:, as diffs
   against the plain import (tools/import.py --save-patches writes them from src/).
 """
@@ -182,6 +184,8 @@ def drop_own_decls(text):
 # A far pointer into the BIOS data area, written as a constant (0x00400017L: 0040:0017, the
 # shift flags): the port keeps that area in msc_bda (port/lib/bios.c).
 BDA = re.compile(r'\(\s*([A-Za-z_][\w \t]*\*)\s*\)\s*0x0040([0-9a-fA-F]{4})L')
+# ... and into VGA memory (0xa0000000L: the screen; 0xa000fc00L: the palette kept past it)
+VGA = re.compile(r'\(\s*([A-Za-z_][\w \t]*\*)\s*\)\s*0x[aA]000([0-9a-fA-F]{4})L')
 
 
 # MSC's based storage: _based(_segname("X")) puts a variable in a segment of its own, which a
@@ -192,6 +196,7 @@ BASED = re.compile(r'\b_based\s*\((?:[^()]|\([^()]*\))*\)\s*')
 def bios_area(text):
     text = BASED.sub('', text)
     text = re.sub(r'\b_segment\b', 'u16', text)
+    text = VGA.sub(lambda m: '(%s)(msc_vga + 0x%s)' % (m.group(1).strip(), m.group(2).lower()), text)
     return BDA.sub(lambda m: '(%s)(msc_bda + 0x%s)' % (m.group(1).strip(), m.group(2).lower()), text)
 
 
