@@ -19,8 +19,6 @@
 #include "font.h"
 #include "records.h"
 
-#pragma pack(push, 2)
-#pragma pack(pop)
 
 /* sys/fileio.c */
 char *env_catint(char *s, i16 value, i16 digits);

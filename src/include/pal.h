@@ -15,9 +15,7 @@
 #pragma pack(push, 2)
 /* Colour cycling's records, which nothing uses. A range of entries to cycle: how many, the
  * current rotation step, the first entry, and the timer ticks between steps. */
-typedef struct { u8 count, pos, start, speed; } CycleRange;
 /* Up to eight ranges, n of them in use. */
-typedef struct { i16 n; CycleRange r[8]; } ColorCycle;
 /* One colour of a request list: the colour wanted (r, g, b), the entry pal_allocate gave it
  * (index), whether an exact request reserves that entry to this series (extra), and how it
  * may be placed (flags): 80h may share an entry another series needs, 40h may take the
@@ -32,7 +30,6 @@ typedef struct { i16 n; i16 idx[3]; } Shadow;
 #pragma pack(pop)
 
 i16 pal_allocate(i16 flags, PalList *list, Shadow *sh);
-void pal_call_manager(i32 fn, i16 code);
 i16 pal_count_free(i16 *first);
 i16 pal_find_free_flag(void);
 void pal_init_shadow(Shadow *sh, PalList *list);
@@ -45,9 +42,6 @@ extern i32 color_status[256];            /* per entry: a bit per flag using it; 
 extern i16 flag_used[32];                /* -1 for each allocation flag taken */
 extern u8 master_palette[0x300];         /* the 256 colours shown */
 extern Shadow *master_shadow;            /* the shadow pal_allocate uses, or 0 */
-extern i16 pal_manager_active;
-extern i16 pal_manager_colors;
-extern i32 pal_manager_update;           /* the manager callback, or 0 (never set) */
 extern i16 palette_high_search_limit;
 extern i16 palette_low_search_limit;
 extern i16 palette_reserved_bottom;      /* stock entries at the bottom (never set) */

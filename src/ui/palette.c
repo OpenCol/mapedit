@@ -12,8 +12,7 @@
  * or a free one it fills -- marks those entries with the flag's bit and returns the flag.
  * A shadow (Shadow) is up to three colours of a list that take fixed places. Nothing in the
  * editor sets the search limits or the reserved ranges: both limits stay 0 and no flag is
- * reserved. Every allocation is reported to a callback (pal_manager_update), which the
- * editor never installs.
+ * reserved.
  *
  * pal_load_2 reads a 768-byte palette file such as VICEROY.PAL.
  *
@@ -48,20 +47,6 @@
 #include "w16types.h"
 #pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 
-typedef union { i32 l; struct { u8 b0, b1, b2, b3; } b; } ColorStatus;   /* unused */
-typedef void (*PalFn)(void);
-
-/* Calls the manager callback fn, when there is one, with pal_manager_active set to code
- * for the duration: 2 allocated, 3 allocation failed (pal_allocate's two outcomes).
- * Port: fn is a 32-bit value, as the original's far pointer was; it is always 0 here. */
-void pal_call_manager(i32 fn, i16 code)
-{
-    if (fn) {
-        pal_manager_active = code;
-        (*(PalFn *)&fn)();
-        pal_manager_active = 0;
-    }
-}
 
 /* Sorts a shadow's list indices by the brightness of their colours (magic_hash_color),
  * darkest first. */
@@ -321,12 +306,8 @@ i16 pal_allocate(i16 flags, PalList *list, Shadow *sh)
         list->e[ei].index = (u8)bestidx;
     }
     flag_used[flag] = -1;
-    pal_manager_colors = list->n;
-    pal_call_manager(pal_manager_update, 2);
     goto out;
 fail:
-    pal_manager_colors = list->n;
-    pal_call_manager(pal_manager_update, 3);
     error_report(-6, 2, 3, (i32)list->n, (i32)i2k);
     flag = -11;
 out:
@@ -335,9 +316,6 @@ out:
 
 /* The palette manager's state. */
 Shadow *master_shadow = 0;                     /* the shadow pal_allocate uses, or 0 */
-i32 pal_manager_update = 0;                       /* the manager callback, or 0 (never set) */
-i16 pal_manager_active = 0;                        /* the code during a callback, else 0 */
-i16 pal_manager_colors = 0;                        /* colours in the last allocation request */
 i16 palette_high_search_limit;                     /* pal_allocate searches below this entry */
 i16 palette_low_search_limit;                      /* ... and from this one */
 i16 flag_used[32];                                 /* -1 for each allocation flag taken */
@@ -394,7 +372,6 @@ i16 magic_hash_color(const void *color)
 /* The colour-cycling switch. Popups clear it while they load a portrait or set the palette,
  * then restore it; nothing else uses it. */
 i16 cycling_active = 0;
-
 
 /* Waits for the next vertical retrace to begin: the next 70 Hz frame. */
 void mcga_retrace(void)

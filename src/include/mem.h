@@ -31,7 +31,6 @@ extern i32 mem_last_alloc_avail;
 extern char mem_last_alloc_failed;      /* the last allocation returned null */
 extern i16 mem_last_alloc_loader;       /* set by the loaders; not read */
 extern i32 mem_last_alloc_size;         /* shown by the error report; never set */
-extern i16 mem_manager_active;          /* -1 while mem_manager_update runs */
 extern void (*mem_manager_update)(void); /* run after each allocation and release */
 char *mem_normalize(char *p);
 

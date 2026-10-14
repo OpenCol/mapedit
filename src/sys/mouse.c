@@ -136,7 +136,6 @@ void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h)
 
 /* The cursor's public state. */
 i16 mouse_driver;               /* -1: a mouse is there */
-i16 MOUSE_FORCE_BUTTON;         /* buttons pressed through the keypad (keys.c) */
 i16 MOUSE_KNOWN_MODE;           /* -1: mode 13h, the library draws the cursor; 0: no cursor */
 DosPort MOUSE_CURSOR_BUFFER;    /* the cursor image as a 16 x 16 work buffer */
 i8 MOUSE_SHOWING = -1;          /* 0 shown; -1, -2 ...: hidden that often; 80h: thawing */
@@ -347,7 +346,6 @@ i16 mouse_init(i16 on, i16 mode)
     frozen = 0;
     MOUSE_X_TEMP = 160;
     MOUSE_Y_TEMP = 100;
-    MOUSE_FORCE_BUTTON = 0;
     moved = 0;
     if (mode == 0x13)
         MOUSE_KNOWN_MODE = -1;
@@ -392,7 +390,7 @@ i16 mouse_get_status(i16 *x, i16 *y)
         host_mouse(NULL, NULL, &b);     /* also runs the event loop: the handler may move it */
     *x = MOUSE_X_TEMP;
     *y = MOUSE_Y_TEMP;
-    return (i16)(b | MOUSE_FORCE_BUTTON);
+    return (i16)b;
 }
 
 /* mouse_set_work_buffer -- the work buffer the view port shows, and its width. */
@@ -481,9 +479,3 @@ void mouse_refresh_done(void)
         copy(saved_work, saved_under, saved_rows, saved_cols, 16, work_w);
 }
 
-/* mouse_keypad_move -- keys_tick's keypad step (keys.c) moves the cursor through the event
- * handler. */
-void mouse_keypad_move(i16 x, i16 y)
-{
-    event(x, y);
-}

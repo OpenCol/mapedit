@@ -67,7 +67,6 @@ extern i32 pack_write_size;
 /* a work buffer and a hook for pack_data; never set */
 extern void (*pack_special_buffer)(void);
 extern void (*pack_special_function)(void);
-void io_call_hook(void);
 u16 pack_read_memory(void *data, u16 *n);
 u16 pack_write_memory(void *data, u16 *n);
 

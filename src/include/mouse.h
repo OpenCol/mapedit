@@ -8,8 +8,8 @@
  *
  * The UI loops read the mouse once a round: mouse_begin_cycle takes the position and the
  * buttons and derives the stroke state below (a stroke runs from a button going down to all
- * buttons coming up), and mouse_end_cycle closes the round. mouse_keypad_move is how
- * keys_tick (keys.h) moves the cursor for the keypad. The double-click entry points do nothing in the port.
+ * buttons coming up), and mouse_end_cycle closes the round. The double-click entry points
+ * do nothing in the port.
  */
 #ifndef MAPEDIT_MOUSE_H
 #define MAPEDIT_MOUSE_H
@@ -22,7 +22,6 @@ void mouse_freeze(void);
 i16 mouse_get_status(i16 *x, i16 *y);
 void mouse_hide(void);
 i16 mouse_init(i16 on, i16 mode);
-void mouse_keypad_move(i16 x, i16 y);
 void mouse_refresh_done(void);
 i16 mouse_refresh_view_port(void);
 void mouse_set_view_port(i16 x, i16 y);
@@ -37,7 +36,6 @@ void mouse_video_init(void);
 void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);
 
 extern DosPort MOUSE_CURSOR_BUFFER;  /* the cursor image as a 16 x 16 port */
-extern i16 MOUSE_FORCE_BUTTON;       /* buttons the keypad holds down */
 extern i16 MOUSE_KNOWN_MODE;         /* -1: mode 13h, the library draws the cursor */
 extern i8 MOUSE_SHOWING;             /* 0 shown; -1, -2 ...: hidden that often */
 extern i16 MOUSE_VIDEO_MODE;         /* the mode mouse_init was given */

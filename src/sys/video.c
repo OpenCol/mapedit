@@ -59,13 +59,3 @@ void video_update(DosPort *port, i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h)
 
 i16 video_mode;                           /* the mode last passed to video_init */
 
-/* MCGA_SHAKE -- one step of a screen shake: counts MCGA_SHAKES down to 0. The original also
- * moved the CRTC's start address; the editor never starts a shake, so the port only counts.
- */
-void MCGA_SHAKE(void)
-{
-    if (MCGA_SHAKES)
-        MCGA_SHAKES--;
-}
-
-i16 MCGA_SHAKES = 0;                             /* steps of screen shake left */

@@ -92,6 +92,9 @@ def declared_names(stmt):
         return [], False
     s = re.sub(r'^(extern|static) ', '', s)
     head = s.split('(')[0] if '(' in s else s
+    fp = re.match(r'^[^(]*\(\s*\*\s*(\w+)\s*\)\s*\(', s)
+    if fp and s[s.index('(') + 1:].lstrip().startswith('*'):   # a function pointer: T (*NAME)(...)
+        return [fp.group(1)], False
     if '(' in s and '=' not in head:
         m = re.search(r'(\w+)\s*$', head)
         if m and not head.rstrip().endswith('*') or (m and re.search(r'\w\s*$', head)):

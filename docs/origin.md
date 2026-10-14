@@ -64,9 +64,7 @@ their subsystem's file (they lived in `port/lib/` until the layering: docs/archi
 | `madsdev/sprite_h` | `sprite_color_translate` |
 | `madsdev/pal_1` | `pal_get_hash` |
 | `madsdev/echo_1` | `echo` |
-| `madsdev/mcga_d` | `MCGA_SHAKE` |
 | `madsdev/sort_3` | `sort_insertion_8` |
-| `madsdev/pack_6` | `io_call_hook` |
 | `madsdev/magic_e` | `magic_hash_color` |
 | `madsdev/pack_1` | `pack_read_memory` |
 | `madsdev/pack_2` | `pack_write_memory` |

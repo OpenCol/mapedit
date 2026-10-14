@@ -36,7 +36,7 @@ a record read through bytes -- compiled silently.
 | `sort.c`, `strings.c`, `text.c` | sorting; the string store; the text files (MAPEDIT.TXT, NAMES.TXT) |
 | `sound.c` | the three sound calls the editor makes (it plays nothing) |
 | `timer.c` | the 600 Hz and 60 Hz clocks; `timer_idle`, where the UI loops rest |
-| `video.c` | mode 13h, the screen shake |
+| `video.c` | mode 13h: the screen and its address |
 
 ## core
 

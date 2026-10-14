@@ -40,10 +40,6 @@
 
 /* errno comes from <stdlib.h>. */
 
-/* Two hooks error_shutdown_report calls before it exits, the second one first. The editor sets
- * neither. */
-void (*error_service_routine)(void) = 0;
-void (*error_service_routine_2)(void) = 0;
 volatile i16 error_abort = 1;                   /* error_report reports at this level and up */
 char error_string[80] = "";                     /* an extra line the error report shows */
 /* error_read_line -- copies line n (counting from 1) of the text file name into dest, cut at
@@ -152,7 +148,6 @@ void error_shutdown_report(char *errtext, char *modtext, char *numtext, char *ex
         sound_system_shutdown();
     }
     timer_remove();
-    keys_remove();
     mouse_init(0, 3);
     screen_dominant_mode(3);
     host_quit();                        /* Port: 1994 switched to text mode */
@@ -175,10 +170,6 @@ void error_shutdown_report(char *errtext, char *modtext, char *numtext, char *ex
         error_dump_file("*warn0.dat");
     } else
         error_dump_file("*warn6.dat");
-    if (error_service_routine_2)
-        (*error_service_routine_2)();
-    if (error_service_routine)
-        (*error_service_routine)();
     exit(3);
 }
 

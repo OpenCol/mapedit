@@ -172,12 +172,6 @@ FFIO pack_read_routine;                   /* the installed reader */
 FFIO pack_write_routine;                  /* the installed writer */
 i32 pack_write_count;                    /* bytes the writer has written */
 
-/* A caller-supplied work buffer for pack_data and a function it calls when it is done with it;
- * when the buffer is null pack_data allocates its own. The buffer is a data block despite its
- * function-pointer type. Nothing sets them. */
-void (*pack_special_buffer)(void) = 0;
-void (*pack_special_function)(void) = 0;
-
 /* pack_data -- packs, unpacks or copies `bytes` bytes from src to dst.
  *   method     0 compress, 1 expand, anything else copy unchanged;
  *   from_file  0: src is memory; otherwise src is a MSC_FILE * to read from;
@@ -268,15 +262,11 @@ i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
         }
         break;
     }
-    pack_buffer = 0;
-    if (pack_special_buffer == 0) {
-        pack_buffer = mem_get_name((i32)pack_buffer_size, "$pack$");
-        if (pack_buffer == 0) {
-            *count = 0;
-            goto out;
-        }
-    } else
-        pack_buffer = (void *)pack_special_buffer;
+    pack_buffer = mem_get_name((i32)pack_buffer_size, "$pack$");
+    if (pack_buffer == 0) {
+        *count = 0;
+        goto out;
+    }
     if (method == 1 && to_file == 0) {
         r = pack_a_packet(method, kind);
         if (r != 0) {
@@ -293,19 +283,9 @@ i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
         }
     }
 out:
-    if (pack_special_buffer == 0) {
-        if (pack_buffer != 0)
-            mem_free(pack_buffer);
-    } else
-        io_call_hook();
+    if (pack_buffer != 0)
+        mem_free(pack_buffer);
     return *count;
-}
-
-/* io_call_hook -- calls pack_special_function, if one is set. */
-void io_call_hook(void)
-{
-    if (pack_special_function)
-        pack_special_function();
 }
 
 /* pack_read_memory -- the reader over memory: copies *n bytes from pack_read_memory_ptr into

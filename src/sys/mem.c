@@ -1,8 +1,7 @@
 /* mem.c -- memory: named blocks, the arenas carved from them, the free-memory figures.
  *
  * mem_get_name hands out blocks of a given size, each with a tag of up to 8 characters
- * ("$sys$", "$pack$", ...); mem_free returns them. After every allocation and release it calls
- * an optional hook, mem_manager_update, which nothing sets. In 1994 these blocks came from
+ * ("$sys$", "$pack$", ...); mem_free returns them. In 1994 these blocks came from
  * DOS's memory-control-block chain or from upper memory, and the tag lived in the block's DOS
  * header. The port has one flat heap: a block is a calloc'd Block header (the tag and the
  * size) followed by the caller's bytes.
@@ -42,8 +41,6 @@ char mem_last_alloc_failed = 0;         /* the last mem_get_name returned null *
 i16 mem_last_alloc_loader = 11;         /* a module number; the loaders set it, nothing reads it */
 i32 mem_last_alloc_size = 0;           /* shown by the error report; never set, so 0 */
 i32 mem_last_alloc_avail = 0;          /* shown by the error report; never set, so 0 */
-void (*mem_manager_update)(void) = 0;   /* called after each allocation and release */
-i16 mem_manager_active = 0;             /* -1 while the hook runs */
 /* mem_get -- a block of size bytes tagged "$sys$"; null when there is no memory. */
 void *mem_get(i32 size)
 {
@@ -75,7 +72,7 @@ i16 heap_create(i16 kind, Arena *a, i32 size, char *tag)
     if (a->base == 0)
         error_report(-60, 2, kind, size, mem_get_avail());
     else {
-        a->owned = 1;
+    
         a->next = a->base;
         a->size = a->left = size;
         err = 0;
@@ -85,7 +82,6 @@ i16 heap_create(i16 kind, Arena *a, i32 size, char *tag)
 /* heap_declare -- makes a an arena over an existing block, which the arena does not own. */
 void heap_declare(i16 kind, Arena *a, char *base, i32 size)
 {
-    a->owned = 0;
     a->kind = kind;
     a->base = a->next = base;
     a->size = a->left = size;
@@ -122,16 +118,6 @@ typedef struct Block {
     char pad[16 - sizeof(size_t) % 16];
 } Block;
 
-/* call_hook -- calls mem_manager_update, if set, with mem_manager_active raised. */
-static void call_hook(void)
-{
-    if (mem_manager_update) {
-        mem_manager_active = -1;
-        mem_manager_update();
-        mem_manager_active = 0;
-    }
-}
-
 /* block_of -- the header of the block whose bytes start at p. */
 static Block *block_of(void *p)
 {
@@ -162,7 +148,6 @@ void *mem_get_name(i32 size, char *tag)
         return NULL;
     b->size = (size_t)size;
     mem_set_block_name(b + 1, tag);
-    call_hook();
     return b + 1;
 }
 
@@ -172,7 +157,6 @@ i16 mem_free(void *p)
     if (!p)
         return -1;
     free(block_of(p));
-    call_hook();
     return 0;
 }
 

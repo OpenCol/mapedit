@@ -20,7 +20,6 @@ typedef struct {
 /* a heap arena (heap_1.c): a block carved up front to back */
 typedef struct {
     char kind;
-    char owned;
     char *base;
     char *next;
     i32 size;
