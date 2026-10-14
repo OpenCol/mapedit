@@ -1,4 +1,16 @@
-/* keys.c -- the keyboard: the BIOS queue and the keypad as a mouse. */
+/* keys.c -- the keyboard: the BIOS queue and the keypad as a mouse.
+ *
+ * keys_any and keys_get read the keyboard queue, which in 1994 was the BIOS's (INT 16h). A key
+ * comes back as one number: its ASCII code, or 100h + its scan code for a key without one
+ * (arrows, function keys, Alt+letter). keys_fix_alt turns Alt+letter into the letter.
+ *
+ * KEYS_INSTALL hooks the keyboard (INT 9 in 1994, host_set_key_hook here) to make the numeric
+ * keypad a mouse. While the hook is enabled, keypad keys (not the grey ones) never reach the
+ * queue; they set bits in `held`, and every clock tick (keys_tick, 1994's INT 1Ch handler)
+ * moves the cursor by them: 4 pixels, 8 with a shift key, 1 with scroll lock on. The editor
+ * never calls KEYS_INSTALL, so in practice keys_tick only steps the screen shake (which the
+ * editor never starts either).
+ */
 #include "msc.h"
 #include "host.h"
 #include "font.h"
@@ -12,50 +24,18 @@
 #include "records.h"
 #include "timer.h"
 #include "units.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records on 2-byte boundaries, as the 1994 compiler laid them out */
 #include "video.h"
 
-/* MODULE keys_1: MAPEDIT.EXE segment 0baf (KEYS_1.C), file 0xd0f4-0xd12e, 3 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn keys_any     0x0d0f4
- * fn keys_get     0x0d108
- * fn keys_flush   0x0d11e
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0ae7).
- *
- * THE KEYBOARD (root code, frame 0ae7), through BIOS int 16h.
- *   - keys_any() is non-zero when a key is waiting (function 1, ZF clear).
- *   - keys_get() waits for a key (function 0) and returns its ASCII code, or for an extended
- *     key (ASCII 0) the scan code plus 0x100.
- *   - keys_flush() reads keys until none is waiting.
- * The first two are inline assembly that falls into C labels for the second return.
- */
-
-/* keys_any -- 0baf:0004, 20 bytes */
-/* PORT: keys_any is in port/ (inline assembly) */
-
-/* keys_get -- 0baf:0018, 22 bytes */
-/* PORT: keys_get is in port/ (inline assembly) */
-
-/* keys_flush -- 0baf:002e, 16 bytes */
+/* keys_flush -- discards every key waiting in the queue. */
 void keys_flush(void)
 {
     while (keys_any())
         keys_get();
 }
 
-/* MODULE keys_3: MAPEDIT.EXE segment 0bb2 (keys_3.c), file 0xd12e-0xd240, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn keys_fix_alt 0x0d12e
- *
- * Twin: `root_0aea` alt_letter (same bytes; "elg").
- *
- * ALT+LETTER KEYS. keys_fix_alt(key) (_fastcall) maps an Alt+letter key code (0x100 + the
- * scan code) to its upper-case letter, and any other key to itself with a-z upper-cased.
- */
-/* keys_fix_alt -- 0bb2:000e, 274 bytes */
+/* keys_fix_alt -- maps an Alt+letter key (100h + its scan code) to the upper-case letter, and
+ * any other key to itself with a-z upper-cased. */
 i16 keys_fix_alt(i16 key)
 {
     switch (key) {
@@ -118,28 +98,19 @@ i16 keys_fix_alt(i16 key)
     }
 }
 
-/* keys.c -- keys_4.ASM (the keyboard interrupt) and keys_1.c's two BIOS calls.
- *
- * keys_any / keys_get are INT 16h: is a key waiting, and take it -- folded the library's way,
- * the ASCII code, or 100h + the scan code for a key without one (arrows, function keys).
- *
- * KEYS_INSTALL takes INT 9 and INT 1Ch to make the numeric keypad a mouse: while the hook is
- * enabled, keypad keys (not the grey ones) never reach the BIOS queue; they set bits in a
- * held-keys byte (7/8/9/4/6/1/2/3 directions, 5 and 0 the left button, '.' the right, '-'
- * a special button), and every clock tick (INT 1Ch, here keys_tick from timer.c) moves the
- * cursor by them: 4 pixels, 8 with shift, 1 with scroll lock on.
- */
+i16 KEYS_SPECIAL_BUTTON;        /* 1 while the keypad's '-' (the special button) is held */
 
+static i8 installed, enabled;  /* -1 / 0 */
+/* The keypad keys held down: 01h up, 02h down, 04h left, 08h right, 10h the left button,
+ * 20h the right, 40h the special button; 80h means something changed since the last tick. */
+static u8 held;
 
-
-i16 KEYS_SPECIAL_BUTTON;
-
-static i8 installed, enabled;
-static u8 held;                 /* keys_4's cs:0016: direction and button bits, 80h = changed */
-
-/* scan codes 47h-53h -> bits (keys_4.ASM's table at cs:0018) */
+/* The bits of each keypad key, by scan code from 47h: 7 8 9 - 4 5 6 + 1 2 3 0 . (5 and 0 are
+ * the left button, '.' the right, '-' the special button, '+' nothing). */
 static const u8 keypad_bits[13] = { 0x05, 0x01, 0x09, 0x40, 0x04, 0x10, 0x08, 0x00, 0x06, 0x02, 0x0a, 0x10, 0x20 };
 
+/* hook -- the keyboard hook: while enabled, takes a keypad key (pressed or released) into
+ * `held` and swallows it (returns 1); any other key goes on to the queue (returns 0). */
 static int hook(int scan, int down, int keypad)
 {
     u8 bits;
@@ -153,7 +124,10 @@ static int hook(int scan, int down, int keypad)
     return 1;
 }
 
-/* the INT 1Ch handler -- keys_4.ASM 00a4 */
+/* keys_tick -- the clock tick's keyboard work (1994's INT 1Ch handler; timer.c calls it). When
+ * the cursor is the library's own and a keypad key is held or has changed, it sets the forced
+ * mouse buttons and moves the cursor, clamped to the 320x200 screen. Then it steps a screen
+ * shake, if one is under way. */
 void keys_tick(void)
 {
     if (MOUSE_KNOWN_MODE && held) {
@@ -182,6 +156,7 @@ void keys_tick(void)
         MCGA_SHAKE();
 }
 
+/* KEYS_INSTALL -- hooks the keyboard and enables the keypad mouse. */
 void KEYS_INSTALL(void)
 {
     held = 0;
@@ -190,6 +165,7 @@ void KEYS_INSTALL(void)
     installed = enabled = -1;
 }
 
+/* keys_remove -- unhooks the keyboard and releases any forced button. */
 void keys_remove(void)
 {
     if (installed)
@@ -198,18 +174,21 @@ void keys_remove(void)
     MOUSE_FORCE_BUTTON = 0;
 }
 
+/* Whether the hook is installed (-1 or 0); turning the keypad mouse on and off while it is.
+ * Disabling forgets the held keys but leaves MOUSE_FORCE_BUTTON as it was. */
 i16 KEYS_CHECK_INSTALLED(void) { return installed; }
 void KEYS_ENABLE(void) { enabled = -1; }
 void KEYS_DISABLE(void) { enabled = 0; held = 0; }
 
-/* keys_any -- 0baf:0004: INT 16h AH=01h */
+/* keys_any -- 1 when a key is waiting in the queue, else 0. Does not wait. */
 i16 keys_any(void)
 {
     timer_sync();
     return host_key_ready() ? 1 : 0;
 }
 
-/* keys_get -- 0baf:0018: INT 16h AH=00h (waits), folded: ASCII, or 100h + scan code */
+/* keys_get -- waits for a key and takes it from the queue: its ASCII code, or 100h + its scan
+ * code for a key without one. The clock keeps running while it waits. */
 i16 keys_get(void)
 {
     u16 k;

@@ -1,6 +1,11 @@
-/* theme.c -- the editor's colours and fonts, as the popups, menus and text use them. */
+/* theme.c -- the editor's colours and fonts, as the popups, menus and text use them.
+ *
+ * The colours are palette indices. They start at the defaults below; theme_load replaces nine
+ * of them from the COLORS section of NAMES.TXT and hands them to the popup library
+ * (popups_normal). The editor's main copies the same values into the menu bar and its menus.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "text.h"
 #include "assets.h"
 #include "error.h"
@@ -9,31 +14,32 @@
 #include "popup.h"
 #include "theme.h"
 
-u8 basic_color = 0x44;               /* DS:0x0092 */
+u8 basic_color = 0x44;               /* ordinary text (glyph pixels of value 1) */
 
-u8 hilite_color = 0x95;              /* DS:0x0093 */
+u8 hilite_color = 0x95;              /* hot keys and {highlighted} spans */
 
-u8 grey_color = 0x08;                /* DS:0x0094 */
+u8 grey_color = 0x08;                /* greyed (disabled) items */
 
-u8 enhance_color = 0x80;             /* DS:0x0095 */
+u8 enhance_color = 0x80;             /* glyph pixels of value 2 */
 
-u8 shadow_color = 0x2f;              /* DS:0x0096 */
+u8 shadow_color = 0x2f;              /* glyph pixels of value 3 */
 
-u8 select_color = 0x8a;              /* DS:0x0097 */
+u8 select_color = 0x8a;              /* the bar behind the selected item */
 
-u8 notice_color = 0x95;              /* DS:0x0098 */
+u8 notice_color = 0x95;              /* not in COLORS and not read by the editor */
 
-u8 border0 = 0x86;                   /* DS:0x0099 */
+u8 border0 = 0x86;                   /* the popup frame's outer box */
 
-u8 border1 = 0x80;                   /* DS:0x009a */
+u8 border1 = 0x80;                   /* its inner top and right lines */
 
-u8 border2 = 0x8a;                   /* DS:0x009b */
+u8 border2 = 0x8a;                   /* its inner left and bottom lines */
 
-DosFont *menu_font = 0;                     /* DS:0x0080 */
+DosFont *menu_font = 0;                     /* the small font (FONTTINY) of menus and panels */
 
-char label[50];                           /* DS:0x523a: 50 bytes, unused */
+char label[50];                           /* unused */
 
-/* The popup colours for the editor's screens, from the editor's colour bytes. */
+/* Sets the popup library's colours, border, backdrop tile (scr_back) and palette flag from
+ * the editor's colours above. */
 void popups_normal(void)
 {
     popup_enhance_color = enhance_color;
@@ -49,8 +55,10 @@ void popups_normal(void)
     popup_pal = 1;
 }
 
-/* theme_load -- the COLORS section of the text file load_data reads (NAMES.TXT, still open),
-   then the popups' colours from them. Split out of load_data, which read on into it. */
+/* Reads the COLORS section of the text file load_data has open (NAMES.TXT): one line of nine
+ * numbers, in the order basic, hilite, grey, enhance, shadow, select, border0, border1,
+ * border2. Without the section the defaults stay. Either way the popups then take the
+ * colours (popups_normal). */
 void theme_load(void)
 {
     if (text_open(0, "COLORS") == 0) {

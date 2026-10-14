@@ -1,4 +1,15 @@
-/* text.h -- the functions, data and records of misc.c, strings.c, text.c. */
+/* text.h -- the text files (MAPEDIT.TXT, NAMES.TXT) and the string store.
+ *
+ * Defined in sys/text.c and sys/strings.c (strings*). A text file is divided into sections,
+ * each opened by an "@NAME" line. One file is open at a time and read forward: text_open
+ * finds a section, text_get reads its next line into text_buffer and text_item_get takes the
+ * line's comma-separated items one by one, which text_item_number, text_item_binary and
+ * text_item_string read as a number, binary digits or a string for the string store.
+ * text_search reads one line of a section in one call.
+ *
+ * The string store keeps the names and labels read from the text files end to end in one
+ * arena; strings_store adds one and returns its number, and strings(n) finds it again.
+ */
 #ifndef MAPEDIT_TEXT_H
 #define MAPEDIT_TEXT_H
 
@@ -18,12 +29,12 @@ i16 text_open(char *name, char *key);
 i16 text_search(char *name, char *key, i16 n);
 i16 text_string(void);
 
-extern i16 num_strings;
-extern Arena strings_heap;
-extern char text_buffer[80];
-extern MSC_FILE *text_handle;
-extern char text_item[80];
-extern char *text_pointer;
+extern i16 num_strings;         /* strings in the store */
+extern Arena strings_heap;      /* the store: the strings, end to end */
+extern char text_buffer[80];    /* the line read last */
+extern MSC_FILE *text_handle;   /* the open text file, or null */
+extern char text_item[80];      /* the item read last */
+extern char *text_pointer;      /* where the next item starts, in text_buffer */
 char *strings(i16 n);
 
 #endif

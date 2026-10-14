@@ -1,4 +1,12 @@
-/* tile.c -- tiles: allocating them and drawing them, plain, masked and scaled. */
+/* tile.c -- 16 x 16 terrain tiles: allocating a sheet and drawing tiles, plain, masked and
+ * scaled.
+ *
+ * A tile sheet is n tiles of 256 bytes, each 16 rows of 16 palette indices; tile t starts at
+ * t << 8. The drawers take a terrain number, which tile_id turns into a sheet slot, and draw
+ * into a DosPort without clipping. The _mask variants treat a destination pixel that is not 0
+ * as already covered and leave it; the _scale variants draw the tile shrunk by a power of two,
+ * for the map's zoomed-out views.
+ */
 #include "msc.h"
 #include "buffer.h"
 #include "font.h"
@@ -11,36 +19,9 @@
 #include "port_records.h"
 #include "records.h"
 #include "units.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as in 1994; file formats rely on it */
 
-/* MODULE tile: MAPEDIT.EXE segment 030b (tile.obj), file 0x46b6-0x494a, 6 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn tile_allocate        0x046b6
- * fn tile_id              0x046ce
- * fn tile_draw            0x046f8
- * fn tile_draw_mask       0x0475c
- * fn tile_draw_scale      0x047ce
- * fn tile_draw_scale_mask 0x04884
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0101).
- *
- * 16x16 TILES (root code, frame 0101). A tile sheet is n 256-byte tiles.
- *   - tile_allocate(n) allocates one (mem_get).
- *   - tile_id(t) maps terrain numbers to sheet slots: 0x11 and 9 share slot 8, and
- *     anything from 8 up moves down by 15.
- *   - tile_draw(tiles, t, port, x, y) copies tile t into the port at (x, y);
- *     tile_draw_mask does the same but only into zero (transparent) destination pixels.
- *     Both copy in inline assembly.
- * The blitters' local names (dst, skip5, w6, src6) are chosen for the slot buckets.
- *   - tile_draw_scale / 0286(tiles, t, port, x, y, shift) draw the tile shrunk by 1 << shift,
- *     centred on x and bottom-aligned on y; 0286 is the transparent one. Their locals are
- *     also named for the slot buckets.
- */
-
-
-
-/* tile_allocate -- 030b:0006, 24 bytes */
+/* tile_allocate -- allocate a sheet of n tiles (n * 256 bytes); 0 when memory runs out */
 char *tile_allocate(i16 n)
 {
     char *p;
@@ -48,7 +29,10 @@ char *tile_allocate(i16 n)
 
     return mem_get((i32)n << 8);
 }
-/* tile_id -- 030b:001e, 42 bytes */
+/* tile_id -- the sheet slot of terrain number t: 9 and 0x11 share slot 8, numbers below 8 are
+ * their own slot, and the rest move down by 15. Nothing guards the numbers that would map
+ * below 0 (8, 10-14).
+ */
 i16 tile_id(i16 t)
 {
     if (t == 0x11 || t == 9)
@@ -57,25 +41,7 @@ i16 tile_id(i16 t)
         t -= 0x0f;
     return t;
 }
-/* tile_draw -- 030b:0048, 100 bytes */
-/* PORT: tile_draw is in port/ (inline assembly) */
-
-/* tile_draw_mask -- 030b:00ac, 114 bytes */
-/* PORT: tile_draw_mask is in port/ (inline assembly) */
-
-/* tile_draw_scale -- 030b:011e, 182 bytes */
-/* PORT: tile_draw_scale is in port/ (inline assembly) */
-
-/* tile_draw_scale_mask -- 030b:01d4, 198 bytes */
-/* PORT: tile_draw_scale_mask is in port/ (inline assembly) */
-
-/* tile.c -- the 16 x 16 terrain tile drawers of tile.obj, whose loops are inline assembly in
- * the original. A tile sheet is n tiles of 256 bytes; tile t starts at t << 8. A destination
- * pixel that is not 0 is "under" something already drawn: the _mask variants leave it.
- */
-
-
-/* tile_draw -- 030b:0048: copy tile t to (x, y), all 256 pixels */
+/* tile_draw -- draw the tile for terrain t with its top left corner at (x, y), all 256 pixels */
 void tile_draw(char *tiles, i16 t, DosPort *port, i16 x, i16 y)
 {
     char *d = buffer_pointer(port, x, y);
@@ -88,7 +54,7 @@ void tile_draw(char *tiles, i16 t, DosPort *port, i16 x, i16 y)
             d[c] = *s++;
 }
 
-/* tile_draw_mask -- 030b:00ac: the same, writing only where the destination pixel is 0 */
+/* tile_draw_mask -- tile_draw, writing only where the destination pixel is 0 */
 void tile_draw_mask(char *tiles, i16 t, DosPort *port, i16 x, i16 y)
 {
     char *d = buffer_pointer(port, x, y);
@@ -102,9 +68,10 @@ void tile_draw_mask(char *tiles, i16 t, DosPort *port, i16 x, i16 y)
                 d[c] = *s;
 }
 
-/* tile_draw_scale -- 030b:011e: the tile shrunk by 1 << shift (one pixel of each
-   step x step block, the one at its centre: +step/2 across and down), drawn centred on x
-   and bottom-aligned on y */
+/* tile_draw_scale -- draw the tile for terrain t shrunk by 1 << shift: (16 >> shift) pixels
+ * square, each taken from the centre of its step x step block of the tile (step/2 across and
+ * down). The result is centred on x, and its bottom row is on y.
+ */
 void tile_draw_scale(char *tiles, i16 t, DosPort *port, i16 x, i16 y, i16 shift)
 {
     i16 n = (i16)(16 >> shift), step = (i16)(1 << shift), half = (i16)(step >> 1), r, c;
@@ -123,10 +90,13 @@ void tile_draw_scale(char *tiles, i16 t, DosPort *port, i16 x, i16 y, i16 shift)
     }
 }
 
-/* tile_draw_scale_mask -- 030b:01d4: tile_draw_scale writing only over pixels that are 0.
-   Where a destination pixel is not 0 the original skips one more source byte and does NOT
-   move on in the destination (INC SI; ADD SI,step -- no INC DI), so the next pixel of the
-   row lands on the same byte. That is the shipped editor's behaviour, and the port's. */
+/* tile_draw_scale_mask -- tile_draw_scale, writing only over pixels that are 0.
+ * Quirk of the original, kept: at a destination pixel that is not 0 it advances the source by
+ * one byte more than a step and does not advance the destination, so the next source pixel is
+ * tested against the same, still covered, byte. The first covered pixel therefore ends the
+ * row's drawing, and because the row skip is fixed at port->w - n, the next row starts as many
+ * pixels left of its column as the row had pixels left to draw.
+ */
 void tile_draw_scale_mask(char *tiles, i16 t, DosPort *port, i16 x, i16 y, i16 shift)
 {
     i16 n = (i16)(16 >> shift), step = (i16)(1 << shift), half = (i16)(step >> 1), r, c;

@@ -1,4 +1,10 @@
-/* sort.c -- sorting. */
+/* sort.c -- sorting.
+ *
+ * Two small sorts, both used by the palette code (ui/palette.c): sort_insertion orders 32-bit
+ * keys and sort_insertion_8 byte keys, each carrying a payload array along. Both repeat the
+ * original's steps exactly, since those decide where equal keys end up and the port must put
+ * them in the same places.
+ */
 #include <string.h>
 
 #include "msc.h"
@@ -11,25 +17,15 @@
 #include "records.h"
 #include "sort.h"
 #include "units.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records on 2-byte boundaries, as in 1994: the file formats depend on it */
 
-/* MODULE sort_1: MAPEDIT.EXE segment 12c7 (SORT_1.C), file 0x1427e-0x14408, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn sort_insertion 0x1427e
- *
- * No VICEROY twin (VICEROY's sort_16x16, root_0cf8, is hand-written asm): reconstructed
- * from the shipped bytes.
- *
- * sort_insertion(n, vals, keys) (_fastcall; n in ax, the two far arrays on the stack) sorts
- * n long keys ascending and carries an int payload along. Each pass scans for the first key
- * that is bigger than its successor, lifts that pair out (two _fmemmoves close the gap),
- * finds the first key bigger than it, opens a gap there (two more _fmemmoves) and drops it
- * in; a pass that moved something is followed by another. The scan keeps byte offsets into
- * both arrays by hand (koffj, voff, bytesj) rather than indexing.
- */
-
-/* sort_insertion -- 12c7:000e, 394 bytes */
+/* Sorts the n keys ascending, moving vals[i] wherever keys[i] goes. Each pass looks for the
+ * first key bigger than the one after it, takes it out (closing the gap) and puts it back
+ * just AFTER the first remaining key that is bigger than it -- one place later than an
+ * insertion sort would -- or at the end when there is none; then it starts again from the
+ * beginning. It stops when a pass finds the keys in order.
+ * The pass walks byte offsets: koffj into keys and voff into vals at the key looked at (i8),
+ * and bytesj counts the bytes of vals after it. */
 void sort_insertion(i16 n, i16 *vals, i32 *keys)
 {
     i16 koffj;
@@ -88,10 +84,9 @@ restart:
         goto restart;
 }
 
-/* sort_insertion_8 -- 12e0:0008: sort n byte keys ascending, carrying a payload byte each.
-   Exactly the original's steps, which decide the order of equal keys: find the first i whose
-   key[i+1] < key[i] (unsigned); lift key[i+1] and its payload out, closing the gap; put them
-   back before the first key not below it; scan again from that i. */
+/* Sorts the n byte keys ascending (unsigned), moving payload[i] wherever key[i] goes. It finds
+ * the first i whose key[i+1] is below key[i], takes key[i+1] and its payload out (closing the
+ * gap), puts them back before the first key not below it, and scans again from that i. */
 void sort_insertion_8(i16 n, char *payload, u8 *key)
 {
     i16 i = 0;
@@ -119,19 +114,3 @@ void sort_insertion_8(i16 n, char *payload, u8 *key)
         key[k] = al;
     }
 }
-
-/* MODULE sort_3: MAPEDIT.EXE segment 12e0 (sort_3.c), file 0x14408-0x144c8, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn sort_insertion_8 0x14408
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0d05).
- *
- * SORTING BYTE KEYS WITH A BYTE PAYLOAD (root code, frame 0d05). sort_insertion_8(n, idx, keys)
- * (_fastcall: n in ax, the far arrays on the stack, popped by the callee) is sort_16x16
- * (root_0cf8.c) for byte keys: the same hand-written insertion sort, byte for byte except
- * the element size. `pad` only gives the frame its 16 bytes.
- */
-
-/* sort_insertion_8 -- 12e0:0008, 192 bytes */
-/* PORT: sort_insertion_8 is in port/ (inline assembly) */

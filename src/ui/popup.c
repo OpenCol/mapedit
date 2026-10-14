@@ -1,6 +1,73 @@
-/* popup.c -- popups: boxes of text, choices, check boxes, entry fields and sprites, laid out, drawn and run; the text file's boxes (popup_box). */
+/* popup.c -- popups: boxes of text, choices, check boxes, entry fields and sprites.
+ *
+ * A popup (DosPopup) is one memory block: the record, then an arena its parts are allocated
+ * from (popup_create), so freeing the block frees everything. The parts are four linked lists,
+ * each kept in the order added:
+ *   lines    text, word-wrapped to the popup's text width (popup_add_string);
+ *   items    choices or check boxes, one per row (popup_add_item, popup_add_check);
+ *   edits    entry fields (popup_add_entry);
+ *   sprites  icons in a column at the left, each with an optional label (popup_add_sprite).
+ * The box stacks the text, the items and the entry fields, with the sprite column beside them.
+ * A popup has items or entry fields, not both: popup_layout drops the fields if it has both.
+ *
+ * popup_layout sizes and places the box, popup_draw draws it into scr_work and copies it to the
+ * screen, and popup_exec runs it: it saves what the box covers, polls the mouse and the keyboard
+ * until a choice is made, restores the screen and returns the chosen key. popup_box does the
+ * whole job for one section of a text file: popup_start_box reads the section and builds the
+ * popup, popup_exec runs it, and the block is freed. popup_ask does the same with an entry field
+ * and leaves the text typed in popup_text_buffer. pop, popi and the other short wrappers use the
+ * game's text file (game_text_name); the editor itself calls popup_box and popup_ask with
+ * MAPEDIT.TXT.
+ *
+ * A section of the text file starts at its @KEY line: text lines, an empty line, the options
+ * (one item per line, numbered from 1; for popup_ask, the entry field's label), and an empty
+ * line or any unknown @ line to end it. Directives may appear anywhere in it, in any case:
+ *   @TEXT, @OPTIONS, @PROMPT  switch to text or to options;
+ *   @SMALLFONT                draw in menu_font;
+ *   @X, @Y, @WIDTH            the position and the text width, from the first number on the
+ *                             line ("@width=190"); @X and @Y match any line starting so;
+ *   @LENGTH                   the entry field's length, unless the caller gave one;
+ *   @CHECKBOX                 the items are check boxes;
+ *   @DEFAULT                  for popup_ask, "=text", the field's text unless the caller gave
+ *                             one; otherwise the number of the item preselected when the caller
+ *                             passed 0.
+ *
+ * Markup in text lines and items:
+ *   ^ at the start       the line stands on its own instead of joining the paragraph;
+ *   ^^ at the start      the same, centred;
+ *   ~c                   c is drawn in the other colour and is the item's hotkey; "~F~n" makes
+ *                        function key Fn the hotkey;
+ *   { ... }              drawn in the alternate colour (popup_font_hilite_color);
+ *   |                    in an item, the rest is right-aligned;
+ *   an empty item        a separator line, never selectable;
+ *   %STRINGn, %NUMBERn, %HEXn, %COUNTRY, %YEAR, %%   substitutions (popup_parse_string).
+ * Keys are keys_get's codes: ASCII, or 100h plus the scan code for an extended key (13Bh F1,
+ * 148h Up, 150h Down, 153h Delete).
+ *
+ * A popup's flags:
+ *   01h  a click outside the box closes it with nothing chosen (set for check boxes);
+ *   02h  a unit picker: each sprite's idx is a unit, drawn with piece_draw at 16x16;
+ *   04h  the items are check boxes; their states go in and out through popup_checkbox;
+ *   08h  popup_exec does not save and restore what the box covers;
+ *   10h  no frame and no margins; while it runs (orig_flag) the background comes from scr_orig;
+ *   20h  draw only: popup_exec draws it and returns;
+ *   40h  set by popup_layout: the portrait does not fit on the screen and is not drawn;
+ *   80h  keyboard mode: the active sprite gets a white box (set by a key, and from the start
+ *        when there is no mouse driver).
+ * popup_flags, popup_x and popup_y preset the flags and the position of the next popup created.
+ *
+ * Portraits ("dudes"): popup_indian, popup_messenger or popup_foreign, set before a popup runs,
+ * give it a portrait beside or above the box: the King (popup_indian above 7; a second sheet
+ * animates it), a tribe's chief, a messenger or a foreign nation's envoy. popup_exec loads the
+ * sheets, frees them and resets the three to -1. The portraits, %COUNTRY and the unit picker
+ * come from the game, which shares this module; in the editor nothing sets them, and the game
+ * functions they call are the empty stand-ins in game.c.
+ *
+ * Port: the records hold 64-bit pointers, so each part is allocated at its own sizeof and the
+ * arena is twice the size the caller asks for (no record is more than twice its 1994 size).
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "game.h"
 #include "menu.h"
 #include "theme.h"
@@ -23,253 +90,55 @@
 #include "units.h"
 #include "w16types.h"
 #include "sprite.h"
-/* MODULE popup: MAPEDIT.EXE segment 033d (popup.obj), file 0x49de-0x8378, 64 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn popup_set_dude_name     0x049de
- * fn popup_dude_tribe        0x04a20
- * fn popup_dude_ms           0x04aa0
- * fn popup_dude_myr          0x04aca
- * fn popup_load_dude         0x04af4
- * fn popup_fill              0x04d1a
- * fn popup_say_string        0x04dae
- * fn popup_say               0x04dca
- * fn popup_country           0x04de2
- * fn popup_num               0x04e0a
- * fn popup_set_font          0x04e24
- * fn style_text_width        0x04e64
- * fn style_color             0x04ed4
- * fn style_draw_text         0x04f16
- * fn hotkey_of               0x05020
- * fn popup_create            0x050ae
- * fn Popup_find_item         0x05278
- * fn popup_grey              0x052d8
- * fn popup_hilite            0x05308
- * fn popup_release_all_grey  0x05338
- * fn popup_read_check        0x05368
- * fn popup_write_check       0x05398
- * fn popup_set_active_item   0x053c0
- * fn popup_add_item          0x053de
- * fn popup_add_check         0x055c6
- * fn popup_set_width         0x05600
- * fn popup_add_string        0x05610
- * fn popup_add_entry         0x05722
- * fn font_height             0x058f4
- * fn popup_add_sprite        0x0591a
- * fn popup_add_cursor        0x05b08
- * fn popup_draw_line         0x05b4a
- * fn popup_wrap_lines        0x05b76
- * fn popup_layout            0x05ea4
- * fn popup_show              0x0641a
- * fn popup_help_draw         0x06456
- * fn popup_big_sprite        0x064c6
- * fn popup_draw_items        0x0655a
- * fn popup_draw_edits        0x067f2
- * fn popup_draw_sprites      0x069fc
- * fn popup_box_draw          0x06c56
- * fn popup_draw              0x06e6c
- * fn popup_set_active_sprite 0x06f3c
- * fn popup_exec              0x06f5e
- * fn popup_init              0x07a62
- * fn popup_parse_string      0x07a7a
- * fn popup_start_box         0x07c82
- * fn popup_box               0x080a8
- * fn pop_clear               0x080da
- * fn pop_set                 0x080e2
- * fn pop_get                 0x0810c
- * fn pop                     0x08122
- * fn pop2                    0x08130
- * fn popi                    0x0813e
- * fn pop2i                   0x08156
- * fn popk                    0x08168
- * fn popm                    0x08180
- * fn pop2m                   0x08198
- * fn popf                    0x081aa
- * fn pop2f                   0x081c2
- * fn popup_off               0x081d4
- * fn popup_ask               0x081da
- * fn popup_ask_number        0x08226
- * fn popup_read_colors       0x08268
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl23_6be50). The two functions the draft dropped are VICEROY's code under the
- * editor's names: popup_num (set_text_arg_l: popup_subst_number[slot] = v) and
- * popup_parse_string (expand_text_template, the %STRING/%NUMBER/%HEX/%COUNTRY/%YEAR/%%
- * expander). Their four symbols restored the mod-17 counts of the eight functions that
- * DIFFERed after them (popup_layout .. popup_start_box), so the VICEROY pads hold here too.
- * Globals and callees carry their CodeView names (the DS: comments are the editor's
- * addresses): popup_subst_string/number, popup_indian/foreign/messenger, popup_help(_me),
- * popup_checkbox, popup_start_string/max_len, popup_text_buffer, the popup_*_color words,
- * king_frame/clock/active, scr_work/scr_orig, mouse_* and keys_*, buffer_draw_box/hline/vline,
- * buffer_preserve/restore, error_report, load_main_sprites, menu_font, game and unit.
- * popup_help_draw's g_popup_cancel_button is popup_help; the "~ hotkey colour" is hilite_color.
- *
- * THE 1994 POPUP MODULE: the DOS counterpart of the Windows Popup class (1050:0000-6600) and
- * its text-dialog helpers (1050:5c00-658f), rebuilt as a C struct (DosPopup) drawn straight
- * onto the 320x200 screen port. The 20
- * `jmp far` stubs at 0x6f7ea are the `push cs; call near` targets for same-file far calls.
- *
- * WHAT THE DOS BUILD DOES DIFFERENTLY (findings):
- *   - Portraits ("dudes"): KING / IND<tribe><mood> (mood = piss_factor(pissed(tribe,
- *     player))) / MSS<n> / MYR<n> sprite sheets are loaded per popup (popup_load_dude), with a
- *     second animated sheet for the King that popup_exec steps every 10 ticks.
- *   - popup_start_box parses the .TXT section itself: @OPTIONS/@PROMPT, @TEXT, @SMALLFONT,
- *     @Y, @X, @WIDTH, @LENGTH, @CHECKBOX, @DEFAULT (=text for edit prompts, a number for the
- *     preselected item when the caller passed 0), any other @-line ends the dialog.
- *   - Hotkeys: the character after '~' (upper-cased); "~F~n" is function key F<n> (0x10a+'n').
- *     '{' '}' switch the alternate colour, '|' right-aligns the rest of an item.
- *   - Check boxes: pop_set/pop_get take a 1-based item number (Windows 0-based);
- *     popup_exec loads item values from popup_checkbox on entry and stores them back on exit.
- *   - popup_exec: Escape returns -1; F1 sets popup_help_me when the popup has the help
- *     button; in autoplay (automate) a popup closes itself after 120 ticks; clicking outside
- *     the items keeps the popup open; a sprite list (unit picker) clears the unit's orders
- *     instead of closing when the picked unit has orders.
- *   - popup_read_colors reads the seven popup colours from the TEXTCOLR sheet by drawing each
- *     icon into a one-pixel port.
- *
- * PLUMBING: medium model C; near _fastcall helpers inside the module (ret n); heap_get
- * (181f:002c) allocates out of the popup's own arena at +0x84; mem_free is the generic far
- * free; popup_exec is pascal and defined here (popup_exec).
- *
- *   - NEW: the declared TYPE of a _fastcall register parameter changes the order the register
- *     arguments are evaluated in: buffer_draw_box(unsigned x0, ...) and sprite_draw(unsigned icon,
- *     ...) load ax first, as shipped (popup_box_draw went from 161 differing bytes to 0).
- *   - NEW: `while (*p) { if (!c) { p++; continue; } break; }` gives the shipped bottom-tested
- *     loop; `while (*p) { if (c) break; p++; }` and `for (; *p; )` stay top-tested.
- *   - NEW: MSC's toupper spelling `islower(c) ? _toupper(c) : c` costs a ?: temp slot
- *     (hotkey_of's frame is 2 bytes larger than its locals).
- *   - NEW: a far pointer copied from a `long` (popup_create's m) is not copy-propagated, so
- *     the copy keeps its own slot as shipped.
- *   - NEW: `volatile` on a local pixel buffer reached through a port struct forces the
- *     shipped reload after each sprite_draw (popup_read_colors).
- *   - Changing struct/typedef declarations before a function shifts the period-17 counts:
- *     unifying DosDude into DosSprite removed the need for three pad blocks.
- *   - popup_layout needs 10 pads (pad_popup_layout_*).
- *
- *  All three sites came from the
- *   control flow, not from how the statements are spelled:
- *   - `if (m == 0) goto skip; { ... } skip:` instead of `if (m != 0) { ... }`. Inside an if
- *     block whose test is the just-assigned allocation result (m, or dp, or `(dp = ...) != 0`),
- *     MSC stores every constant at once; after a goto (or an early return, or a test of an
- *     unrelated value such as size) it DELAYS the run of zero stores: the 17 int zeros sink
- *     past the five popup_set_font colour pushes and `f32 = list_rows = 4` goes through `mov ax,4`
- *     -- both shipped shapes, from the one change. Snippets: the same 25 stores + call in a
- *     function with dp a parameter sink; with dp a local assigned from the allocation and
- *     tested in an enclosing if they do not.
- *   - heap_declare's arguments: `e = (char far *)m + 0x96; a = dp->arena;
- *     heap_declare(0x29, a, e, size);` (the two spare frame locals; e first).
- *   - With the stores delayed, `dp->flags = popup_flags` was delayed too (its value reused
- *     for the f46/f48 tests); shipped stores it at once and reloads the byte: a volatile
- *     STORE, `(*(volatile int far *)&dp->flags) = popup_flags;`. A volatile read at f46 or
- *     an element read do not.
- *   - The label is one symbol: 16 pads after the function (pad_pc_after_*) keep every later
- *     function's count.
- *   Before: the e/a temps alone cost 3 bytes (461); `list_rows = 4; f32 = list_rows;`,
- *   `(int)4`, a chain inside the spacing argument, pads 0..16, and the struct-by-value colours
- *   idea (untried, no longer needed) were the earlier attempts.
- *
- *  The volatiles are gone; the three sites of the
- *   non-volatile state each had their own lever:
- *   - `tots = eh_ + ih9 + th` started from ih9: the chain order follows the locals' declaration
- *     positions mod 17, and only ONE residue of eh_'s position (relative to ih9) starts from
- *     eh_. Reordering declarations moves slots (bucket rule), so the shift is done with
- *     BLOCK-SCOPE `extern int` lines inside the declaration list: each is a symbol with no
- *     frame slot.
- *   - `p->r_h = max(nhv, dh)` loaded nhv first: 11..15 block externs before dh flip it; 11
- *     before dh plus 8 before eh_ (19 = 2 mod 17 for eh_) fixes both sites.
- *   - case 1's `p->r_x = min(p->x, spr5->idx)` loaded the member twice (the 2-byte length
- *     difference): read p->x into the unused u3s BEFORE the idx store,
- *     `u3s = p->x; spr5->idx = 160 - (dw1 >> 1); p->r_x = min(u3s, spr5->idx);` -- the store
- *     to u3s is dropped and the member is loaded once into cx as shipped. Reading it after the
- *     idx store costs 4; extern shifts of every local (a14+k, spr5+k) never moved this site.
- *   - The 19 block externs count for later functions: 15 pads after the function
- *     (pad_pl_after_*); 16 also keeps all 64.
- *   Earlier attempts: all 211 volatile subsets up to size
- *   two, pads 0..16, min's argument order, ternary/if forms, element reads, spr5 at each of
- *   21 positions, the min/max statement order, idx in u2s, per-function pragmas.
- *
- *  Each icon argument is an assignment
- *   to its OWN otherwise unused local: `sprite_draw(vx = 1, ...)` with `unsigned vx`, and
- *   `sprite_draw(wx = king_frame, ...)` with `int wx`, plus one more unused int (uy) to keep the
- *   frame. One shared vx left 1 byte; `int vx` folds `vx = 1` back to the constant (dx before
- *   ax). The stores are dead and dropped; the assignment only makes ax the computed operand. `ox = b + p->x + p->f48` became
- *   `ub = b + p->x; oyn = b + p->y; ox = ub + p->f48;` -- a single-use intermediate local
- *   (ub, unused before) gives the shipped interleaving; `ox += p->f48` after oyn, comma forms,
- *   chained `ox = oyn = b`, volatile/element views of x or f48, and pads 0..16 did not.
- *
- *  What placed the blocks:
- *   - MSC lays out the arm a switch dispatch falls into and parks the other arms at the next
- *     unconditional jump (here inside `if (fullv) popup_draw(p); else ...`). In the item
- *     switch the arm that stays is case 0x1b, so it comes FIRST; the rest keep their order.
- *   - The 0x150/0x148 arms end in `goto set_redraw` to the ' ' arm's `redraw = 1; break;`:
- *     shipped keeps that later copy (a plain `redraw = 1; break;` keeps the first).
- *   - An inverted if puts the reload where shipped has it: `if (p->first_sprite == 0) spr4 =
- *     p->sprites; else {...}` reloads p at the else and only es at the join, and `if (p->flags
- *     & 4) toggle; else runningx = 0;` reuses dx:ax for `it`. The branch generated second
- *     starts from what the first left in the registers.
- *   - The click handler's `if (!sel) runningx = 0; else if (flags & 4) {...} else runningx =
- *     0;` -- the duplicate tail -- is what moves the toggle out of line.
- *   - The hotkey loop leaves with `goto hot_end` (a `break` is hoisted into the loop test).
- *   - The King frame test reads the sheet header's word at +4, not icon[0]'s; the F1 branch
- *     does not repeat `runningx = 0`.
- */
-
 
 #include "msc.h"
 #include "msc.h"
 #include "msc.h"
 #include "records.h"
 
+/* The popup settings. The colours are defaults; popup_read_colors reads seven of them from the
+ * TEXTCOLR sheet. Each background and selection colour comes as a pair, and only the first of a
+ * pair is used.
+ */
+i16 popup_background_color_0 = 7;       /* the box (7: tiled with popup_tile) */
+i16 popup_background_color_1 = 7;
+i16 popup_select_color_0 = 8;           /* the selected item's bar */
+i16 popup_select_color_1 = 8;
+i16 popup_border_color = 0;             /* the frame's middle line */
+i16 popup_border_color_up = 0;          /* the bevel's top and right edges */
+i16 popup_border_color_down = 0;        /* the bevel's left and bottom edges */
+i16 popup_font_main_color = 0;          /* text */
+i16 popup_font_grey_color = 8;          /* greyed items */
+i16 popup_font_hilite_color = 0xf;      /* {} spans, ~ hotkeys, hilited items */
+i16 popup_enhance_color = 7;            /* the font's third colour */
+i16 popup_shadow_color = 8;             /* the font's fourth colour */
+i16 popup_checkbox = 0;                 /* check-box states: bit n-1 for item n */
+i16 popup_flags = 0;                    /* the next popup's flags */
+i16 popup_x = -1;                       /* the next popup's position (-1: centred) */
+i16 popup_y = -1;
+i16 popup_indian = -1;                  /* chief portrait: a tribe, 8 the King */
+i16 popup_messenger = -1;               /* messenger portrait */
+i16 popup_foreign = -1;                 /* foreign portrait */
+i16 popup_hiliting = 0;                 /* drawing in the alternate colour */
+i16 popup_pal = 1;                      /* popup_exec sets the palette first */
+i16 popup_help = 0;                     /* show the help word; F1 asks for help */
+i16 popup_help_me = 0;                  /* set when the user asked for help */
+i16 popup_no_draw = 0;                  /* draw-only popups stay off the screen */
+DosPort *popup_tile = 0;                /* the background pattern (scr_back) */
+i16 king_active = 0;                    /* the King's portrait animates */
+i16 sprite_tight = 0;                   /* main sprites freed for a portrait (1, 2) */
 
-/* The popup module's initialised data, defined here (the 27 land at DS:0x053c-0x0572 in this
- * order, ahead of the "KING" literal: MSC emits a global after the literals of the function
- * that follows its definition, and popup_set_dude_name has none). Each was first declared by
- * an extern further down; those lines are now unused pads of the same count, and 41 more pads
- * here bring the symbols added at this point to 0 mod 17, so every function keeps its count. */
-i16 popup_background_color_0 = 7;       /* DS:0x053c */
-i16 popup_background_color_1 = 7;       /* DS:0x053e */
-i16 popup_select_color_0 = 8;           /* DS:0x0540 */
-i16 popup_select_color_1 = 8;           /* DS:0x0542 */
-i16 popup_border_color = 0;             /* DS:0x0544 */
-i16 popup_border_color_up = 0;          /* DS:0x0546 */
-i16 popup_border_color_down = 0;        /* DS:0x0548 */
-i16 popup_font_main_color = 0;          /* DS:0x054a */
-i16 popup_font_grey_color = 8;          /* DS:0x054c */
-i16 popup_font_hilite_color = 0xf;      /* DS:0x054e */
-i16 popup_enhance_color = 7;            /* DS:0x0550 */
-i16 popup_shadow_color = 8;             /* DS:0x0552 */
-i16 popup_checkbox = 0;                 /* DS:0x0554 */
-i16 popup_flags = 0;                    /* DS:0x0556 */
-i16 popup_x = -1;                       /* DS:0x0558 */
-i16 popup_y = -1;                       /* DS:0x055a */
-i16 popup_indian = -1;                  /* DS:0x055c */
-i16 popup_messenger = -1;               /* DS:0x055e */
-i16 popup_foreign = -1;                 /* DS:0x0560 */
-i16 popup_hiliting = 0;                 /* DS:0x0562 */
-i16 popup_pal = 1;                      /* DS:0x0564 */
-i16 popup_help = 0;                     /* DS:0x0566 */
-i16 popup_help_me = 0;                  /* DS:0x0568 */
-i16 popup_no_draw = 0;                  /* DS:0x056a */
-DosPort *popup_tile = 0;                /* DS:0x056c */
-i16 king_active = 0;                    /* DS:0x056e */
-i16 sprite_tight = 0;                   /* DS:0x0570 */
-/* A text style: the extra spacing after each character, the plain colour, the colour of a
- * highlighted line, the colour of a {}-marked span, two more colours font_set_colors takes, the font. */
-/* A popup item: flags (1 grey, 2 hilite, 4 checked), the ~ hotkey, its key and value, its
- * own copy of the text out of the popup's arena, and the list links. 0x18 bytes. */
-/* A text line: flags (1 centred, 2 ...), the text, the next line. 10 bytes. */
-/* An edit field: flags (0x80 has text), the label's width, the field's width, the length,
- * the label (with a space added), the buffer, the next field. 0x14 bytes. */
-/* A sprite item: its x, the x after it, the icon index, the key, the label, the icon sheet,
- * the next sprite. 0x14 bytes. */
-
-
-/* popup_set_dude_name -- 033d:000e, 66 bytes */
+/* Copies the portrait sheet's name into the popup's arena. */
 void popup_set_dude_name(char *name, DosPopup *p)
 {
     p->dude_name = heap_get((i32)(msc_strlen(name) + 1), p->arena);
     msc__fstrcpy(p->dude_name, name);
 }
-/* popup_dude_tribe -- 033d:0050, 128 bytes */
+
+/* Names the chief portrait for popup_indian: KING, which also starts the King's animation (its
+ * first frame due in 240 ticks), or IND<t>A<m> for tribe t, m being piss_factor of the tribe's
+ * anger at the player.
+ */
 void popup_dude_tribe(DosPopup *p)
 {
     i16 mood;
@@ -287,7 +156,8 @@ void popup_dude_tribe(DosPopup *p)
     }
     popup_set_dude_name(name, p);
 }
-/* popup_dude_ms -- 033d:00d0, 42 bytes */
+
+/* Names the messenger portrait: MSS<n>, n = popup_messenger. */
 void popup_dude_ms(DosPopup *p)
 {
     char name[20];
@@ -296,7 +166,8 @@ void popup_dude_ms(DosPopup *p)
     name[3] += popup_messenger;
     popup_set_dude_name(name, p);
 }
-/* popup_dude_myr -- 033d:00fa, 42 bytes */
+
+/* Names the foreign portrait: MYR<n>, n = popup_foreign. */
 void popup_dude_myr(DosPopup *p)
 {
     char name[20];
@@ -305,8 +176,15 @@ void popup_dude_myr(DosPopup *p)
     name[3] += popup_foreign;
     popup_set_dude_name(name, p);
 }
-/* popup_load_dude -- 033d:0124, 550 bytes */
 
+/* Loads the portrait sheet named by popup_set_dude_name into p->dude and, for the King, the
+ * animation sheet "<name>2" into p->dude->next. p->dude stays 0 without a name and becomes 0
+ * when a sheet fails to load. The sheet's palette goes into the master palette except the first
+ * 16 colours, which are kept, and the palette is set. When memory is short the main sprites are
+ * freed and the sheet is loaded again (sprite_tight 1, or 2 when only the King's second sheet
+ * needed it). Colour cycling is paused meanwhile; if the first sheet fails, the original skips
+ * cycle_save(0) and leaves the palette unset.
+ */
 void popup_load_dude(DosPopup *p)
 {
     DosSprite *second;
@@ -319,11 +197,11 @@ void popup_load_dude(DosPopup *p)
     if (p->dude_name == 0)
         return;
     king = popup_indian > 7 ? 1 : 0;
-    p->dude = heap_get((i32)sizeof(DosSprite), p->arena);   /* PORT: 20 bytes in 1994 */
+    p->dude = heap_get((i32)sizeof(DosSprite), p->arena);   /* Port: sizeof */
     dd = p->dude;
     dd->next = 0;
     if (king) {
-        second = heap_get((i32)sizeof(DosSprite), p->arena);   /* PORT: 20 bytes in 1994 */
+        second = heap_get((i32)sizeof(DosSprite), p->arena);   /* Port: sizeof */
         dd->next = second;
     }
     msc__fstrcpy(fname, p->dude_name);
@@ -365,9 +243,13 @@ void popup_load_dude(DosPopup *p)
     put_palette = 0;
     cycling_active = old;
 }
-/* popup_fill -- 033d:034a, 148 bytes */
-i16 orig_flag = 0;                       /* DS:0x1f8a (defined here: lands after popup_load_dude's literals) */
 
+i16 orig_flag = 0;                      /* a frameless (10h) popup is running */
+
+/* Fills a rectangle of port with color. Colour 7, when popup_tile is set, is the textured
+ * background instead: popup_tile tiled from the popup's corner (sx, sy), or, while a frameless
+ * popup runs, the same rectangle copied from scr_orig. c, color2, d and e are not used.
+ */
 void popup_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 sx, i16 sy, i16 c,
                                char color, char color2, i16 d, i16 e)
 {
@@ -381,18 +263,20 @@ void popup_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 sx, i16 sy, i16 c,
     }
     buffer_rect_fill(x, y, w, port, h, color);
 }
-/* popup_say_string -- 033d:03de, 28 bytes */
 
+/* Sets %STRING<slot> to s. */
 void popup_say_string(i16 slot, char *s)
 {
     msc__fstrcpy(popup_subst_string[slot], s);
 }
-/* popup_say -- 033d:03fa, 24 bytes */
+
+/* Sets %STRING<slot> to string `word` of the string store. */
 void popup_say(i16 slot, i16 word)
 {
     popup_say_string(slot, strings(word));
 }
-/* popup_country -- 033d:0412, 40 bytes */
+
+/* Sets %STRING<slot> to the name say_country gives for nation (empty in the editor). */
 void popup_country(i16 slot, i16 flag, i16 nation)
 {
     char buf[0x50];
@@ -401,12 +285,17 @@ void popup_country(i16 slot, i16 flag, i16 nation)
     say_country(nation, flag, buf);
     popup_say_string(slot, buf);
 }
-/* popup_num -- 033d:043a, 26 bytes */
+
+/* Sets %NUMBER<slot> and %HEX<slot> to v. */
 void popup_num(i16 slot, i32 v)
 {
     popup_subst_number[slot] = v;
 }
-/* popup_set_font -- 033d:0454, 64 bytes */
+
+/* Fills text style st: the font, the gap after each character, and the colours for plain text,
+ * greyed text (hi_color), {} spans and ~ hotkeys (alt_color), and the font's third and fourth
+ * colours (c8, ca).
+ */
 void popup_set_font(TextStyle *st, DosFont *font, i16 spacing, i16 color, i16 hi_color,
                 i16 alt_color, i16 c8, i16 ca)
 {
@@ -418,8 +307,10 @@ void popup_set_font(TextStyle *st, DosFont *font, i16 spacing, i16 color, i16 hi
     st->ca = ca;
     st->font = font;
 }
-/* style_text_width -- 033d:0494, 112 bytes */
 
+/* Returns the width of s in style st, not counting the markup characters ~ { } |. The text after
+ * a | counts. s must fit in 80 bytes.
+ */
 i16 style_text_width(TextStyle *st, char *s)
 {
     char tmp[0x50];
@@ -436,8 +327,8 @@ i16 style_text_width(TextStyle *st, char *s)
     w = font_string_width(st->spacing, st->font, tmp);
     return w;
 }
-/* style_color -- 033d:0504, 66 bytes */
 
+/* Sets the font colours for greyed (hi), alternate (alt) or plain text in style st; hi wins. */
 void style_color(i16 hi, i16 alt, TextStyle *st)
 {
     if (hi)
@@ -447,8 +338,12 @@ void style_color(i16 hi, i16 alt, TextStyle *st)
     else
         font_set_colors(-1, st->color, st->c8, st->ca);
 }
-/* style_draw_text -- 033d:0546, 266 bytes */
 
+/* Draws s at (x, y) in scr_work and returns the x after it. ~ draws the next character in the
+ * other colour, { and } switch the alternate colour on and off (popup_hiliting), and | ends the
+ * text. Bit 0 of flags draws it greyed. A ~ at the very end makes it read past the terminator,
+ * as the original does.
+ */
 i16 style_draw_text(i16 x, i16 y, i16 flags, TextStyle *st, char *s)
 {
     char one[2];
@@ -486,7 +381,10 @@ i16 style_draw_text(i16 x, i16 y, i16 flags, TextStyle *st, char *s)
     }
     return x;
 }
-/* hotkey_of -- 033d:0650, 142 bytes */
+
+/* Returns an item's hotkey: the character after the last ~, upper-cased, or with "~F~n" the
+ * function key Fn (10Ah plus the digit's code, so 13Bh for F1); 0 when there is no ~.
+ */
 i16 hotkey_of(u8 *s)
 {
     i16 r;
@@ -503,12 +401,17 @@ i16 hotkey_of(u8 *s)
     }
     return r;
 }
-/* popup_create -- 033d:06de, 458 bytes */
 
+/* Allocates a popup with an arena of `size` bytes for its parts, its text in font and the popup
+ * colours. It takes popup_flags, popup_x and popup_y and resets them. The defaults: a text width
+ * of 80, items indented 4, and a 3-pixel row gap and 2-pixel margin (none when frameless);
+ * without a mouse driver it starts in keyboard mode. Also clears king_active and sprite_tight.
+ * Returns 0 when memory runs out.
+ */
 DosPopup *popup_create(i16 size, DosFont *font)
 {
     DosPopup *result;
-    char *m;   /* PORT: the block, not a long (a pointer is not 32 bits) */
+    char *m;   /* Port: a pointer; 1994 kept the address in a long */
     DosPopup *dp;
     void *a;
     void *e;
@@ -516,16 +419,17 @@ DosPopup *popup_create(i16 size, DosFont *font)
     result = 0;
     king_active = 0;
     sprite_tight = 0;
-    /* PORT: the arena twice the 1994 size -- its records hold pointers, twice as wide now
-       (and /Zp2 adds no padding), so none is more than twice what it was */
-    m = (char *)mem_get((i32)(2 * (i32)(u16)size + sizeof(DosPopup)));   /* PORT: 0x96 bytes in 1994 */
+    /* Port: the record at its own sizeof, and the arena twice the size asked for: its records
+     * hold pointers, now twice as wide, and none is more than twice its 1994 size.
+     */
+    m = (char *)mem_get((i32)(2 * (i32)(u16)size + sizeof(DosPopup)));
     if (m == 0)
         goto skip;
     {
         dp = (DosPopup *)m;
-        e = m + sizeof(DosPopup);   /* PORT */
+        e = m + sizeof(DosPopup);   /* Port: the arena follows the record */
         a = dp->arena;
-        heap_declare(0x29, a, e, 2 * (i32)(u16)size);   /* PORT */
+        heap_declare(0x29, a, e, 2 * (i32)(u16)size);   /* Port: the doubled size */
         dp->sel_item = 0;
         dp->first_sprite = 0;
         (*(volatile i16 *)&dp->flags) = popup_flags;
@@ -573,12 +477,13 @@ DosPopup *popup_create(i16 size, DosFont *font)
         result = dp;
     }
 skip:
+    /* Never true: result is m whenever m is set. */
     if (m != 0 && (DosPopup *)m != result)
         mem_free((void *)m);
     return result;
 }
-/* Popup_find_item -- 033d:08a8, 96 bytes */
-/* 16 pads: popup_create's `skip:` label is one symbol (17 - 1). */
+
+/* Returns the item whose key is `key`, or 0. */
 DosItem * Popup_find_item(i16 key, DosPopup *p)
 {
     i16 found;
@@ -599,7 +504,8 @@ DosItem * Popup_find_item(i16 key, DosPopup *p)
     }
     return result;
 }
-/* popup_grey -- 033d:0908, 48 bytes */
+
+/* Greys item `key` (on) or ungreys it; a greyed item cannot be selected. The item must exist. */
 void popup_grey(DosPopup *p, i16 key, i16 on)
 {
     DosItem *it;
@@ -610,7 +516,8 @@ void popup_grey(DosPopup *p, i16 key, i16 on)
     else
         it->flags &= ~1;
 }
-/* popup_hilite -- 033d:0938, 48 bytes */
+
+/* Draws item `key` in the alternate colour (on) or not. The item must exist. */
 void popup_hilite(DosPopup *p, i16 key, i16 on)
 {
     DosItem *it;
@@ -621,7 +528,8 @@ void popup_hilite(DosPopup *p, i16 key, i16 on)
     else
         it->flags &= ~2;
 }
-/* popup_release_all_grey -- 033d:0968, 48 bytes */
+
+/* Ungreys every item. */
 void popup_release_all_grey(DosPopup *p)
 {
     DosItem *it;
@@ -632,7 +540,8 @@ void popup_release_all_grey(DosPopup *p)
         it = it->next;
     }
 }
-/* popup_read_check -- 033d:0998, 48 bytes */
+
+/* Returns item `key`'s check-box state, 0 when there is no such item. */
 i16 popup_read_check(DosPopup *p, i16 key)
 {
     i16 r;
@@ -644,7 +553,8 @@ i16 popup_read_check(DosPopup *p, i16 key)
         r = it->value;
     return r;
 }
-/* popup_write_check -- 033d:09c8, 40 bytes */
+
+/* Sets item `key`'s check-box state, if the item exists. */
 void popup_write_check(DosPopup *p, i16 key, i16 v)
 {
     DosItem *it;
@@ -653,13 +563,18 @@ void popup_write_check(DosPopup *p, i16 key, i16 v)
     if (it != 0)
         it->value = v;
 }
-/* popup_set_active_item -- 033d:09f0, 30 bytes */
+
+/* Selects item `key` (nothing when there is no such item). */
 void popup_set_active_item(DosPopup *p, i16 key)
 {
     p->sel_item = Popup_find_item(key, p);
 }
-/* popup_add_item -- 033d:0a0e, 488 bytes */
 
+/* Appends an item with text s and key `key`, which popup_exec returns when it is chosen, and
+ * returns it. In a check-box popup the text gets the prefix "~[ ": its second character shows
+ * the state ('[' off, ']' on) in the other colour. An empty s is a greyed separator. Widens the
+ * item column (item_w) to fit, a | adding room for the gap.
+ */
 DosItem *popup_add_item(DosPopup *p, char *s, i16 key)
 {
     DosItem *item;
@@ -674,7 +589,7 @@ DosItem *popup_add_item(DosPopup *p, char *s, i16 key)
         prev = item;
         item = item->next;
     }
-    item = heap_get((i32)sizeof(DosItem), p->arena);   /* PORT: 0x18 bytes in 1994 */
+    item = heap_get((i32)sizeof(DosItem), p->arena);   /* Port: sizeof */
     if (prev != 0) {
         prev->next = item;
         item->prev = prev;
@@ -708,7 +623,8 @@ DosItem *popup_add_item(DosPopup *p, char *s, i16 key)
     p->n_items++;
     return item;
 }
-/* popup_add_check -- 033d:0bf6, 58 bytes */
+
+/* Appends a check-box item, initially `on`, and makes the popup a check-box popup (flags 1, 4). */
 DosItem *popup_add_check(DosPopup *p, char *s, i16 key, i16 on)
 {
     DosItem *it;
@@ -719,12 +635,16 @@ DosItem *popup_add_check(DosPopup *p, char *s, i16 key, i16 on)
         it->value = on;
     return it;
 }
-/* popup_set_width -- 033d:0c30, 16 bytes */
+
+/* Sets the text width; the box still grows to fit wider items or entry fields. */
 void popup_set_width(DosPopup *p, i16 w)
 {
     p->width = w;
 }
-/* popup_add_string -- 033d:0c40, 274 bytes */
+
+/* Appends a text line. "^^text" stands on its own line, centred; "^text" on its own line; any
+ * other line joins the paragraph, which is word-wrapped.
+ */
 DosLine *popup_add_string(DosPopup *p, char *s)
 {
     DosLine *prev;
@@ -736,7 +656,7 @@ DosLine *popup_add_string(DosPopup *p, char *s)
         prev = item;
         item = item->next;
     }
-    item = heap_get((i32)sizeof(DosLine), p->arena);   /* PORT: 10 bytes in 1994 */
+    item = heap_get((i32)sizeof(DosLine), p->arena);   /* Port: sizeof */
     if (prev != 0)
         prev->next = item;
     else
@@ -756,7 +676,11 @@ DosLine *popup_add_string(DosPopup *p, char *s)
     p->n_lines++;
     return item;
 }
-/* popup_add_entry -- 033d:0d52, 466 bytes */
+
+/* Appends an entry field: the label (a space is added) and a field of len characters, each as
+ * wide as a W, holding init cut to len. Initial text is marked (80h) so that the first key typed
+ * replaces it.
+ */
 DosEdit *popup_add_entry(DosPopup *p, char *label, char *init, i16 len)
 {
     i16 u;
@@ -769,7 +693,7 @@ DosEdit *popup_add_entry(DosPopup *p, char *label, char *init, i16 len)
         prev = ed;
         ed = ed->next;
     }
-    ed = heap_get((i32)sizeof(DosEdit), p->arena);   /* PORT: 0x14 bytes in 1994 */
+    ed = heap_get((i32)sizeof(DosEdit), p->arena);   /* Port: sizeof */
     if (prev != 0)
         prev->next = ed;
     else
@@ -795,7 +719,10 @@ DosEdit *popup_add_entry(DosPopup *p, char *label, char *init, i16 len)
     p->n_edits++;
     return ed;
 }
-/* font_height -- 033d:0f24, 38 bytes */
+
+/* Returns the height of a row of text in font c: a 6-pixel font counts as 5, except while a
+ * frameless popup runs (orig_flag).
+ */
 i16 font_height(DosFont *c)
 {
     i16 r;
@@ -805,7 +732,14 @@ i16 font_height(DosFont *c)
         r = 5;
     return r;
 }
-/* popup_add_sprite -- 033d:0f4a, 494 bytes */
+
+/* Appends a row to the sprite column and returns it: icon idx of sheet (in a unit picker, unit
+ * idx as a 16x16 piece) with an optional label, `key` being what popup_exec returns for it. The
+ * rows stack down the column: a sprite's x is its row's top and x2 the next row's, as offsets
+ * from the column's top, and a row is as tall as its icon or its label. spr_h keeps the widest
+ * icon and spr_lw the widest label. A labelled sprite in a popup without items sets the text
+ * width to 0.
+ */
 DosSprite *popup_add_sprite(DosPopup *p, SpriteSeries *sheet, i16 idx, char *label,
                             i16 key)
 {
@@ -823,7 +757,7 @@ DosSprite *popup_add_sprite(DosPopup *p, SpriteSeries *sheet, i16 idx, char *lab
         last = spr;
         spr = spr->next;
     }
-    spr = heap_get((i32)sizeof(DosSprite), p->arena);   /* PORT: 0x14 bytes in 1994 */
+    spr = heap_get((i32)sizeof(DosSprite), p->arena);   /* Port: sizeof */
     if (last != 0) {
         last->next = spr;
         spr->x = last->x2;
@@ -859,24 +793,30 @@ DosSprite *popup_add_sprite(DosPopup *p, SpriteSeries *sheet, i16 idx, char *lab
     p->n_sprites++;
     return spr;
 }
-/* popup_add_cursor -- 033d:1138, 66 bytes */
+
+/* Attaches a cursor record (a, b) to the popup; only then does the active sprite get its box. */
 DosAttach *popup_add_cursor(DosPopup *p, void *a, i16 b)
 {
-    p->attach = heap_get((i32)sizeof(DosAttach) > 0x14 ? (i32)sizeof(DosAttach) : 0x14L, p->arena);   /* PORT: 0x14 bytes in 1994 */
+    /* Port: the record's sizeof, but at least the 20 bytes the original allocated */
+    p->attach = heap_get((i32)sizeof(DosAttach) > 0x14 ? (i32)sizeof(DosAttach) : 0x14L, p->arena);
     p->attach->a = a;
     p->attach->b = b;
     return p->attach;
 }
-/* popup_draw_line -- 033d:117a, 44 bytes */
+
+/* Draws a text line at (x, y), x from the left edge of the text; returns the x after it. */
 i16 popup_draw_line(i16 x, i16 y, DosPopup *p, char *s)
 {
     i16 r;
 
     return style_draw_text(x + (p->f48 + p->f2a), y, 0, &p->style, s);
 }
-/* popup_wrap_lines -- 033d:11a6, 814 bytes */
-/* Lays the text lines out in the popup's width, word by word, drawing them when `draw` is
- * set; returns the height they take. Lines flagged 1 (centred) or 2 are not wrapped. */
+
+/* Lays the text lines out in the popup's text width, word by word, drawing them when `draw` is
+ * set, and returns the height they take. Plain lines run together into one paragraph; a ^ or ^^
+ * line ends it and is drawn whole (^^ centred). A word that does not fit starts a new line, even
+ * when the line is empty: a word wider than the box leaves an empty line above it.
+ */
 i16 popup_wrap_lines(i16 draw, DosPopup *p)
 {
     char *s;
@@ -959,12 +899,18 @@ i16 popup_wrap_lines(i16 draw, DosPopup *p)
     }
     return hv;
 }
-/* popup_layout -- 033d:14d4, 1398 bytes */
 
-/* Sizes and places the popup: its box from the sprites, the wrapped text, the items and the
- * edit fields; centred on the 320x200 screen unless a position was given, then moved to make
- * room for the dude's portrait. Returns 1 when the popup is empty. */
-/* 16 pads here (14 before the data was defined at the top) and 16 before popup_exec (15). */
+/* Sizes and places the popup: the box from the sprite column, the wrapped text, the items and
+ * the entry fields, centred on the 320x200 screen unless a position was given, then pulled back
+ * on screen (it reports an error if it still starts off it). r_x, r_y, r_w and r_h, the area
+ * popup_exec saves and copies to the screen, take in the portrait. A chief or the King stands
+ * left of the box (tribes 0, 3, 5 and 7 and the King) or right of it, centred vertically. A
+ * messenger or foreign portrait stands above the box, which overlaps its bottom by the sheet's
+ * tab[4] rows, at the box's left (tab[5] 0), centre (1) or right (2), overlapping by tab[6]
+ * columns; one too tall for the screen is dropped (flag 40h). The portrait's position goes in
+ * the dude's idx (x) and x (y). Finally the origins (f24/f26 items and fields, f2a/f2c text,
+ * f36/f38) become screen coordinates. Returns 1 when the popup is empty, else 0.
+ */
 i16 popup_layout(DosPopup *p)
 {
     i16 a14;
@@ -982,9 +928,6 @@ i16 popup_layout(DosPopup *p)
     i16 th;
     i16 nhv;
     i16 tw1;
-    /* Block-scope externs: symbols with no frame slot. 11 here put dh (and everything
-     * after) where `max(nhv, dh)` loads dh first; 8 more put eh_ where `eh_ + ih9 + th`
-     * starts from eh_. See the module header. */
     i16 dh;
     i16 left1;
     i16 bottom7;
@@ -1147,19 +1090,19 @@ i16 popup_layout(DosPopup *p)
 out:
     return ok;
 }
-/* popup_show -- 033d:1a4a, 60 bytes */
-/* 15 pads: popup_layout's 19 block-scope externs are 19 symbols (19 + 15 = 34 = 2 x 17). */
 
-
+/* Copies the popup's area from scr_work to the screen, unless popup_no_draw is set and the popup
+ * is draw-only (20h).
+ */
 void popup_show(DosPopup *p)
 {
     if (popup_no_draw == 0 || (p->flags & 0x20) == 0)
         mouse_video_update(p->r_x, p->r_y, p->r_x, p->r_y, p->r_w, p->r_h);
 }
-/* popup_help_draw -- 033d:1a86, 112 bytes */
-/* DS:0x530a (hspot_1.c's HotSpot spot[121]): the help word is
-                                             * read from DS:0x53b4, spot[10].v2 -- no public lies there */
 
+/* When popup_help is set, draws the help word right-aligned in the box's bottom-right corner.
+ * Its string number is spot[10].v2, the word of the hot-spot table the original reads there.
+ */
 void popup_help_draw(DosPopup *p)
 {
     i16 x;
@@ -1172,12 +1115,14 @@ void popup_help_draw(DosPopup *p)
         if (p->style.font == menu_font)
             yv -= 2;
         buf[0] = 0;
-        say_string(buf, spot[10].v2);   /* DS:0x53b4: 1994 read it as word 0x55 of the table */
+        say_string(buf, spot[10].v2);
         write_right(buf, x, yv, hilite_color);
     }
 }
-/* popup_big_sprite -- 033d:1af6, 148 bytes */
 
+/* Draws the portrait, unless it did not fit (40h), and over it the King's current frame from his
+ * second sheet once he animates.
+ */
 void popup_big_sprite(DosPopup *p)
 {
     DosSprite *d;
@@ -1194,7 +1139,12 @@ void popup_big_sprite(DosPopup *p)
             sprite_draw(wx = king_frame, d->next->sheet, &scr_work, d->idx, d->x);
     }
 }
-/* popup_draw_items -- 033d:1b8a, 664 bytes */
+
+/* Draws the items: each row's text, the selected row on a bar, a line for a separator, the
+ * check-box state, and the text after | right-aligned. With `full` it first refills the item
+ * column's background, and afterwards draws a messenger or foreign portrait (which overlaps the
+ * box) and the help word and copies the popup to the screen.
+ */
 void popup_draw_items(i16 full, DosPopup *p)
 {
     i16 bwx;
@@ -1243,9 +1193,11 @@ void popup_draw_items(i16 full, DosPopup *p)
         popup_show(p);
     }
 }
-/* popup_draw_edits -- 033d:1e22, 522 bytes */
 
-
+/* Draws the entry fields: the label, a box, and the text with a _ cursor while there is room;
+ * initial (untyped) text sits on the selection colour. With `full` it also draws the help word
+ * and copies the popup to the screen.
+ */
 void popup_draw_edits(i16 full, DosPopup *p)
 {
     i16 fxs;
@@ -1296,8 +1248,12 @@ void popup_draw_edits(i16 full, DosPopup *p)
         popup_show(p);
     }
 }
-/* popup_draw_sprites -- 033d:202c, 602 bytes */
 
+/* Draws the sprite column: each icon (a unit piece in a unit picker) and, with `labels`, its
+ * label beside it. With `hilite`, the active sprite gets a white box in keyboard mode when a
+ * cursor is attached. With `full` it first refills the background behind the icons, and
+ * afterwards draws the help word and copies the popup to the screen.
+ */
 void popup_draw_sprites(i16 labels, i16 full, i16 hilite, DosPopup *p)
 {
     i16 oyn;
@@ -1350,8 +1306,11 @@ void popup_draw_sprites(i16 labels, i16 full, i16 hilite, DosPopup *p)
         popup_show(p);
     }
 }
-/* popup_box_draw -- 033d:2286, 534 bytes */
 
+/* Draws a box at (x, y, w, h) in scr_work: unless p is frameless, a 3-pixel frame (black, then
+ * popup_border_color, then a bevel lit at the top and right and shaded at the left and bottom),
+ * then the background inside it, tiled from p's corner (the box's own when p is 0).
+ */
 void popup_box_draw(DosPopup *p, i16 x, i16 y, i16 w, i16 h)
 {
     i16 ix;
@@ -1390,7 +1349,11 @@ void popup_box_draw(DosPopup *p, i16 x, i16 y, i16 w, i16 h)
     popup_fill(ix, iy, iws, scr_work, ihs, px, py, pw2, (char)popup_background_color_0,
                (char)popup_background_color_1, 0, 0);
 }
-/* popup_draw -- 033d:249c, 208 bytes */
+
+/* Lays the popup out and draws all of it: a chief's portrait behind the box, the box, the sprite
+ * column, the text, the items, the entry fields, any other portrait over the box and the help
+ * word, then copies it to the screen. Returns 1, drawing nothing, when the popup is empty.
+ */
 i16 popup_draw(DosPopup *p)
 {
     char bufs[0x54];
@@ -1423,21 +1386,36 @@ i16 popup_draw(DosPopup *p)
     }
     return r;
 }
-/* popup_set_active_sprite -- 033d:256c, 34 bytes */
+
+/* Makes spr the active sprite (0: none) and redraws the sprite column. */
 void popup_set_active_sprite(DosPopup *p, DosSprite *spr)
 {
     p->first_sprite = spr;
     popup_draw_sprites(0, 1, 1, p);
 }
-/* popup_exec -- 033d:258e, 2820 bytes */
-/* buffer_preserve is (port, int mode, int src, x, y, w, h): -8L below is mode -8 and src -1 in
-   ax:dx. Spelled as the two ints, MSC orders an unrelated addition differently; a modern
-   compiler needs the two ints (the port patches this call). */
-/* PORT: mode and src as the two ints they are (MSC passed -8L in ax:dx) */
 
-/* The popup's event loop: draws it, then polls the mouse and the keyboard until an item is
- * chosen, Escape is pressed or (in autoplay) two seconds pass. Returns the chosen key, -1 for
- * Escape. Check-box popups load their states from and save them to popup_checkbox. */
+/* Runs popup p and returns its result: the chosen item's or sprite's key, 0 when it closes with
+ * nothing chosen, -1 for Escape. It loads the portrait, lays the popup out, saves what it covers
+ * (unless flag 08h), draws it and loops on the mouse and the keyboard:
+ *   items    Up and Down move the selection, wrapping and skipping greyed items, and a hotkey
+ *            selects its item; Space, Enter and F1 choose the selected item, except that in a
+ *            check-box popup Space, F1 and a hotkey toggle it and Enter closes. Dragging over
+ *            an item selects it and releasing chooses (or toggles) it; dragging outside the box
+ *            deselects, and releasing there closes only a flag-01h popup. A release inside the
+ *            box but between items does nothing.
+ *   sprites  Up and Down move the active sprite; any other key, or a release, closes with it
+ *            (none, outside the box). In a unit picker, closing on a unit with orders clears its
+ *            orders instead and stays open.
+ *   fields   printable keys type (the first replaces the initial text), Backspace deletes,
+ *            Delete clears the initial text, Enter or a click closes. The text goes to
+ *            popup_text_buffer, even after Escape.
+ * F1 with popup_help, or closing with the right button with popup_help, sets popup_help_me. In
+ * autoplay (automate) the popup closes itself after 120 ticks. The King's portrait steps a frame
+ * every 10 ticks. On the way out it restores the screen, frees the portrait sheets, stores the
+ * check-box states in popup_checkbox, resets the portrait selectors and popup_help, and reloads
+ * the main sprites if a portrait freed them. An empty popup returns 0 without drawing; a
+ * draw-only one (20h) is drawn and returned from at once. Both skip freeing the portrait sheets.
+ */
 i16 popup_exec(DosPopup *p)
 {
     i16 redraw;
@@ -1494,6 +1472,7 @@ i16 popup_exec(DosPopup *p)
         goto done;
     if (king_active != 0)
         buffer_rect_copy(0, 0, 0x140, scr_work, scr_orig, 200);
+    /* Port: the original passed mode and src as one long, -8L; here, -8 and -1. */
     if ((p->flags & 8) == 0)
         savedv = buffer_preserve(&scr_work, -8, -1, p->r_x, p->r_y, p->r_w, p->r_h);
     runningx = 1;
@@ -1727,6 +1706,9 @@ i16 popup_exec(DosPopup *p)
                 }
             }
         }
+        /* dude7 is set only when a portrait loaded; if the King's failed, the original
+         * reads it uninitialised here.
+         */
         if (king_active && dude7 != 0 && timer_read() >= king_clock
             && dude7->sheet->count > king_frame) {
             king_frame++;
@@ -1803,18 +1785,23 @@ done:
         load_main_sprites();
     return p->f0;
 }
-/* popup_init -- 033d:3092, 24 bytes */
 
-DosFont *popup_font = 0;           /* DS:0x1f9e (defined here: lands after popup_draw_edits' literals) */
-i16 popup_heap = 0x0c00;             /* DS:0x1fa2 */
+DosFont *popup_font = 0;                /* font for popup_start_box */
+i16 popup_heap = 0x0c00;                /* arena size for popup_start_box */
 
+/* Sets the font and the arena size popup_start_box creates popups with. */
 void popup_init(DosFont *font, i16 size)
 {
     popup_font = font;
     popup_heap = size;
 }
-/* popup_parse_string -- 033d:30aa, 520 bytes */
-/* Expands %STRINGn, %NUMBERn, %HEXn (four digits), %COUNTRY, %YEAR and %% in src into dst. */
+
+/* Copies src to dst, expanding %STRINGn (popup_subst_string), %NUMBERn (popup_subst_number in
+ * decimal), %HEXn (in hexadecimal, at least four digits), %COUNTRY (the player's country, empty
+ * in the editor), %YEAR (game.year) and %%; n is one digit. A % before anything else is dropped.
+ * STRING is matched in any case, the other names in capitals only. src is modified: each % in it
+ * is overwritten with a 0.
+ */
 void popup_parse_string(char *src, char *dst)
 {
     char tmp[0x28];
@@ -1844,6 +1831,10 @@ void popup_parse_string(char *src, char *dst)
             } else if (msc_strncmp(mark, "HEX", 3) == 0) {
                 n = msc_atoi(mark + 3);
                 msc_ltoa(popup_subst_number[n], tmp, 16);
+                /* With more than four digits, the 16-bit original's unsigned 4 - strlen wraps
+                 * and this loop runs about 65,000 times, overrunning dst; in the port the
+                 * difference is signed and no zero is added.
+                 */
                 for (i = 0; 4 - msc_strlen(tmp) > i; i++)
                     msc_strcat(dst, "0");
                 msc_strcat(dst, tmp);
@@ -1864,11 +1855,16 @@ void popup_parse_string(char *src, char *dst)
         }
     } while (mark != 0);
 }
-/* popup_start_box -- 033d:32b2, 1062 bytes */
-i16 popup_start_ask = 0;                      /* DS:0x2008 (defined here: lands after popup_start_box's literals) */
 
-/* Builds a popup from the @-section `key` of the text file `txt`: the text lines, then the
- * options (or an edit field when popup_start_ask is set), with item `sel` preselected. */
+i16 popup_start_ask = 0;                /* popup_start_box builds an entry field */
+
+/* Builds a popup from section @key of text file txt (.TXT is added) and returns it, or 0 when
+ * the section or the memory is missing; then it also resets the portrait selectors and
+ * popup_help. Text lines and options are expanded with popup_parse_string. The options become
+ * items numbered from 1, item sel preselected, or, for popup_ask (popup_start_ask), entry fields
+ * labelled by them, only the first of which takes keys. key is copied to error_string for error
+ * reports.
+ */
 DosPopup * popup_start_box(char *txt, char *key, i16 sel)
 {
     i16 w;
@@ -2009,7 +2005,10 @@ out:
     }
     return popupx;
 }
-/* popup_box -- 033d:36d8, 50 bytes */
+
+/* Shows section key of text file `file` and returns popup_exec's result (0 when the section
+ * cannot be built).
+ */
 i16 popup_box(char *file, char *key, i16 sel)
 {
     i16 r;
@@ -2023,12 +2022,14 @@ i16 popup_box(char *file, char *key, i16 sel)
     }
     return r;
 }
-/* pop_clear -- 033d:370a, 8 bytes */
+
+/* Clears the check-box states for the next check-box popup. */
 void pop_clear(void)
 {
     popup_checkbox = 0;
 }
-/* pop_set -- 033d:3712, 42 bytes */
+
+/* Sets check box `bit` (counted from 1) for the next check-box popup, or clears it. */
 void pop_set(i16 bit, i16 on)
 {
     bit--;
@@ -2037,72 +2038,85 @@ void pop_set(i16 bit, i16 on)
     else
         popup_checkbox &= ~(1 << bit);
 }
-/* pop_get -- 033d:373c, 22 bytes */
+
+/* Returns check box n's state (counted from 1) after a check-box popup: nonzero when checked. */
 i16 pop_get(i16 n)
 {
     n -= 1;
     return (1 << n) & popup_checkbox;
 }
-/* pop -- 033d:3752, 14 bytes */
 
+/* Shows section key of the game's text file. */
 i16 pop(char *key)
 {
     return popup_box(game_text_name, key, 0);
 }
-/* pop2 -- 033d:3760, 14 bytes */
+
+/* Shows section key of the game's text file with item sel preselected. */
 i16 pop2(char *key, i16 sel)
 {
     return popup_box(game_text_name, key, sel);
 }
-/* popi -- 033d:376e, 24 bytes */
+
+/* Shows section key of the game's text file with the chief of `tribe`. */
 i16 popi(char *key, i16 tribe)
 {
     popup_indian = tribe;
     return popup_box(game_text_name, key, 0);
 }
-/* pop2i -- 033d:3786, 18 bytes */
+
+/* pop2 with the chief of `tribe`. */
 i16 pop2i(char *key, i16 sel, i16 tribe)
 {
     popup_indian = tribe;
     return popup_box(game_text_name, key, sel);
 }
-/* popk -- 033d:3798, 24 bytes */
+
+/* Shows section key of the game's text file with the King. */
 i16 popk(char *key)
 {
     popup_indian = 8;
     return popup_box(game_text_name, key, 0);
 }
-/* popm -- 033d:37b0, 24 bytes */
+
+/* Shows section key of the game's text file with messenger `dude`. */
 i16 popm(char *key, i16 dude)
 {
     popup_messenger = dude;
     return popup_box(game_text_name, key, 0);
 }
-/* pop2m -- 033d:37c8, 18 bytes */
+
+/* pop2 with messenger `dude`. */
 i16 pop2m(char *key, i16 sel, i16 dude)
 {
     popup_messenger = dude;
     return popup_box(game_text_name, key, sel);
 }
-/* popf -- 033d:37da, 24 bytes */
+
+/* Shows section key of the game's text file with the envoy of `nation`. */
 i16 popf(char *key, i16 nation)
 {
     popup_foreign = nation;
     return popup_box(game_text_name, key, 0);
 }
-/* pop2f -- 033d:37f2, 18 bytes */
+
+/* pop2 with the envoy of `nation`. */
 i16 pop2f(char *key, i16 sel, i16 nation)
 {
     popup_foreign = nation;
     return popup_box(game_text_name, key, sel);
 }
-/* popup_off -- 033d:3804, 6 bytes */
-/* The next popup is drawn without a frame (0x10) and with flag 8. */
+
+/* Makes the next popup frameless (10h), leaving what it covers unsaved (08h). */
 void popup_off(void)
 {
     popup_flags |= 0x18;
 }
-/* popup_ask -- 033d:380a, 76 bytes */
+
+/* Asks for a line of text: section key of txt with an entry field of up to max characters,
+ * initially dflt. Returns popup_exec's result (0 for Enter or a click, -1 for Escape) or 0 when
+ * the section cannot be built; the text is left in popup_text_buffer.
+ */
 i16 popup_ask(char *txt, char *key, char *dflt, i16 max)
 {
     i16 r;
@@ -2120,8 +2134,10 @@ i16 popup_ask(char *txt, char *key, char *dflt, i16 max)
     popup_start_ask = 0;
     return r;
 }
-/* popup_ask_number -- 033d:3856, 66 bytes */
 
+/* Asks for a number of up to five digits, initially dflt; leaves it in popup_number and returns
+ * popup_ask's result.
+ */
 i16 popup_ask_number(char *txt, char *key, i16 dflt)
 {
     char buf[0x14];
@@ -2132,9 +2148,11 @@ i16 popup_ask_number(char *txt, char *key, i16 dflt)
     popup_number = msc_atoi(popup_text_buffer);
     return result;
 }
-/* popup_read_colors -- 033d:3898, 272 bytes */
-/* Reads the popup colours from TEXTCOLR: icon n of the sheet is drawn into a one-pixel port
- * and that pixel is the colour. */
+
+/* Reads seven popup colours from the TEXTCOLR sheet: icon n is drawn into a one-pixel port and
+ * that pixel is the colour (1 and 2 the background pair, 3 and 4 the selection pair, 5 text,
+ * 6 the alternate colour, 7 grey). Then sets the palette from the master palette.
+ */
 void popup_read_colors(void)
 {
     SpriteSeries *colr;
@@ -2164,14 +2182,13 @@ void popup_read_colors(void)
     }
 }
 
-/* The popup module's uninitialised data (communals, placed by the linker in BSS). A
- * definition after the last function moves no symbol position. */
-char popup_text_buffer[80];               /* DS:0x4b64 */
-i16 king_frame;                           /* DS:0x4e7e */
-i32 king_clock;                          /* DS:0x4e86 */
-i16 popup_start_max_len;                  /* DS:0x5ad0 */
-i16 popup_number;                         /* DS:0x5ad4 */
-char *popup_start_string;                 /* DS:0x5e2a */
-char popup_subst_string[5][0x40];         /* DS:0x634e: 320 bytes */
-i32 popup_subst_number[9];               /* DS:0x698a: 38 bytes to the next public; 9 longs */
+/* The module's uninitialised state. */
+char popup_text_buffer[80];             /* the last entry field's text */
+i16 king_frame;                         /* the King's animation frame (0: none) */
+i32 king_clock;                         /* the tick the King's next frame is due */
+i16 popup_start_max_len;                /* entry field length (0: @LENGTH, or 5) */
+i16 popup_number;                       /* popup_ask_number's number */
+char *popup_start_string;               /* entry field text (0: @DEFAULT) */
+char popup_subst_string[5][0x40];       /* %STRING0..4 */
+i32 popup_subst_number[9];              /* %NUMBER0..8 and %HEX0..8 */
 

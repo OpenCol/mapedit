@@ -1,6 +1,18 @@
-/* infopanel.c -- the information window at the right of the map: size, cursor, the terrain under it, the selection, the brush. */
+/* infopanel.c -- the information window at the right of the map.
+ *
+ * The window is 79 x 150 pixels at (241, 50) on the work screen, below the minimap. It shows
+ * the map's size, the cursor's position, the terrain under the cursor, the selected terrain
+ * or feature with the shift-click legend, the fill radius and whether coast protection is on.
+ * info_window_draw redraws all of it, in the small menu font, and copies the window to the
+ * screen.
+ *
+ * A map square's byte keeps the terrain in its low five bits, a river in bit 0x40 and hills or
+ * mountains in bit 0x20; bit 0x80 picks the major river and the mountains. The feature words
+ * ("Forest", "River", "Major River", "Minor River", "Unexplored") are terrain_names[0..4],
+ * from the OTHER_NAMES section of NAMES.TXT.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "editstate.h"
 #include "assets.h"
 #include "buffer.h"
@@ -20,7 +32,8 @@
 #include "text.h"
 #include "theme.h"
 
-/* The info window at (0xf1, 0x32), 0x4f x 0x96: the backdrop tile or colour 0x22, framed. */
+/* Clears the info window to the backdrop tile (colour 0x22 when there is none) and draws its
+ * frame in colour 0. */
 void info_window_clear(void)
 {
     if (main_tile == 0)
@@ -30,14 +43,14 @@ void info_window_clear(void)
     buffer_draw_box(0xf0, 0x31, 0x140, scr_work, 0xc8, 0);
 }
 
-/* info_window_update -- 0000:082c, 22 bytes */
+/* Copies the info window from the work screen to the video screen. */
 void info_window_update(void)
 {
     mouse_video_update(0xf1, 0x32, 0xf1, 0x32, 0x4f, 0x96);
 }
 
-/* Writes "(terrain name)" at (*x, *y) and moves *y down a line. Forests (8-0x17) get the
- * word terrain_names[0] after the name. */
+/* Writes "(name)" for terrain t at (*x, *y) and moves *y down a line. The forested terrains
+ * (8 to 0x17) get the word "Forest" (terrain_names[0]) after the name. */
 void info_terrain(i16 t, i16 *x, i16 *y)
 {
     char buf[0x50];
@@ -53,8 +66,7 @@ void info_terrain(i16 t, i16 *x, i16 *y)
     *y += menu_font->height + 1;
 }
 
-/* info_terrain_2 -- 0000:08e2, 108 bytes */
-/* The same for a feature word (terrain_names[n]). */
+/* The same for the feature word terrain_names[n]. */
 void info_terrain_2(i16 n, i16 *x, i16 *y)
 {
     char buf[0x50];
@@ -66,10 +78,14 @@ void info_terrain_2(i16 n, i16 *x, i16 *y)
     *y += menu_font->height + 1;
 }
 
-/* 2 pads: the operand order of the `selected_terrain != terr` byte compare (mod 17) */
-/* The info window: map size, cursor, the terrain under the cursor (with its hills/mountains),
- * the selected terrain or feature with its tile and the shift-click legend, the fill radius
- * and the coastline protect state. */
+/* Redraws the whole info window and puts it on the screen. The terrain under the cursor is
+ * followed by its river, if any. The selection is shown as a picture and a name: a feature
+ * (selected_right_mouse_change set) as its sprite from the PHYS0 series, a terrain as its
+ * tile, a forested one as the unforested tile with the forest sprite over it. A feature's
+ * legend says the shift-clicks add and remove it, a terrain's that they paint and pick up.
+ *
+ * `flag` is always 1, so the branch that would name an unexplored selection never runs, and
+ * `type` is computed but not used; both are so in the original. */
 void info_window_draw(void)
 {
     char tmp[0x50];

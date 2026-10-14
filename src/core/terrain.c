@@ -1,6 +1,13 @@
-/* terrain.c -- terrain: the table of terrain types (NAMES.TXT) and what a square is. */
+/* terrain.c -- terrain: the table of terrain types (NAMES.TXT) and what a square is.
+ *
+ * A terrain byte (the map plane) holds a type in its low five bits: 0-7 open land, 8-15 and
+ * 16-23 two bands of the same eight forests, 24 arctic, 25 ocean, 26 sea lane. With
+ * MAP0_HILLY set the square is hills, or mountains if MAP0_MOUNTAINS is also set, and the low
+ * bits are the terrain under them; terrain_type folds that into types 27 (mountains) and 28
+ * (hills). terrain[] has a row of names and values for each of the 29 types.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* 2-byte record packing, as in 1994: the file formats depend on it */
 #include "font.h"
 #include "error.h"
 #include "menu.h"
@@ -13,26 +20,9 @@
 #include "map.h"
 #include "mapedit.h"
 #include "units.h"
-/* MODULE terrain: MAPEDIT.EXE segment 09b7 (terrain.obj), file 0xb176-0xb242, 4 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn terrain_type      0x0b176
- * fn terrain_at        0x0b1a2
- * fn terrain_is_ocean  0x0b1dc
- * fn terrain_is_forest 0x0b20a
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_03e4).
- *
- * TERRAIN TESTS (root code, frame 03e4). Windows twins: `terrain_at`,
- * terrain_is_ocean.c.
- *   - terrain_type(b): a map byte with bit 0x20 set is terrain 0x1b (bit 0x80 also set) or
- *     0x1c; otherwise the type is b & 0x1f.
- *   - terrain_at(x, y) is 0x19 (ocean) off the map.
- *   - terrain_is_ocean: ocean or sea lane. DOS reads the map without the Windows on_map test.
- *   - terrain_is_forest: whether the square's type is in 8..23.
- */
 
-/* terrain_type -- 09b7:0006, 44 bytes */
+/* The terrain type of terrain byte b: 0x1b (mountains) or 0x1c (hills) for a hilly square,
+ * else its low five bits. */
 i16 terrain_type(i16 b)
 {
     i16 r;
@@ -43,7 +33,8 @@ i16 terrain_type(i16 b)
         r = (u8)(b & 0x1f);
     return r;
 }
-/* terrain_at -- 09b7:0032, 58 bytes */
+
+/* The terrain type of square (x, y); ocean (0x19) on the border ring and off the map. */
 i16 terrain_at(i16 x, i16 y)
 {
     i16 terrain;
@@ -53,7 +44,9 @@ i16 terrain_at(i16 x, i16 y)
         terrain = terrain_type(map_get(x, y));
     return terrain;
 }
-/* terrain_is_ocean -- 09b7:006c, 46 bytes */
+
+/* Is the square ocean or sea lane? Reads the map without testing the coordinates, and
+ * looks only at the low five bits, ignoring MAP0_HILLY. */
 i16 terrain_is_ocean(i16 x, i16 y)
 {
     i16 terrain;
@@ -62,7 +55,9 @@ i16 terrain_is_ocean(i16 x, i16 y)
     terrain = (u8)(terrain & 0x1f);
     return terrain == 0x19 || terrain == 0x1a;
 }
-/* terrain_is_forest -- 09b7:009a, 56 bytes */
+
+/* Is the square's type a forest (8-23)? Like terrain_is_ocean it does not test the
+ * coordinates, and it reads the low five bits even on a hilly square. */
 i16 terrain_is_forest(i16 x, i16 y)
 {
     i16 terrain;
@@ -72,11 +67,14 @@ i16 terrain_is_forest(i16 x, i16 y)
     return (terrain >= 8 && terrain < 0x10) || (terrain >= 0x10 && terrain < 0x18);
 }
 
-TerrainInfo terrain[29];                   /* DS:0x4ee6: 464 bytes, NAMES.TXT's terrain rows */
+TerrainInfo terrain[29];    /* one row of NAMES.TXT per terrain type */
 
-i16 terrain_names[5];                     /* DS:0x4b5a: five word numbers */
+/* The five OTHER_NAMES words of NAMES.TXT (string numbers); [0] is the word a forest's name
+ * gets after it. */
+i16 terrain_names[5];
 
-/* One terrain row from the text file: its name word, three numbers and nine values. */
+/* Reads the next line of the open text section into terrain[n]: its name (a string number),
+ * three numbers and nine values. */
 void load_terrain(register i16 n)
 {
     register i16 i;
@@ -90,9 +88,9 @@ void load_terrain(register i16 n)
         terrain[n].v[i] = text_item_number();
 }
 
-/* load_data -- 0000:2336, 324 bytes */
-/* The terrain table from NAMES.TXT: 8 unforested rows, 8 forested (copied to rows 16-23),
- * 5 others, the 5 feature words, and the editor's colours from COLORS. */
+/* Loads the terrain table from NAMES.TXT: the UNFORESTED section gives rows 0-7, FORESTED
+ * rows 8-15 (each copied to the second forest band, 16-23), OTHER rows 24-28, and
+ * OTHER_NAMES the five words of terrain_names. */
 void load_data(void)
 {
     char name[16] = "names";

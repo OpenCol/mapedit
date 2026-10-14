@@ -1,4 +1,10 @@
-/* hotspot.c -- hot spots: the screen rectangles a click is matched against. */
+/* hotspot.c -- hot spots: the screen rectangles a click is matched against.
+ *
+ * The table spot[] holds up to 120 rectangles, each with two values for its owner (v1, v2),
+ * an id that groups the spots of one screen, and an active flag. Entries are numbered from 1;
+ * numspots is the number of the last one in use, and a screen clears the table by setting
+ * numspots to 0. hspot_add appends a spot; hspot_which finds the one under a point.
+ */
 #include "msc.h"
 #include "error.h"
 #include "font.h"
@@ -10,26 +16,15 @@
 #include "records.h"
 #include "sprite.h"
 #include "units.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as in 1994; file formats rely on it */
 
-/* MODULE hspot_1: MAPEDIT.EXE segment 0ba3 (hspot_1.c), file 0xd030-0xd0a2, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn hspot_add    0x0d030
- *
- * No VICEROY twin: reconstructed from the shipped bytes. "elg"; numspots is used directly
- * (cached in si, written back at the end): a local copy splits its range into cx.
- *
- * HOT SPOTS. The table `spot` (DS:0x530a, 16-byte records) holds up to 120 rectangles
- * with two user values and an id; `numspots` (DS:0x0716) is the index of the last one
- * (entry 0 is unused). hspot_add(x0, y0, x1, y1, v1, v2, id) (_fastcall) appends one,
- * active, and returns -1; when the table is full it reports error -0x44 (level 2, module
- * 0x1c, with v1 and v2 as the data words) and returns 0.
+i16 numspots = 0;                                /* the last entry in use; 0 when empty */
+HotSpot spot[121];                               /* entry 0 is unused */
+
+/* hspot_add -- append an active hot spot covering (x0, y0)-(x1, y1), corners included, with
+ * the values v1, v2 and the id. Returns -1, or 0 when the table already holds 120 spots, after
+ * reporting the error (-0x44, with v1 and v2 as its data).
  */
-
-i16 numspots = 0;                                /* DS:0x0716 (defined here) */
-HotSpot spot[121];                               /* DS:0x530a (BSS, 1936 bytes) */
-/* hspot_add -- 0ba3:0000, 114 bytes */
 i16 hspot_add(i16 x0, i16 y0, i16 x1, i16 y1, i16 v1, i16 v2, i16 id)
 {
     if (numspots == 120) {
@@ -48,8 +43,10 @@ i16 hspot_add(i16 x0, i16 y0, i16 x1, i16 y1, i16 v1, i16 v2, i16 id)
     return -1;
 }
 
-/* hspot_which -- 0baa:0002: the first active hot spot (from 1) with this id whose rectangle
-   holds (x, y), compared unsigned; 0 when none does */
+/* hspot_which -- the number of the first active hot spot with this id whose rectangle holds
+ * (x, y), corners included; 0 when none does. The comparisons are unsigned: a negative
+ * coordinate counts as a very large one.
+ */
 i16 hspot_which(u16 x, u16 y, i16 id)
 {
     u16 i;
@@ -64,21 +61,3 @@ i16 hspot_which(u16 x, u16 y, i16 id)
     }
     return 0;
 }
-
-/* MODULE hspot_7: MAPEDIT.EXE segment 0baa (HSPOT_7.C), file 0xd0a2-0xd0f4, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn hspot_which  0x0d0a2
- *
- * No VICEROY twin: reconstructed from the shipped bytes. The body is inline assembly (the
- * prologue homes all three register parameters); the nop before `none:` is MSC's own
- * padding of a label that follows an unconditional jmp to an even offset.
- *
- * hspot_which(x, y, id) (_fastcall) returns the index (from 1) of the first active hot
- * spot with that id containing (x, y), or 0. The coordinates compare unsigned.
- */
-
-
-
-/* hspot_which -- 0baa:0002, 82 bytes */
-/* PORT: hspot_which is in port/ (inline assembly) */

@@ -1,4 +1,17 @@
-/* font.c -- fonts: loading them (.FF files), their colours, writing and measuring text. */
+/* font.c -- fonts: loading them (.FF files), their colours, writing and measuring text.
+ *
+ * A font is a whole .FF file held in memory:
+ *   byte 0     the height of every glyph, in pixels;
+ *   from 2     one width byte per character, indexed by code - 1 (codes 1..80h);
+ *   from 82h   one word per character, the offset of its glyph from the start of the font.
+ * A glyph is `height` rows of `width` pixels, two bits a pixel, four pixels to a byte, high
+ * bits first, each row starting on a new byte. The two bits pick one of the four colours in
+ * font_colors; a colour of FFh is transparent (the destination is left as it is).
+ *
+ * The editor loads its fonts once at startup (font_load) into the font pointers below, sets
+ * the colours with font_set_colors, measures strings with font_string_width and draws them
+ * with font_write.
+ */
 #include <string.h>
 
 #include "msc.h"
@@ -18,29 +31,14 @@
 #include "sprite.h"
 #include "units.h"
 #include "w16types.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 
-/* MODULE font_1: MAPEDIT.EXE segment 0d43 (font_1.c), file 0xea3a-0xeb38, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn font_load    0x0ea3a
- *
- * Near twin: `ovl27_76c70` ff_load (0.99): the same source with the library
- * names. This module also defines the five font pointers (DS:0x3a96-0x3aa6).
- *
- * LOADING A WHOLE .FF FONT FILE INTO FAR MEMORY. font_load(name) (_fastcall, name in bx):
- *   1. Copy the name and add ".FF" when it has no extension.
- *   2. Skip a leading '*' and take the first 8 characters as the allocation's tag.
- *   3. Open the file "rb", allocate a block of the file's size under that tag
- *      (mem_get_name), and read the whole file into it (loader_read).
- *   4. On a failed read, free the block. Close the file if it was opened.
- * It returns the block, or 0. It sets mem_last_alloc_loader to 0x0f first: the module
- * number a file error is reported under.
- *
- * Global register allocation plus the global optimiser (`#pragma optimize("eg")`), as the twin.
+/* Loads a whole font file into a new memory block. `name` gets ".FF" when it has no
+ * extension; a leading '*' is skipped and the next eight characters tag the block
+ * (mem_get_name). Returns the block, or 0 when the file cannot be opened, the block cannot be
+ * allocated or the read fails (a block already taken is freed then). Sets
+ * mem_last_alloc_loader to 0Fh, the number memory errors are reported under.
  */
-
-/* font_load -- 0d43:000a, 254 bytes */
 void *font_load(char *name)
 {
     FileIO fh;
@@ -63,7 +61,7 @@ void *font_load(char *name)
         p = path + 1;
     msc_strncpy(tag, p, 8);
     if (loader_open("rb", -1, &fh, path) == 0) {
-        size = fh.ent[0].size;   /* PORT */
+        size = fh.ent[0].size;   /* Port: the file's (first entry's) unpacked size */
         buf = mem_get_name(size, tag);
         if (buf != 0) {
             if (loader_read(size, buf, 1L, &fh) != 0)
@@ -77,17 +75,18 @@ void *font_load(char *name)
     return result;
 }
 
-/* The five loaded fonts (CodeView: font_1.c), defined after the last function: they land after
- * font_load's ".FF" and "rb" at DS:0x3a96-0x3aa9. */
-void *font_inter = 0;                 /* DS:0x3a96 */
-void *font_main = 0;                  /* DS:0x3a9a */
-void *font_conv = 0;                  /* DS:0x3a9e */
-void *font_menu = 0;                  /* DS:0x3aa2 */
-void *font_misc = 0;                  /* DS:0x3aa6 */
+/* The loaded fonts. The editor loads font_inter (FONTINTR) and menu_font (FONTTINY,
+ * declared elsewhere); the others stay 0. */
+void *font_inter = 0;                 /* the interface font */
+void *font_main = 0;
+void *font_conv = 0;
+void *font_menu = 0;
+void *font_misc = 0;
 
-/* font_string_width -- 0d6c:0002: the glyph widths of s, plus spacing after each glyph that
-   has a width and is not the last character. (The original sign-extends the character, so a
-   code from 80h up reads before the width table; the port reads it as unsigned.) */
+/* Returns the width in pixels of string s: the sum of its characters' widths, plus `spacing`
+ * after each character that has a width and is not the last. Returns 0 for an empty string.
+ * Port: the original sign-extends the character, so a code from 80h up reads before the
+ * width table; the port reads the code as unsigned. */
 i16 font_string_width(i16 spacing, DosFont *font_, char *s)
 {
     const u8 *font = (const u8 *)font_;
@@ -106,43 +105,12 @@ i16 font_string_width(i16 spacing, DosFont *font_, char *s)
     return total;
 }
 
-/* MODULE font_2: MAPEDIT.EXE segment 0d53 (font_2.c), file 0xeb38-0xeca6, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn font_write   0x0eb38
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0c11).
- *
- * DRAWING TEXT (root code, frame 0c11; "elg"). font_write(port, x, y, font, s, gap)
- * (_fastcall) draws s at (x, y) in the font, 2 bits per pixel mapped through the four
- * colours text_colors set (0xff = transparent), clipped at the port's top and bottom and
- * stopped at its right edge, gap pixels between characters. It returns the x after the
- * last character drawn (0 when nothing fits). The glyph loop is inline assembly.
- */
+/* The four colours a glyph's two-bit pixels map to (FFh = transparent): by default a
+ * transparent background, white, grey and dark grey. */
+u8 font_colors[4] = { 0xff, 0x0f, 0x07, 0x08 };
 
-
-
-/* font_write -- 0d53:0008, 366 bytes */
-/* PORT: font_write is in port/ (inline assembly) */
-
-
-/* The module's data (DS:0x3aaa): the text colours, after the last function (so no function's
- * symbol count moves). The five font pointers before it (DS:0x3a96-0x3aa9) are font_1.c's. */
-u8 font_colors[4] = { 0xff, 0x0f, 0x07, 0x08 };        /* DS:0x3aaa */
-
-/* MODULE font_3: MAPEDIT.EXE segment 0d6a (FONT_3.C), file 0xeca6-0xecc2, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn font_set_colors 0x0eca6
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0c28).
- *
- * TEXT COLOURS (root code, frame 0c28; "elg"). font_set_colors(a, b, c, d) (_fastcall) stores the four
- * colour bytes draw_text reads (DS:0x269e-0x26a1); callers pass -1 for "unchanged" in a.
- */
-
-
-/* font_set_colors -- 0d6a:0006, 28 bytes */
+/* Sets the four text colours font_write maps a glyph's pixel values 0..3 to. Each is stored
+ * as a byte, so -1 (FFh) makes that value transparent, usually the background in a. */
 void font_set_colors(i16 a, i16 b, i16 c, i16 d)
 {
     font_colors[0] = a;
@@ -151,40 +119,15 @@ void font_set_colors(i16 a, i16 b, i16 c, i16 d)
     font_colors[3] = d;
 }
 
-/* MODULE font_4: MAPEDIT.EXE segment 0d6c (font_4.c), file 0xecc2-0xed0a, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn font_string_width 0x0ecc2
- *
- * Twin: `root_0c2a` text_width (VICEROY.EXE 0xe6a6), the same bytes.
- *
- *  font_string_width is the whole 72-byte module.)
- *
- * font_string_width(spacing, font, s) (_fastcall) sums the widths of the characters of a
- * far string: each character's width from the font's table (byte 2 + code - 1), plus
- * `spacing` after every character but the last that has a width. The loop is inline
- * assembly; it restores DS from DGROUP (a SEG fixup) at the end.
- */
-
-
-/* font_string_width -- 0d6c:0002, 72 bytes */
-/* PORT: font_string_width is in port/ (inline assembly) */
-
-/* font.c -- font_2.c's font_write, whose glyph loop was inline assembly.
- *
- * A font: byte 0 the height; from +2 a width a character (index = code - 1); from +82h a
- * word a character, the offset of its glyph from the font's start. A glyph is height rows of
- * width pixels, two bits each, four to a byte, high bits first, each row starting on a byte;
- * a pixel's colour is font_colors[bits], FFh leaving the destination as it is.
+/* Draws string s into port with its top-left corner at (x, y), `gap` pixels between
+ * characters, and returns the x after the last character drawn plus its gap (0 when no row
+ * of the font is inside the port).
  *
  * The string ends at a 0, and also at any code from 81h up (the original decrements the code
- * and stops on the sign). A character that would pass the buffer's width stops the string;
- * an empty-width character draws nothing and adds no gap. Rows above the buffer are skipped
- * in the glyph, rows below it clipped. Returns the x after the last character drawn.
+ * and stops on the sign). A character that would pass the port's right edge stops the
+ * string; an empty-width character draws nothing and adds no gap. Rows above the port are
+ * skipped in the glyph, rows below it clipped; there is no clipping at the left edge.
  */
-
-
-
 i16 font_write(DosPort *port, i16 x, i16 y, DosFont *font_, char *s, i16 gap)
 {
     const u8 *font = (const u8 *)font_;
@@ -197,7 +140,7 @@ i16 font_write(DosPort *port, i16 x, i16 y, DosFont *font_, char *s, i16 gap)
     u16 n = 0;
     memcpy(cols, font_colors, sizeof cols);
 
-    while (n < sizeof buf - 1 && s[n]) {        /* PORT: the original copies without a limit */
+    while (n < sizeof buf - 1 && s[n]) {        /* Port: the original copies without a limit */
         buf[n] = s[n];
         n++;
     }

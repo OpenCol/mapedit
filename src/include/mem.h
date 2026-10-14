@@ -1,4 +1,16 @@
-/* mem.h -- the functions, data and records of buffer.c, heap_1.c, mem.c, mem_2.c, mem_4.c. */
+/* mem.h -- memory: named blocks, the arenas carved from them, the free-memory figures.
+ *
+ * Defined in sys/mem.c. Every allocation is a block from mem_get_name, zeroed and tagged
+ * with up to eight characters, and freed with mem_free. An arena (Arena,
+ * port/port_records.h) is a block handed out front to back by heap_get and released all at
+ * once: heap_create allocates its block, heap_declare lays one over memory the caller owns.
+ * Running out of an arena is a fatal error. The menus, the popups and the string store keep
+ * their records in arenas.
+ *
+ * The original managed DOS memory itself (the memory-control-block chain, upper memory).
+ * The port allocates from the C heap and reports a fixed 576 KB of conventional memory free
+ * and no upper memory; the original's bookkeeping variables stay, most of them unused.
+ */
 #ifndef MAPEDIT_MEM_H
 #define MAPEDIT_MEM_H
 
@@ -28,12 +40,12 @@ void mem_set_video_mode(void);
 
 extern char mem_initialized;
 extern i32 mem_last_alloc_avail;
-extern char mem_last_alloc_failed;
-extern i16 mem_last_alloc_loader;
-extern i32 mem_last_alloc_size;
+extern char mem_last_alloc_failed;      /* the last allocation returned null */
+extern i16 mem_last_alloc_loader;       /* set by the loaders; not read */
+extern i32 mem_last_alloc_size;         /* shown by the error report; never set */
 extern i32 mem_last_alloc_umb;
-extern i16 mem_manager_active;
-extern void (*mem_manager_update)(void);
+extern i16 mem_manager_active;          /* -1 while that hook runs */
+extern void (*mem_manager_update)(void); /* run after each allocation and release */
 extern i32 mem_max_free;
 extern char mem_max_free_set;
 extern i32 mem_min_free;

@@ -1,4 +1,22 @@
-/* timer.c -- the clock: the 600 Hz and 60 Hz counters and what runs on them. */
+/* timer.c -- the clock: the 600 Hz and 60 Hz counters and what runs on them.
+ *
+ * In 1994, timer_install reprograms the PIT to divisor 7A8h (1193182 / 1960 = 608.8
+ * interrupts a second) and takes INT 8. Its handler counts every interrupt in timer_600_low;
+ * every tenth it counts timer_60_low (60.9 a second) and runs the low-priority routine
+ * (TIMER_ACTIVATE_LOW_PRIORITY), and every thirtieth it chains to the BIOS's handler, whose
+ * tick (and INT 1Ch: keys.c's keypad mouse) then runs 20.3 times a second instead of 18.2.
+ * The handler's sound steps are not reproduced: the editor plays no sound.
+ *
+ * The port has no interrupts. timer_sync() brings everything up to the host clock -- the
+ * counters, and the periodic work once for each period that has passed -- and runs wherever
+ * the editor reads the time or polls its input (the timer_read functions here, the keyboard
+ * and the mouse). Between reads nothing moves, which for a program that only ever looks at
+ * the clock is the same thing. keys_tick, 1994's INT 1Ch, runs at the chained rate (20.3 Hz)
+ * while the timer is installed and on the BIOS tick otherwise.
+ *
+ * timer_read returns whichever count timer_address points at: the BIOS tick (18.2 Hz) until
+ * timer_install, timer_60_low after it.
+ */
 #include "msc.h"
 #include "host.h"
 #include "font.h"
@@ -10,57 +28,43 @@
 #include "sound.h"
 #include "timer.h"
 #include "units.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records on 2-byte boundaries, as the 1994 compiler laid them out */
 
-/* MODULE timer_1: MAPEDIT.EXE segment 0d18 (TIMER_1.C), file 0xe786-0xe7c8, 5 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn timer_read     0x0e786
- * fn timer_read_dos 0x0e792
- * fn timer_read_600 0x0e7a2
- * fn timer_read_60  0x0e7aa
- * fn timer_hack     0x0e7b2
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0c0c).
- *
- * THE TICK COUNTERS (root code, frame 0c0c, from offset 6). Engine code.
- *   - timer_read_60 returns the timer handler's count at DS:0x92e8 (bumped every fifth int 8 in
- *     module 0a0a; timer_address points at it, so timer_read reads the same count). DS:0x8338,
- *     which timer_read_600 returns, counts every interrupt.
- *   - timer_hack installs the timer (timer_install), runs the sound driver's poll
- *     (sound_manager), resets the driver vectors (sound_driver_null) and removes the
- *     timer (timer_remove).
- *     No code calls either function.
- */
+/* The count timer_read returns: the BIOS tick count until the timer is installed, then
+ * timer_60_low. */
+i32 *timer_address = (i32 *)(msc_bda + 0x006c);
 
+/* The timer_read functions. Port: each calls timer_sync first, since the counters move only
+ * when read. */
 
-i32 *timer_address = (i32 *)(msc_bda + 0x006c);   /* DS:0x267a: the BIOS tick count until the timer is installed */
-/* PORT: the counters move when read: the port has no clock interrupt (port/lib/timer.c) */
-/* timer_read -- 0d18:0006, 12 bytes */
+/* timer_read -- the program's clock: 18.2 Hz before timer_install, 60.9 Hz after. */
 i32 timer_read(void)
 {
-    timer_sync();   /* PORT */
+    timer_sync();   /* Port */
     return *timer_address;
 }
-/* timer_read_dos -- 0d18:0012, 16 bytes */
+/* timer_read_dos -- the BIOS tick count, whether or not the timer is installed. Port: always
+ * 18.2 Hz (bios_sync derives it from the host clock); in 1994 it ran at 20.3 Hz while the
+ * timer was installed. Unused. */
 i32 timer_read_dos(void)
 {
-    timer_sync();   /* PORT */
+    timer_sync();   /* Port */
     return *(i32 *)(msc_bda + 0x006c);
 }
-/* timer_read_600 -- 0d18:0022, 8 bytes */
+/* timer_read_600 -- the 608.8 Hz count. */
 i32 timer_read_600(void)
 {
-    timer_sync();   /* PORT */
+    timer_sync();   /* Port */
     return timer_600_low;
 }
-/* timer_read_60 -- 0d18:002a, 8 bytes */
+/* timer_read_60 -- the 60.9 Hz count. Unused (timer_read returns the same count). */
 i32 timer_read_60(void)
 {
-    timer_sync();   /* PORT */
+    timer_sync();   /* Port */
     return timer_60_low;
 }
-/* timer_hack -- 0d18:0032, 22 bytes */
+/* timer_hack -- installs the timer, polls the sound driver, resets it and removes the timer
+ * again. Unused. */
 void timer_hack(void)
 {
     timer_install();
@@ -69,46 +73,16 @@ void timer_hack(void)
     timer_remove();
 }
 
-/* The module's last two words (DS:0x267e, 0x2680), after the last function: no count moves. */
-i16 timer_rate = 20;                                    /* DS:0x267e */
-i16 timer_service_active = 0;                                     /* DS:0x2680 */
+/* Unused. */
+i16 timer_rate = 20;
+i16 timer_service_active = 0;
 
-/* MODULE timer_2: MAPEDIT.EXE segment 105b (TIMER_2.C), file 0x11bb6-0x11bca, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn TIMER_SET_RATE 0x11bb6
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0c10).
- *
- * THE TIMER RATE (root code, frame 0c10). TIMER_SET_RATE(divisor) programs PIT channel 0 in
- * mode 3 (control word 0x36) with the given divisor, interrupts off. Inline assembly.
- */
-
-/* TIMER_SET_RATE -- 105b:0006, 20 bytes */
-/* PORT: TIMER_SET_RATE is in port/ (inline assembly) */
-
-/* timer.c -- timer_3.ASM and TIMER_2.C: the clock interrupt.
- *
- * timer_install reprograms the PIT to divisor 7A8h (1193182 / 1960 = 608.8 interrupts a
- * second) and takes INT 8. Its handler counts every interrupt in timer_600_low; every second
- * one it plays a sound step; every tenth it counts timer_60_low (60.9 a second), runs the
- * sound manager and the low-priority routine (TIMER_ACTIVATE_LOW_PRIORITY), and every
- * thirtieth it chains to the BIOS's handler, whose tick (and INT 1Ch: keys.c's keypad
- * mouse) then runs 20.3 times a second instead of 18.2.
- *
- * The port has no interrupts. timer_sync() brings everything up to the host clock -- the
- * counters, and the periodic work once for each period that has passed -- and runs wherever
- * the editor reads the time or polls its input (the reads in timer_1.c, through a patch;
- * the keyboard and the mouse here). Between reads nothing moves, which for a program that
- * only ever looks at the clock is the same thing.
- */
-
-
-i32 timer_600_low;                      /* DS:50b6 */
-i32 timer_60_low;                       /* DS:4e72 */
-i16 TIMER_SOUND_ON, TIMER_NOISE_ON;
+/* The counters and the handler's state. */
+i32 timer_600_low;                      /* every interrupt: 608.8 Hz */
+i32 timer_60_low;                       /* every tenth: 60.9 Hz */
+i16 TIMER_SOUND_ON, TIMER_NOISE_ON;     /* the sound flags; set, never read */
 i16 TIMER_LOW_PRIORITY, TIMER_LOW_SEMAPHORE, TIMER_LOW_STACKING, TIMER_LOW_DEFERRED;
-void (*TIMER_LOW_ROUTINE)(void);
+void (*TIMER_LOW_ROUTINE)(void);        /* run every tenth interrupt when TIMER_LOW_PRIORITY */
 
 
 static u16 divisor;                     /* 0: the BIOS's 65536 */
@@ -117,18 +91,19 @@ static uint64_t base_ms, base_count;    /* timer_600_low counted from here */
 static i32 last_600;                    /* its value when timer_sync last left it */
 static u32 bios_chain;                  /* 1Ch ticks run through the chain */
 
-/* TIMER_SET_RATE -- 105b:0006: the PIT's channel 0 divisor */
+/* TIMER_SET_RATE -- sets the PIT's channel 0 divisor; 0 restores the BIOS rate. */
 void TIMER_SET_RATE(u16 d)
 {
     divisor = d;
 }
 
+/* rate -- interrupts a second at the current divisor. */
 static double rate(void)
 {
     return 1193182.0 / (divisor ? divisor : 65536.0);
 }
 
-/* the periodic work of the handler, for interrupt number n (1-based) */
+/* interrupt -- the handler's periodic work for interrupt number n (counting from 1). */
 static void interrupt(u32 n)
 {
     if (n % 10 == 0) {
@@ -143,6 +118,9 @@ static void interrupt(u32 n)
         keys_tick();                    /* the chained BIOS tick, and INT 1Ch */
 }
 
+/* timer_sync -- brings the BIOS data area and the counters up to the host clock, running the
+ * periodic work for every interrupt that is due. A counter the program has set itself is
+ * counted on from its new value. */
 void timer_sync(void)
 {
     bios_sync();
@@ -150,7 +128,7 @@ void timer_sync(void)
         uint64_t now = host_ms(), due;
         if (timer_600_low != last_600) {
             /* the program set the counter itself (show_map_gradually zeroes it): count on
-               from there */
+             * from there */
             base_ms = now;
             base_count = (u32)timer_600_low;
         }
@@ -170,7 +148,7 @@ void timer_sync(void)
     }
 }
 
-/* timer_install -- 0d1c:017d */
+/* timer_install -- starts the 608.8 Hz clock from 0 and makes timer_read return timer_60_low. */
 void timer_install(void)
 {
     TIMER_SOUND_ON = 0;
@@ -186,7 +164,8 @@ void timer_install(void)
     installed = 1;
 }
 
-/* timer_remove -- 0d1c:01f3 */
+/* timer_remove -- stops the clock and hands timer_read back to the BIOS tick; safe to call
+ * when the timer is not installed. */
 void timer_remove(void)
 {
     if (installed) {
@@ -197,12 +176,14 @@ void timer_remove(void)
     installed = 0;
 }
 
+/* TIMER_SET_SOUND_FLAG -- turns the handler's sound steps on or off. */
 void TIMER_SET_SOUND_FLAG(i16 on)
 {
     TIMER_SOUND_ON = on;
     TIMER_NOISE_ON = 0;
 }
 
+/* TIMER_ACTIVATE_LOW_PRIORITY -- installs routine to run at 60.9 Hz; null removes it. */
 void TIMER_ACTIVATE_LOW_PRIORITY(void (*routine)(void))
 {
     TIMER_LOW_ROUTINE = routine;
@@ -211,12 +192,13 @@ void TIMER_ACTIVATE_LOW_PRIORITY(void (*routine)(void))
 }
 
 /* timer_idle -- the port's: a UI loop has nothing to do until the next input or tick. The
-   1994 loops polled flat out, which a DOS machine could afford; a millisecond's sleep keeps
-   them responsive at a fraction of the CPU. */
+ * 1994 loops polled flat out, which a DOS machine could afford; a millisecond's sleep keeps
+ * them responsive at a fraction of the CPU. */
 void timer_idle(void)
 {
     host_idle(1);
 }
 
+/* The copy-protection flag: the port has none. */
 void TIMER_SET_COPY_PROTECT(i16 on) { (void)on; }
 i16 TIMER_GET_COPY_PROTECT(void) { return 0; }

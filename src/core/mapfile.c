@@ -1,6 +1,24 @@
-/* mapfile.c -- map files (.MP): the planes in memory, loading, saving, a blank map, the old forest codes. */
+/* mapfile.c -- .MP map files: the planes' memory, loading, saving, a blank map, forest codes.
+ *
+ * A .MP file is a six-byte header and three planes, all little-endian:
+ *
+ *     i16 width, i16 height     map_file, in squares
+ *     i16 version               4; the editor refuses any other
+ *     width * height bytes      the terrain plane (map)
+ *     width * height bytes      the feature plane (feature)
+ *     width * height bytes      the continent plane (continent)
+ *
+ * The sight plane (site) is not in the file. map_startup allocates the four planes once, at
+ * startup, 12000 bytes each; every later map is loaded into (or created in) those same
+ * blocks, which map_check makes safe by refusing a map of more than 12000 squares. The file
+ * is map_name with its extension replaced by .MP, in the game folder.
+ *
+ * Loading, saving and creating return 0 on success and 1 on failure, the reason in map_error:
+ * 1 the file does not open, 2 the header is short, 3 the version is not 4, 4-6 a plane is
+ * short (terrain, features, continents), 9999 the map is too big, 0x13 out of memory.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* 2-byte record packing, as in 1994: the file formats depend on it */
 #include "font.h"
 #include "menu.h"
 #include "buffer.h"
@@ -14,31 +32,11 @@
 #include "mapedit.h"
 #include "mem.h"
 #include "units.h"
-/* MODULE map_9: MAPEDIT.EXE segment 09f9 (map_9.obj), file 0xb59a-0xba76, 8 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn set_plane_ports       0x0b59a
- * fn allocate_map_memory   0x0b5f2
- * fn initialize_map_memory 0x0b6b8
- * fn map_check             0x0b6bc
- * fn load_map_file         0x0b700
- * fn write_map_file        0x0b840
- * fn create_blank_map      0x0b94a
- * fn map_startup           0x0b9ce
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl25_70fa0).
- *
- * THE 1994 MAP-PLANE MODULE (segment para 283 of overlay 25): the Windows module 1038:ce56..d272
- * (allocate_map_memory, return_one_1038_cf4b, map_check, load_map_file, close_log_file,
- * create_blank_map, map_startup), whose twins are in. Same-file far calls go
- * through the two jump stubs at 0x7147c (map_check) and 0x71481 (allocate_map_memory).
- */
 
 #include "records.h"
 
-/* set_plane_ports -- 09f9:000a, 88 bytes */
-/* DOS only: the four planes are plain far blocks, and each has a port record (height, width,
- * bits) for the buffer_get/buffer_put drawing code. */
+/* Describes each plane as a map_file.w x map_file.h port (scr_map, scr_feature,
+ * scr_continent, scr_site), so the buffer code can read and write it by (x, y). */
 void set_plane_ports(void)
 {
     scr_map.w = scr_feature.w = scr_continent.w = scr_site.w = map_file.w;
@@ -48,11 +46,11 @@ void set_plane_ports(void)
     scr_continent.bits = continent;
     scr_site.bits = site;
 }
-/* allocate_map_memory -- 09f9:0062, 198 bytes */
 
-/* Windows: MSAllocateHandle + MSHLock per plane, viewport 480x384. DOS: a too-big map
- * (map_high_memory_mode, set by map_check) gets 11956 bytes per plane, the viewport is 240x192, and on
- * success the plane ports are set up. */
+/* Allocates the four planes, map_memory bytes each: 12000 when big is nonzero (the editor
+ * always passes 1), else the map's size (11956 under map_high_memory_mode). Sets the view to
+ * 240 x 192 pixels and, on success, the plane ports. Returns 0, or 1 when a block cannot be
+ * had; the blocks already allocated are then kept. */
 i16 allocate_map_memory(i16 big)
 {
     i16 err = 1;
@@ -82,14 +80,15 @@ i16 allocate_map_memory(i16 big)
 done:
     return err;
 }
-/* initialize_map_memory -- 09f9:0128, 4 bytes */
+
+/* Does nothing; returns 1. */
 i16 initialize_map_memory(void)
 {
     return 1;
 }
-/* map_check -- 09f9:012c, 68 bytes */
 
-/* Windows: returns 0. DOS: a map of more than 12000 cells sets map_high_memory_mode and error 9999. */
+/* Can the planes hold a map of map_size squares? Returns 0 if so (12000 or fewer); else sets
+ * map_high_memory_mode and map_error 9999 and returns 1. */
 i16 map_check(void)
 {
     i16 r = 1;
@@ -106,8 +105,11 @@ i16 map_check(void)
 out:
     return r;
 }
-/* load_map_file -- 09f9:0170, 320 bytes */
 
+/* Loads map_name (as .MP) into the planes: sets map_file, map_file_version, map_size and the
+ * plane ports. The version test also passes any version while map_file_version is negative,
+ * which it never is. A failed load is not undone: map_file already holds the new header (and
+ * a short plane may be half read), while the planes still hold the old map. */
 i16 load_map_file(void)
 {
     i16 err = 1;
@@ -157,8 +159,9 @@ out:
         msc_fclose(fh);
     return err;
 }
-/* write_map_file -- 09f9:02b0, 266 bytes */
-/* Windows close_log_file is this function gutted: DOS writes the map file. */
+
+/* Saves the map to map_name (as .MP), with the version it was loaded or created with. A
+ * failure to write the continent plane reports error 5, as the feature plane does. */
 i16 write_map_file(void)
 {
     i16 err = 1;
@@ -201,8 +204,11 @@ out:
         msc_fclose(fh);
     return err;
 }
-/* create_blank_map -- 09f9:03ba, 132 bytes */
 
+/* Makes a new w x h map of ocean (terrain 0x19, no features, continent bytes 0, so region 0
+ * and owner 0 rather than nobody), version 4. A map too big for the planes returns 1, with
+ * map_file and map_size already changed. The plane ports are not updated: they keep the
+ * previous map's width and height. */
 i16 create_blank_map(i16 w, i16 h)
 {
     i16 err = 1;
@@ -224,8 +230,12 @@ i16 create_blank_map(i16 w, i16 h)
     }
     return err;
 }
-/* map_startup -- 09f9:043e, 168 bytes */
 
+/* Allocates the planes at startup (allocate_map_memory(big)). Unless map_force is set, it
+ * first reads the width and height from map_name's header (120 x 75 when there is no file),
+ * so a map too big for memory is refused before anything is allocated; the editor always
+ * sets map_force and keeps the map_file it set itself. Returns 0, or 1 with map_error 0x13
+ * when memory runs out (or 9999 from map_check). */
 i16 map_startup(i16 big)
 {
     i16 err = 1;
@@ -253,10 +263,10 @@ i16 map_startup(i16 big)
     return err;
 }
 
-/* Old map files: a hills/mountain bit (0x20) on a forest square keeps only its base terrain
- * (bits 0xe0 and the low 3), and a plain forest (0x10-0x17) becomes its unforested type.
- * The `type -= 0x10; type += 8;` pair is what gives the shipped `add word [type],-8`: a
- * single -8 in any spelling comes out as `sub ..,8`. */
+/* Normalises the forests of a just-loaded map: a hills or mountains square (MAP0_HILLY) whose
+ * low bits name a forest (8-23) keeps only the open terrain under it (0-7), and a forest of
+ * the second band (16-23) becomes the same forest in the first (8-15). The top three bits,
+ * rivers included, are kept. */
 void forest_fix(void)
 {
     i16 type;

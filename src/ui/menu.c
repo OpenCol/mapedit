@@ -1,6 +1,24 @@
-/* menu.c -- menus: the menu bar and its drop-downs, built, drawn and run. */
+/* menu.c -- menus: the menu bar and its drop-downs, built, drawn and run.
+ *
+ * A Menu is the bar across the top of the screen. It owns a list of titles (MenuSub), each
+ * with its list of items (MenuEntry); all of them, and copies of their texts, live in an
+ * arena allocated with the Menu. A title or item text marks its hot key with ~ before the
+ * letter ("~Save Map"); "~F~1" marks the function key F1 (menu_get_hotkey). An item with an
+ * empty text is a separator. Item flags: 1 disabled (drawn grey, cannot be chosen), 2 hidden;
+ * title flag 1 hides the title.
+ *
+ * The bar and the drop-downs each have a text style (MenuStyle): the extra spacing after each
+ * character, the plain colour, the colour of disabled text, the hot-key colour and the font.
+ * The colours come from the globals below when the menu is created; the editor sets those
+ * from NAMES.TXT's COLORS section (theme.c) before it builds its menu.
+ *
+ * The editor builds one menu (mapedit.c) and its main loop (input.c) feeds it the mouse and
+ * the keyboard: menu_bar_mouse_parse and menu_bar_key_parse open a title's drop-down and run
+ * it (menu_bar_run); menu_key_parse takes an item's hot key directly. Each leaves the chosen
+ * item's id, or 0, in the Menu's f0.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "game.h"
 #include "map.h"
 #include "pal.h"
@@ -19,263 +37,10 @@
 #include "screen.h"
 #include "sprite.h"
 #include "units.h"
-/* MODULE menu: MAPEDIT.EXE segment 06d7 (menu.obj), file 0x8378-0x9a20, 24 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn menu_font_height      0x08378
- * fn menu_set_font         0x0838e
- * fn menu_fill_rect        0x083c2
- * fn menu_string_width     0x08426
- * fn menu_string_write     0x0847c
- * fn menu_get_hotkey       0x085b6
- * fn menu_create           0x0866e
- * fn menu_bar_item         0x087b6
- * fn menu_item             0x087fc
- * fn menu_bar_hide         0x08892
- * fn menu_grey             0x088ca
- * fn menu_release_all_grey 0x088fa
- * fn menu_off              0x0893e
- * fn menu_release_all_off  0x0896e
- * fn menu_add_bar_item     0x089b2
- * fn menu_add_item         0x08b4e
- * fn menu_draw_bar         0x08cb4
- * fn menu_compute_size     0x08ddc
- * fn menu_draw_menu        0x08ef2
- * fn menu_bar_run          0x0910c
- * fn menu_bar_mouse_parse  0x09724
- * fn menu_bar_key_parse    0x097c2
- * fn menu_key_parse        0x09856
- * fn menu_read_colors      0x0991c
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl10_44540).
- *
- * THE 1994 MENU BAR: a DOS-only module (Windows uses real menus, so nothing here has a twin).
- * Its nearest relative is overlay 23's popup code: the same text style (spacing, colour,
- * highlight colour, ~hotkey colour, font), the same ~ hotkey parser, the same arena-backed
- * allocation (mem_get + heap_declare). A menu holds a list of submenus (the bar's
- * titles), each a list of items.
- *
- * FLAGS: /Oa instead of /Ow, plus /Oe /Ol /Og: `#pragma optimize("w", off)` then
- * ("aelg", on). Signs: registers by lifetime, DS borrowed as a segment register in list walks
- * (lds ... mov ds,DGROUP), es:di kept across a store through the same pointer (/Oa), and
- * `_fstrcpy(p->text = heap_get(..), name)` pushing `name` BEFORE the nested call (only /Ow
- * hoists the call). menu_bar_run is past MSC's C4203 limit, so it compiles with every local in
- * memory, as shipped.
- *
- * Module data: DS:0x149c-0x14ba are this module's initialised colour words (7,7,7,7,8,8,8,8,0,
- * 0,8,0xf,0,8,0xf, and menu_tile = 0 the backdrop port), followed by "MENUCOLR.SS" at 0x14bc.
- * They are declared extern here; menu_read_colors refills them from MENUCOLR.SS. Finding:
- * its seventh colour is stored to menu_bar_font_main_color a second time (menu_font_grey_color = menu_bar_font_main_color = pix) where menu_bar_font_grey_color
- * looks intended, so the bar's highlight colour (menu_bar_font_grey_color) keeps its default 8.
- *
- *  The history that follows is kept for the levers it
- * records.
- * The length comes from two things together: `dp = m ? m : 0`, whose second definition in
- * another basic block is the only thing that stops MSC merging the pointer copies (324
- * bytes), and `Menu far * volatile result`, which adds the last 4.
- *
- *   - menu_create (238 bytes differ, right length). Shipped keeps three copies of the new menu pointer: m
- *     in di:[bp-0xe], one copy in memory ([bp-0x14]) for the arena call and the first stores,
- *     and dp in si:[bp-2] (spilled around each menu_set_font) for the rest and the result,
- *     with `result` itself in memory. Every spelling tried (copies, casts, long m, void/char
- *     m, statement orders, register, pragmas e/g/l/c/w) copy-propagates them into one.
- *     The merge is block-local: a dp whose definition sits in another basic block survives
- *     (`dp = m ? m : 0`, or `dp = m` above the test) and then gets the shipped allocation
- *     (m di:[bp-0xe], dp si:[bp-2], result in memory, 324 bytes), but both add code shipped
- *     lacks. Chained/embedded copies, long/huge m, loops, goto and labels all still merge.
- * shipped frame read off the bytes (enter 0x20; ours is 0x14, and the
- *     12 missing bytes ARE the difference): result at [bp-0xc]/[bp-0xa], m in di with its
- *     segment at [bp-0xe], dp in si with its segment at [bp-0x2], a third copy at
- *     [bp-0x14]/[bp-0x12] that carries the arena call (`add cx,0x3c`, and `mov ax,[bp-0x14];
- *     add ax,0x4e` for the end pointer) and every field store up to +0xc via `les bx`, and
- *     two spill pairs, [bp-0x1c]/[bp-0x1a] and [bp-0x20]/[bp-0x1e], written from si:es right
- *     before each menu_set_font and read back after; `result = dp` at the end reads the
- *     SECOND spill, not dp. So the copies to chase are m -> (cx:bx, spilled to [bp-0x14])
- *     -> dp, with dp then living in si:es across both calls.
- *     `dp = m ? m : 0` gets closest at 324 bytes of 328 -- but it adds a null test the
- *     shipped code does not have, so it is 4 bytes short somewhere else as well.
- * merged away: routing the allocation through the unused `a`
- *     (`a = mem_get(..); m = a;`, with `dp = a` or `dp = m`) and hoisting the arena's end
- *     pointer into the unused `e` -- all four stay at 306 bytes, byte for byte as now.
- *     Turning the module's own flags off for this function does not help either:
- *     `#pragma optimize("a"|"al"|"ag", off)` leaves 306 bytes (218 differ, our best), and
- *     "ae"/"ael"/"aelg" off drop to 298-302. `volatile` on the pointers overshoots
- *     (dp 363, dp+m 382, m 312) while `volatile result` goes the wrong way (304).
- *     Nor do these keep the copies apart: `dp = (Menu far *)(long)m`, a long temp between
- *     them, `(char huge *)m`, `(Menu far *)((unsigned long)m + 0)`, a separate `char far *e`
- *     or `Menu far *a` carrying one of the two arena-call arguments, taking the end pointer
- *     from m instead of dp, and `register` on m or dp (ignored under /Oe). The one element
- *     read that helps at all is any of the five colour globals (menu_bar_background_color_0, menu_bar_background_color_1, menu_bar_font_main_color,
- *     menu_bar_font_grey_color, menu_bar_font_hilite_color) as `(&g)[0]`: 222 bytes differ instead of 218, same length.
- * against the CURRENT 328-byte version: that same element read --
- *     any one of the five, or two of them -- takes 238 differing bytes down to 192, by far
- *     the best byte count this function has had. It costs 2 of the length (326), and those
- *     2 bytes are worth four MATCHes (menu_draw_bar, menu_compute_size, menu_bar_mouse_parse,
- *     menu_draw_menu all match only because menu_create is exactly 328), so it is NOT taken.
- *     Nothing puts the 2 bytes back: unused locals of any type, `volatile` on a, e or an
- *     extra scalar, and six spellings of the null test (`m == 0 ? 0 : m`, `m != 0 ? m : 0`,
- *     `(long)m ? m : 0`, and the if/else forms both ways round) are all 326 to the byte.
- *     And the ternary is still the only thing that keeps dp off m: with the element read
- *     applied, `dp = m + 0`, `(Menu far *)((char far *)m + 0)` and `&m[0]` all merge again
- *     (300-304), and so does a volatile view of the pointer itself,
- *     `dp = *(Menu far * volatile *)&m` (300). If someone finds the 2 bytes, this function
- *     drops to 192 at a stroke.
- * keeps the copies apart (none adopted, all longer in differing bytes):
- *     the merge is /Oe's, not /Og's -- `#pragma optimize("g"|"gl"|"a"|"ag", off)` around
- *     `p = dp = m;` still gives 304. A copy defined IN THE CONDITION survives:
- *     `if ((dp = m) != 0) { p = m; <arena call and the stores up to +0xc via p>; <rest via
- *     dp> }` keeps all three pointers -- p lands in memory at [bp-0x14] carrying the arena
- *     call and the first stores via `les bx`, and after the first menu_set_font the
- *     title_col pair goes through a spill (`les bx,[bp-0x18]`), the shipped shape -- 324
- *     bytes, 247 differ. Left: the dp copy sits before the test (shipped: after it), m/dp
- *     have si/di swapped, and n_subs' zero store is delayed into the call's pushes.
- *     `dp = &*m` also breaks the copy inside the block (318), but marks m address-taken:
- *     m goes to memory and `size` takes di. Merged as before (304/306): copies in nested
- *     blocks, labels between copy and use, copies chained onto the mem_get call, copies
- *     before the test, `dp = 0` first, `(dp = m, 1)` in a `&&`, `(a = m) != 0` on an unused
- *     local, `&m->f0`, `m + (size & 0)`, `(void far *)` casts, array/struct holders (288). An inner `if (dp != 0)` after `dp = m` gives shipped's exact first
- *     four instructions (`mov ax,[bp-0xe]; mov cx,di; mov bx,ax; mov si,cx`) but MSC emits
- *     the test (316): it folds no test that is not a literal constant, not even a repeated
- *     `m != 0`. Copies above the test (as a statement, in the condition, a (void far *)
- *     cast, `p` and `dp` both, or the alloc through result) stay 318-324. Copies embedded in the arena call's arguments (`(dp = m)->arena`,
- *     `(p = dp = m)->arena`, `(char far *)(p = m) + 0x4e`), one pointer per store group
- *     (p/q/r = m or = dp), `dp = m` repeated per group, `dp = dp` after a call, the inverted
- *     if with an empty then-arm (`if (m == 0) ; else {...}`, `if (!m) ; else`, `{} else`,
- *     `goto out`), a non-volatile result, and the ternary with a separate p for the first
- *     group (p = m / p = dp, 348) all merge to the same 304 bytes or worse.
- *   - menu_draw_menu's own 12 bytes were the two addend orders in its buffer_draw_box call
- *     (`h + y - 1` loading h first, `w + x - 1` loading x first). buffer_draw_box's FIRST
- *     parameter declared `unsigned` fixes both, and the pad count then moves from 10 to 8
- *     (1..8 and 12..14 all leave the five displacement bytes; 1 breaks menu_bar_run).
- *     The type is what does it -- buffer_draw_box's prototype POSITION and the local declaration
- *     order never moved these addends.
- *   - menu_create NOW.
- *     Three levers, each needed:
- *     (1) four names for the pointer, defined in the order dp, p, q (sources do not matter,
- *     they are all m after propagation: `q = p = dp = m;`), then a basic-block boundary made
- *     by an always-true test that READS the pointer (`(unsigned long)m >= 0`; tests on font,
- *     size, result, `if (1)`, labels, gotos and an outer switch all merge the copies). p
- *     carries the arena end pointer and the first store group, q the arena itself.
- *     (2) `switch (0) { default: <drop_col..frame_col> }` (or `switch (size) { case 0:
- *     default: }`) ends the first CSE temp after title_col2: the title stores still go
- *     through the spill (`les bx,[bp-0x1c]`), the drop group reloads es from dp's [bp-2] and
- *     uses si, and the second menu_set_font gets its own spill, read back for `result` --
- *     the shipped shape. do-while(0), while(1)+break, if(1), goto/labels and an always-true
- *     if around the group are no barrier (or a different one).
- *     (3) two no-code reads of q in the test (`&& (unsigned long)q >= 0` twice): the arena
- *     call's segment then comes from ax (`push ax`) instead of a fresh `mov dx,ax`, and the
- *     end pointer gets shipped's `mov dx,bx`. One read, or reads of m/dp/p/result, do not.
- *     The n_subs volatile view can sit on title_gap, item_gap, item_pad, bar_col or bar_col2
- *     instead (same bytes); without any, 334 bytes.
- *     LEFT: (a) `push ax` where shipped pushes bx (bx is the pair p is stored from); (b) the
- *     frame: ours is enter 0x28 with p -8, dp -12 (si), q -20, result -24, m -28 (di), spills
- *     -36/-40 and three never-touched slots (-4, -16, -32); shipped is enter 0x20 with dp -4,
- *     result -12, m -16, [bp-0x14] -20, spills -28/-32 and two untouched slots (-8, -24).
- *     The /Fa listing names the locals' offsets (`;  p = -8`); unused locals pack into the
- *     holes. Frame-only levers tried, none moved a slot the right way: declaration order and
- *     0-16 pads (padmove: all 153 variants identical), block-scope declarations of p/q/dp,
- *     unused locals, no-code reads of any copy in the test or the tail test, prototype types
- *     of heap_declare. `(void)&p` puts dp at -4 and p at -20 as shipped (frame 0x24, q -12,
- *     result -16, m -24) but makes `p->gap = p->bar_h = 1` re-read bar_h; written through
- *     dp it is 33 bytes. A second family has the first store group through m itself (a CSE
- *     temp spilled at once, like shipped's [bp-0x14]) and four no-code reads of dp plus one of
- *     q: dp -4, m -16 and the spill shape right, but the arena arguments come out as `mov
- *     ax,cx; ... add cx,0x4e` (44 bytes). Also no better: every chain order and a/e source
- *     (only dp, p, q with a=q e=p works), a fifth copy, a/e single-use locals, `m + 1` /
- *     `&m->arena[0x12]` spellings of the end pointer, q copied inside the block, volatile
- *     views on other stores or on result.
- *   - menu_create FRAME. /Fa listings:
- *     the never-touched slots are not unused locals (an unused local packs INTO a hole) but
- *     things the code creates. The slot at -4 appears only with the arena call and the extra
- *     copies (without the call, q/dp move up); each copy kept apart (p, q) costs its own slot
- *     plus one hole, so three copies give 0x28 and two give 0x20. Two-copy shapes with the
- *     right frame size, all longer in bytes: `q = dp = m;` with the first group through q and
- *     the arena call through m -- 0x20, 27 lines off, but the arena and end pointer share one
- *     register CSE (`mov ax,cx; mov dx,bx; add ax,0x3c; ...; mov ax,cx`) where shipped consumes
- *     cx (`add cx,0x3c; push bx; push cx`) and reloads the offset (`mov ax,[bp-0x14]; mov dx,bx`)
- *     -- that reload is a memory variable's register cache, which is why the third copy (q,
- *     enregistered, consumed by the arena) is needed at all. A no-code read of q in the TAIL
- *     test lengthens q's lifetime and moves its slot down (-8 to -16); reads in the inner test
- *     move nothing. `(void)&p` (aliased sorts last) gives dp -4, result -16, p -20 (shipped's),
- *     q -12, m -24, frame 0x24, but makes `p->gap = p->bar_h = 1` re-read bar_h (332; an int
- *     `one`, a cast, or a split store do not avoid it; through dp it is 33 bytes). Also no
- *     help: routing the later stores through m, the arena call before/after the copies outside
- *     the test, every chain order x 0-3 q reads x aliased p. A different family from the NOW entry
- *     below: no p/q copies and no inner test. Only result, m and dp; the arena call and the
- *     first store group go through m itself, so MSC's own global CSE temp of m (cx:bx, spilled
- *     to [bp-0x14] across heap_declare) is shipped's [bp-0x14]: with `dp = m;` in the same
- *     block it gives the shipped `mov cx,di; mov bx,ax; mov si,cx` and `add cx,0x3c; push bx`
- *     at once. Each remaining piece is needed (dropping any one: 3-93 bytes):
- *     (1) `if ((unsigned)size < 0) m = 0;` after the first group: a late-folded redefinition of
- *     m, so the bar/drop stores are not known to equal the CSE and go through dp (si, es from
- *     [bp-2]). Only a def of m works there (m = result, m++, a cast); defs of dp do not.
- *     (2) the drop group in `switch (0) { default: }` (the second spill temp, [bp-0x20]).
- *     (3) `if ((unsigned)size < 0) dp->f0 = 0;` after (1) lifts dp to [bp-4] (si) and m to di;
- *     `if ((unsigned)size < 0) result = 0;` before the return lifts result above m.
- *     (4) `if (((char far *)m + 0x4e) != ((char far *)m + 0x4e)) result = 0;` right after the
- *     first group: the self-comparison folds only AFTER global CSE has made a temp for the end
- *     pointer, and that temp keeps a never-touched slot in creation order between the m temp
- *     and the two spill temps -- shipped's untouched [bp-0x18]. That moved the spills from
- *     -0x18/-0x1c to -0x1c/-0x20 (the last 8 bytes).
- *     LEARNED: under "elg" the frame is named locals (by weight) then compiler temps in creation
- *     order (CSE temps and the si:es spill temps of each call alike). A named local, even an
- *     aliased or block-scoped one, never sorts below a temp, so an untouched slot among the
- *     temps is a temp: make one with an always-false self-comparison of the expression; dead
- *     late-folded blocks, `(void)expr`, a folded `&&` term and switch(0) wrappers create none.
- *     An unused aliased far pointer with a dead def (`(void)&x; if ((unsigned)size < 0) x = 0;`)
- *     adds a named hole after m (4 bytes left there). 10 pads now (the function lost two locals).
- *   - menu_create NOW: two copies `p = dp = m;`, a late-folded
- *     `if ((unsigned)size < 0) p = 0;` before an always-true `(unsigned long)m >= 0` test,
- *     `q = m;` inside it, the arena call alone in `switch (0) { default: }`, and a folded
- *     `&& (unsigned long)p >= 0` on the dtor test; 5 pads after (0-4 and 6-16 break
- *     menu_add_bar_item, menu_draw_bar, menu_draw_menu or menu_bar_run). Left: the slot order --
- *     ours result -0x14, m -0x16 (segment), the store copy -0x10; shipped result -0xc,
- *     m -0xe, copy -0x14 -- plus `mov si,di` for `mov si,cx` and `push ax` for `push bx`.
- *   - menu_create DEAD BLOCKS. Late-folded
- *     `if ((unsigned)size < 0) stmt;` blocks (docs/msc6-codegen.md) DO move slots here, but only blocks
- *     outside the inner if keep the code: inside it each one is a block boundary (316-336
- *     bytes). On the kept version single dead defs/reads of p, q, dp, m or result at the top,
- *     between the copies and the test, before the tail test or before the return move
- *     dp/p/q/result/m around (e.g. a dead `q->f0 = 0;` read before the return: q -24) but
- *     never shrink 0x28, and 319 combinations of them reach 24 masked bytes only by
- *     coincidence in a 0x2c-0x30 frame. Best frame: the two-copy shape (`q = dp = m;`, the
- *     first group through q, the arena call through m) plus `if ((unsigned)size < 0) q = 0;`
- *     at the top and `if ((unsigned)size < 0) q->f0 = 0;` before the return gives enter 0x20
- *     with dp -4, m's segment at -0xe and the spills at -0x1c/-0x20 exactly as shipped (q -16,
- *     result -20, untouched -8/-12), 328 bytes -- but its arena code is the shared CSE
- *     (`mov si,di ... mov ax,di; add ax,0x3c ... add cx,0x4e`), 237 masked bytes. Dead reads
- *     of result (0-8) and m (0-6), dead defs of either, do not lift them above q; a dead
- *     def of q with the arena call through q gives 318-338.
- *   - menu_create LEAD:
- *     four pointer copies chained in an always-true test plus a volatile view on ONE field
- *     store reach 115 differing bytes, but 320 of the 328 (four functions here need 328):
- *       Menu far *result; Menu far *m; Menu far *dp; Menu far *p; void far *a; void far *e;
- *       Menu far *q;   ...   if (m != 0) { if ((unsigned long)(q = p = dp = m) >= 0) {
- *       e = (char far *)p + 0x4e; a = q->arena; heap_declare(0x28, a, e, (long)size);
- *       p->subs = 0; *(volatile int far *)&p->n_subs = 0; ... (stores via p) ...
- *     (the full variant is "Z3 vol n_subs" in that pass's v21.py; reconstruct from this note).
- *     What is left in it: the a/e argument evaluation (`mov dx,ax; push dx` vs shipped
- *     `push bx; ... mov dx,bx`), and shipped keeps the pointer in si with es reloaded from
- *     [bp-2] for the second store group (0x12..0x1e, lea [si+0x2c]) and spills si:es to
- *     [bp-0x20] around the call, where Z3 uses es:bx -- the 8 missing bytes. The item-hit loop leaves by
- *     `goto items_done` (a `break` or `if (it) ... else break` is hoisted into the loop test,
- *     which turns the loop top-tested, ends the not-found arm in a jump and lets MSC park the
- *     whole arm after the key dispatch); the same for the hotkey loop (`goto hot_done`). The
- *     click test's drag/height half is a goto-parked block after the `m->f0 = sel->id` arm's
- *     jump, reached by `if (sel != 0) ; else goto click_check;` (a conditional goto gets the
- *     block's first test threaded into it). `redraw7 = found = 1` stores found first.
- */
-
 #include "msc.h"
 #include "msc.h"
 
-
-/* A text style: the extra spacing after each character, the plain colour, the highlighted
- * colour, the ~hotkey colour, the font. 0xc bytes. */
-/* A menu item: flags (1 disabled, 2 hidden), its hotkey, its id, its text, the list links. */
-/* A submenu (a title on the bar): its x on the bar, its width, the drop-down's item height,
- * hotkey, id, flags (1 hidden), title, owner, links, items. 0x22 bytes. */
-/* menu_font_height -- 06d7:0008, 22 bytes */
+/* The height of a menu row's text in font f: its height, except that 6 counts as 5. */
 i16 menu_font_height(DosFont *f)
 {
     i16 r;
@@ -285,7 +50,7 @@ i16 menu_font_height(DosFont *f)
         r--;
     return r;
 }
-/* menu_set_font -- 06d7:001e, 52 bytes */
+/* Fills a text style: font, spacing after each character, plain, disabled and hot-key colours. */
 void menu_set_font(MenuStyle *st, DosFont *font, i16 spacing, i16 color, i16 hi, i16 alt)
 {
     st->spacing = spacing;
@@ -294,9 +59,9 @@ void menu_set_font(MenuStyle *st, DosFont *font, i16 spacing, i16 color, i16 hi,
     st->alt = alt;
     st->font = font;
 }
-/* menu_fill_rect -- 06d7:0052, 100 bytes */
-
-/* buffer_rect_fill, except that colour 7 restores the backdrop picture when there is one. */
+/* buffer_rect_fill, except that colour 7 fills the rectangle from the backdrop tile
+ * (menu_tile), when there is one, starting at (a, b) in the tile. c, color2, d and e are
+ * unused. */
 void menu_fill_rect(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 a, i16 b, i16 c,
                                    char color, char color2, i16 d, i16 e)
 {
@@ -306,8 +71,8 @@ void menu_fill_rect(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 a, i16 b, i16 
     }
     buffer_rect_fill(x, y, w, port, h, color);
 }
-/* menu_string_width -- 06d7:00b6, 86 bytes */
-
+/* The width in pixels of s in style st. Only the first ~ is taken out, so in a text with two
+ * (such as "~F~1") the second is measured as a character. */
 i16 menu_string_width(MenuStyle *st, char *s)
 {
     char buf[0x50];
@@ -319,8 +84,10 @@ i16 menu_string_width(MenuStyle *st, char *s)
         msc__fstrcpy(p, p + 1);
     return font_string_width(st->spacing, st->font, buf);
 }
-/* menu_string_write -- 06d7:010c, 314 bytes */
-
+/* Draws s at (x, y) on the work screen in style st and returns the x after it. Normally the
+ * text is in the plain colour and the character after each ~ in the hot-key colour. With
+ * hilite set (menu_draw_menu passes an item's disabled flag) the whole text is drawn in
+ * st->hi, the disabled colour, in one piece: its ~ markers are then drawn as characters. */
 i16 menu_string_write(MenuStyle *st, char *s, i16 x, i16 y, i16 hilite)
 {
     char one[2];
@@ -347,7 +114,12 @@ i16 menu_string_write(MenuStyle *st, char *s, i16 x, i16 y, i16 hilite)
     }
     return x;
 }
-/* menu_get_hotkey -- 06d7:0246, 184 bytes */
+/* The hot key a menu text marks: the upper-cased character after its last ~, or 0 if it has
+ * none. A text with two ~, the first before 'F' and the last before a digit ("~F~1"), marks a
+ * function key and returns its key code (0x13b for F1); a '1' just before the last ~ ("~F1~0")
+ * makes it F10. Two further tests on the text, a '0' three and five characters past the first
+ * ~, switch to the Shift (0x154) and Ctrl (0x15e) function keys; the editor's menus use
+ * neither. */
 i16 menu_get_hotkey(u8 *s)
 {
     i16 r;
@@ -374,27 +146,34 @@ i16 menu_get_hotkey(u8 *s)
     }
     return r;
 }
-/* menu_create -- 06d7:02fe, 328 bytes */
-/* The menu colours and the backdrop port, defined here (the 16 land at DS:0x0614-0x0634 in
- * this order, ahead of menu_read_colors' "MENUCOLR.SS": MSC emits a global after the literals
- * of the function that follows its definition, and no function before that one has any). */
-i16 menu_bar_background_color_0 = 7;      /* DS:0x0614 */
-i16 menu_bar_background_color_1 = 7;      /* DS:0x0616 */
-i16 menu_background_color_0 = 7;          /* DS:0x0618 */
-i16 menu_background_color_1 = 7;          /* DS:0x061a */
-i16 menu_select_color_0 = 8;              /* DS:0x061c */
-i16 menu_select_color_1 = 8;              /* DS:0x061e */
-i16 menu_bar_select_color_0 = 8;          /* DS:0x0620 */
-i16 menu_bar_select_color_1 = 8;          /* DS:0x0622 */
-i16 menu_border_color = 0;                /* DS:0x0624 */
-i16 menu_font_main_color = 0;             /* DS:0x0626 */
-i16 menu_font_grey_color = 8;             /* DS:0x0628 */
-i16 menu_font_hilite_color = 0xf;         /* DS:0x062a */
-i16 menu_bar_font_main_color = 0;         /* DS:0x062c */
-i16 menu_bar_font_grey_color = 8;         /* DS:0x062e */
-i16 menu_bar_font_hilite_color = 0xf;     /* DS:0x0630 */
-DosPort *menu_tile = 0;                   /* DS:0x0632, the menu's backdrop port (declared above) */
+/* The colours a new menu takes (menu_create), each a palette index; the _0/_1 pairs are the
+ * two colours of a fill, of which only the first is used. Colour 7 means the backdrop tile. */
+i16 menu_bar_background_color_0 = 7;      /* the bar */
+i16 menu_bar_background_color_1 = 7;
+i16 menu_background_color_0 = 7;          /* a drop-down */
+i16 menu_background_color_1 = 7;
+i16 menu_select_color_0 = 8;              /* the selected item */
+i16 menu_select_color_1 = 8;
+i16 menu_bar_select_color_0 = 8;          /* the open title */
+i16 menu_bar_select_color_1 = 8;
+i16 menu_border_color = 0;                /* a drop-down's frame */
+i16 menu_font_main_color = 0;             /* item text */
+i16 menu_font_grey_color = 8;             /* disabled item text */
+i16 menu_font_hilite_color = 0xf;         /* item hot keys */
+i16 menu_bar_font_main_color = 0;         /* title text */
+i16 menu_bar_font_grey_color = 8;         /* unused: titles are never drawn grey */
+i16 menu_bar_font_hilite_color = 0xf;     /* title hot keys */
+DosPort *menu_tile = 0;                   /* the backdrop tile, or 0 */
 
+/* Creates an empty menu with an arena of size bytes for its titles, items and texts. Both
+ * styles use font; the spacing is fixed (12 pixels between titles, items 3 apart, text 4 in
+ * from a drop-down's sides) and the colours are the globals above. Returns 0 when there is no
+ * memory. The tests that can never succeed, the switch (0) and the final mem_free (m is
+ * always 0 or the result) change nothing.
+ *
+ * Port: the arena is twice the size asked for. Its records hold pointers, twice as wide on a
+ * modern machine, so none needs more than twice its 1994 size. The arena starts after the
+ * Menu record, at sizeof (Menu) rather than the 1994 record's fixed size. */
 Menu *menu_create(i16 size, DosFont *font)
 {
     Menu *result;
@@ -402,19 +181,17 @@ Menu *menu_create(i16 size, DosFont *font)
     Menu *dp;
 
     result = 0;
-    /* PORT: the arena twice the 1994 size -- its records hold pointers, twice as wide now
-       (and /Zp2 adds no padding), so none is more than twice what it was */
-    m = mem_get((i32)(2 * (i32)size + sizeof(Menu)));   /* PORT: 0x4e bytes in 1994 */
+    m = mem_get((i32)(2 * (i32)size + sizeof(Menu)));   /* Port: twice size */
     if (m != 0) {
         dp = m;
-        heap_declare(0x28, m->arena, (char *)m + sizeof(Menu), 2 * (i32)size);   /* PORT */
+        heap_declare(0x28, m->arena, (char *)m + sizeof(Menu), 2 * (i32)size);   /* Port: twice */
         m->subs = 0;
         m->n_subs = 0;
         m->title_gap = 0xc;
         m->item_gap = 3;
         m->item_pad = 4;
         m->gap = m->bar_h = 1;
-        if (((char *)m + sizeof(Menu)) != ((char *)m + sizeof(Menu))) result = 0;   /* PORT */
+        if (((char *)m + sizeof(Menu)) != ((char *)m + sizeof(Menu))) result = 0;
         if ((u16)size < 0) m = 0;
         if ((u16)size < 0) dp->f0 = 0;
         dp->bar_col = menu_bar_background_color_0;
@@ -438,10 +215,7 @@ Menu *menu_create(i16 size, DosFont *font)
     if ((u16)size < 0) result = 0;
     return result;
 }
-/* menu_bar_item -- 06d7:0446, 70 bytes */
-/* 10 pads: the later functions' mod-17 symbol positions (every other count 0-16 breaks
- * menu_add_bar_item, menu_draw_bar, menu_draw_menu, menu_bar_run or menu_bar_mouse_parse) */
-
+/* The title with this id, or 0. */
 MenuSub *menu_bar_item(Menu *m, i16 id)
 {
     i16 found;
@@ -462,7 +236,7 @@ MenuSub *menu_bar_item(Menu *m, i16 id)
     }
     return result;
 }
-/* menu_item -- 06d7:048c, 150 bytes */
+/* The item with this id, under any title, or 0. */
 MenuEntry *menu_item(Menu *m, i16 id)
 {
     i16 found;
@@ -490,7 +264,7 @@ MenuEntry *menu_item(Menu *m, i16 id)
     }
     return result;
 }
-/* menu_bar_hide -- 06d7:0522, 56 bytes */
+/* Hides (on set) or shows the title with this id; an unknown id is ignored. */
 void menu_bar_hide(Menu *m, i16 id, i16 on)
 {
     MenuSub *sub;
@@ -503,7 +277,8 @@ void menu_bar_hide(Menu *m, i16 id, i16 on)
             sub->flags &= ~1;
     }
 }
-/* menu_grey -- 06d7:055a, 48 bytes */
+/* Disables (on set) or enables the item with this id. The id must exist: the item is not
+ * checked for 0. */
 void menu_grey(Menu *m, i16 id, i16 on)
 {
     MenuEntry *it;
@@ -514,7 +289,7 @@ void menu_grey(Menu *m, i16 id, i16 on)
     else
         it->flags &= ~1;
 }
-/* menu_release_all_grey -- 06d7:058a, 68 bytes */
+/* Enables every item. */
 void menu_release_all_grey(Menu *m)
 {
     MenuSub *sub;
@@ -524,7 +299,7 @@ void menu_release_all_grey(Menu *m)
         for (it = sub->items; it != 0; it = it->next)
             it->flags &= ~1;
 }
-/* menu_off -- 06d7:05ce, 48 bytes */
+/* Hides (on set) or shows the item with this id. As in menu_grey, the id must exist. */
 void menu_off(Menu *m, i16 id, i16 on)
 {
     MenuEntry *it;
@@ -535,7 +310,7 @@ void menu_off(Menu *m, i16 id, i16 on)
     else
         it->flags &= ~2;
 }
-/* menu_release_all_off -- 06d7:05fe, 68 bytes */
+/* Shows every item. */
 void menu_release_all_off(Menu *m)
 {
     MenuSub *sub;
@@ -545,8 +320,9 @@ void menu_release_all_off(Menu *m)
         for (it = sub->items; it != 0; it = it->next)
             it->flags &= ~2;
 }
-/* menu_add_bar_item -- 06d7:0642, 412 bytes */
-
+/* Appends a title to the bar, title_gap pixels after the last one, or against the right edge
+ * of the screen when right is set; its width is the text's plus gap on each side. Returns the
+ * new title. */
 MenuSub *menu_add_bar_item(Menu *m, char *name, i16 id, i16 right)
 {
     i16 x;
@@ -560,7 +336,7 @@ MenuSub *menu_add_bar_item(Menu *m, char *name, i16 id, i16 right)
         last = s;
     }
     x += m->title_gap;
-    s = heap_get((i32)sizeof(MenuSub), m->arena);   /* PORT: 0x22 bytes in 1994 */
+    s = heap_get((i32)sizeof(MenuSub), m->arena);   /* Port: the record's own size */
     if (last != 0)
         last->next = s;
     else
@@ -582,7 +358,9 @@ MenuSub *menu_add_bar_item(Menu *m, char *name, i16 id, i16 right)
     m->n_subs++;
     return s;
 }
-/* menu_add_item -- 06d7:07de, 358 bytes */
+/* Appends an item to the title sub_id and widens that drop-down to fit the text with item_pad
+ * on each side. An empty name makes a disabled separator. Returns the item, or 0 when there
+ * is no such title. */
 MenuEntry *menu_add_item(Menu *m, i16 sub_id, char *name, i16 id)
 {
     i16 w;
@@ -596,7 +374,7 @@ MenuEntry *menu_add_item(Menu *m, i16 sub_id, char *name, i16 id)
         last = 0;
         for (it = sub->items; it != 0; it = it->next)
             last = it;
-        it = heap_get((i32)sizeof(MenuEntry), m->arena);   /* PORT: 0x16 bytes in 1994 */
+        it = heap_get((i32)sizeof(MenuEntry), m->arena);   /* Port: the record's own size */
         if (last != 0)
             last->next = it;
         else
@@ -615,8 +393,8 @@ MenuEntry *menu_add_item(Menu *m, i16 sub_id, char *name, i16 id)
     }
     return it;
 }
-/* menu_draw_bar -- 06d7:0944, 296 bytes */
-
+/* Draws the bar across the top of the work screen, with the title sel (0 for none) on the
+ * title colour, and copies it to the video screen when update is set. */
 void menu_draw_bar(Menu *m, MenuSub *sel, i16 update)
 {
     i16 x;
@@ -637,8 +415,10 @@ void menu_draw_bar(Menu *m, MenuSub *sel, i16 update)
     if (update)
         mouse_video_update(0, 0, 0, 0, 0x140, h);
 }
-/* menu_compute_size -- 06d7:0a6c, 278 bytes */
-
+/* Where the drop-down of sub goes: its box (*px, *py, *pw, *ph) just below the bar at the
+ * title's x, moved left and up as needed to end by x 317 and y 199, and the top left of its
+ * first item's row (*ix, *iy). The height counts the shown items only. Reports error -80 when
+ * the box would start off the screen. */
 void menu_compute_size(MenuSub *sub, i16 *px, i16 *py, i16 *pw, i16 *ph, i16 *ix, i16 *iy)
 {
     i16 n;
@@ -667,9 +447,8 @@ void menu_compute_size(MenuSub *sub, i16 *px, i16 *py, i16 *pw, i16 *ph, i16 *ix
     if (*px < 0 || *py < 0)
         error_report(-80, 2, 0x28, (i32)*px, (i32)*py);
 }
-/* menu_draw_menu -- 06d7:0b82, 538 bytes */
-
-
+/* Draws the drop-down of sub, with the item sel on the selection colour, and copies it to the
+ * video screen. Hidden items are skipped; a separator is a one-pixel line across the box. */
 void menu_draw_menu(MenuSub *sub, MenuEntry *sel)
 {
     i16 x;
@@ -711,16 +490,25 @@ void menu_draw_menu(MenuSub *sub, MenuEntry *sel)
     }
     mouse_video_update(x, y, x, y, w, h);
 }
-/* menu_bar_run -- 06d7:0d9c, 1560 bytes */
-/* buffer_preserve is (port, int mode, int src, x, y, w, h): -8L below is mode -8 and src -1 in
-   ax:dx. Spelled as the two ints, MSC orders an unrelated addition differently; a modern
-   compiler needs the two ints (the port patches this call). */
-/* PORT: mode and src as the two ints they are (MSC passed -8L in ax:dx) */
-
-/* The drop-down's event loop: the mouse picks an item or moves to another title, the arrow
- * keys (and keypad 8/2) move the bar, left/right switch submenu, Enter takes the bar, Esc
- * cancels, a letter picks its ~hotkey item, and releasing Alt closes the menu. The chosen
- * item's id (0 for none) is left in the menu's f0. */
+/* Opens the drop-down of sub and runs it until an item is chosen or the menu is cancelled;
+ * the chosen item's id, or 0, is left in the menu's f0, and the bar is redrawn closed. A title
+ * without items returns at once and leaves f0 as it was. The screen under the drop-down is
+ * saved and put back each time it closes.
+ *
+ * The mouse, with a button down: pointing at another title opens that one, pointing at an
+ * enabled item selects it, and pointing anywhere else clears the selection. Releasing the button takes the selected item.
+ * With nothing selected, the release cancels, except at the end of the press that opened the
+ * menu while the mouse is still on the bar: then the drop-down stays open.
+ *
+ * The keys (upper-cased first): up and down (also 8 and 2) move to the previous or next item
+ * that is enabled, shown and not a separator, wrapping round; left and right open the previous
+ * or next shown title, wrapping round; Enter takes the selected item, Esc cancels, and an
+ * item's hot key takes it. A drop-down opened while no mouse button is held starts with its
+ * first item selected. Pressing and releasing Alt alone also closes the menu and takes the selected item;
+ * when the menu was opened with Alt held, the first release of Alt does not count.
+ *
+ * Port: buffer_preserve gets its mode (-8) and source (-1) as the two ints they are; the
+ * original passed them as one long, -8L. */
 void menu_bar_run(MenuSub *sub)
 {
     i16 row_h1;
@@ -945,9 +733,10 @@ done:
     mouse_init_cycle();
     menu_draw_bar(m4, 0, 1);
 }
-/* menu_bar_mouse_parse -- 06d7:13b4, 158 bytes */
-
-/* A mouse press on the bar opens that title's drop-down (when mode is set); 1 if it hit one. */
+/* Clears f0 and checks whether a mouse press has just started on a title: 1 if so, and with
+ * mode set the title's drop-down is run (menu_bar_run). The press hits the first shown title
+ * whose right edge is at or right of the mouse, so a press in the gap before a title opens
+ * it. */
 i16 menu_bar_mouse_parse(Menu *m, i16 mode)
 {
     i16 h;
@@ -977,9 +766,9 @@ i16 menu_bar_mouse_parse(Menu *m, i16 mode)
     }
     return r;
 }
-/* menu_bar_key_parse -- 06d7:1452, 148 bytes */
-
-/* An Alt+letter opens the title with that ~hotkey; 1 if one opened. */
+/* Clears f0; if key is Alt+letter and a shown title has that hot key, runs its drop-down and
+ * returns 1, else 0. keys_fix_alt also upper-cases a plain lower-case letter, which would then
+ * count as Alt+letter; the main loop upper-cases its keys before they get here. */
 i16 menu_bar_key_parse(Menu *m, i16 key)
 {
     i16 k;
@@ -1007,8 +796,9 @@ i16 menu_bar_key_parse(Menu *m, i16 key)
     mouse_init_cycle();
     return r;
 }
-/* menu_key_parse -- 06d7:14e6, 198 bytes */
-/* A key that is some enabled item's hotkey (F-keys) chooses it directly: returns its id. */
+/* Chooses the first enabled, shown item, under a shown title, whose hot key is key: returns
+ * its id and leaves it in f0, or 0. This is how the function-key items work without opening
+ * the menu; a letter matches too. */
 i16 menu_key_parse(Menu *m, i16 key)
 {
     i16 found;
@@ -1038,9 +828,12 @@ i16 menu_key_parse(Menu *m, i16 key)
     }
     return r;
 }
-/* menu_read_colors -- 06d7:15ac, 260 bytes */
-
-/* The menu colours, read from the pixels of MENUCOLR.SS. */
+/* Reads the menu colours from MENUCOLR.SS, one from the pixel of each of its first seven
+ * sprites: the backgrounds, their second colours, the selection, its second colour, the text,
+ * the hot keys and the disabled text, each for both the bar and the drop-downs. The seventh
+ * goes to menu_bar_font_main_color where menu_bar_font_grey_color is meant, as in the original,
+ * so the title text takes the disabled colour and the bar's disabled colour keeps its default.
+ * The editor does not call this; it takes its colours from NAMES.TXT. */
 void menu_read_colors(void)
 {
     u8 pix;

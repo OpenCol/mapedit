@@ -1,4 +1,8 @@
-/* sort.h -- the functions, data and records of misc.c, sort_1.c. */
+/* sort.h -- two small insertion sorts, used by the palette code.
+ *
+ * Defined in sys/sort.c. sort_insertion orders n 32-bit keys ascending and
+ * sort_insertion_8 n unsigned byte keys; each moves a payload array along with its keys.
+ */
 #ifndef MAPEDIT_SORT_H
 #define MAPEDIT_SORT_H
 

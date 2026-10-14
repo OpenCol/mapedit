@@ -1,20 +1,25 @@
-/* fab.c -- pfabexp0/1/2.ASM and pfabcomp.ASM: MicroProse's FAB codec, an LZ77 the MADS
- * engine packs its art with, as pack_a_packet (pack_5.c) calls it.
+/* fab.c -- MicroProse's FAB codec, the LZ77 the MADS engine packs its art with.
  *
- *     "FAB", a shift byte (12 in every shipped stream), then 16-bit flag words, least
+ *     "FAB", a shift byte (12 in all of the game's files), then 16-bit flag words, least
  *     significant bit first, each fetched the moment the last one runs out, interleaved
  *     with the token bytes:
  *       1            a literal byte follows
  *       0 0 a b      copy 2 + (a<<1|b) bytes from 256 - next byte back
- *       0 1          two bytes L H: distance 10000h - ((H >> (16-shift) | FFh << (shift-8)) << 8 | L),
+ *       0 1          two bytes L H:
+ *                    distance 10000h - ((H >> (16-shift) | FFh << (shift-8)) << 8 | L),
  *                    length H & ((1 << (16-shift)) - 1): 0 -> one more byte n (0 ends the
  *                    stream, 1 does nothing, else n + 1); k -> k + 2
  *
- * The format is dos-tools' (coldos/fab.py), established by decoding every packed entry of the
- * shipped game exactly. pfabexp0 reads and writes through the packers' callbacks, pfabexp1
- * reads through one and writes to memory, pfabexp2 works memory to memory. pfabcomp writes a
- * stream of literals: valid FAB, which any decoder reads back to the same bytes, though not
- * the bytes MicroProse's packer chose (the editor packs nothing a player keeps).
+ * The format follows dos-tools' coldos/fab.py, which decodes every packed entry of the game's
+ * files exactly. pack_enable_pfab (pack.c) installs these functions as the packer's codec.
+ * pfabexp0 reads and writes through the packer's callbacks, pfabexp1 reads through one and
+ * writes to memory, pfabexp2 works memory to memory. pfabcomp writes a stream of literals:
+ * valid FAB, which any decoder reads back to the same bytes, though not the bytes
+ * MicroProse's packer chose (the editor packs nothing a player keeps).
+ *
+ * Port: the original's codec was assembly; this one is written from the format, so it reads
+ * every valid stream the same way. It keeps its state in the static F, with a 64 KB window of
+ * what was written, rather than in the caller's work buffer, which it ignores.
  */
 #include <stdlib.h>
 #include <string.h>
@@ -94,7 +99,9 @@ static void put(Fab *f, u8 c)
 static i16 decode(Fab *f)
 {
     int shift, b0, b1, c;
-    u32 buf;                    /* 17 bits after a refill: the new word above the old word's last bit */
+    /* the flag bits, the next in bit 0; after a refill, 17 of them: the new word above the
+     * old word's last bit, which is taken first */
+    u32 buf;
     u16 left = 16;
     u16 ofs_shift, ofs_mask, len_mask;
 #define BIT(v) do { \
@@ -168,7 +175,8 @@ static void start(void)
     F.wr = 0; F.dst = 0; F.out = 0; F.npend = 0;
 }
 
-/* PFABEXP0 -- 11a7:0000: reader to writer */
+/* Unpacks from the reader rd to the writer wr. Returns 0 when the stream ended properly, 1
+ * for a bad header, 2 for a stream cut short. */
 i16 pfabexp0(FFIO rd, FFIO wr, void *work)
 {
     (void)work;
@@ -178,7 +186,7 @@ i16 pfabexp0(FFIO rd, FFIO wr, void *work)
     return decode(&F);
 }
 
-/* PFABEXP1 -- 11a7:024e: reader to memory */
+/* Unpacks from the reader rd into memory at dst; returns as pfabexp0. */
 i16 pfabexp1(FFIO rd, void *dst, void *work)
 {
     (void)work;
@@ -188,7 +196,7 @@ i16 pfabexp1(FFIO rd, void *dst, void *work)
     return decode(&F);
 }
 
-/* PFABEXP2 -- 11a7:045a: memory to memory */
+/* Unpacks from memory at src into memory at dst; returns as pfabexp0. */
 i16 pfabexp2(void *src, void *dst, void *work)
 {
     (void)work;
@@ -198,10 +206,10 @@ i16 pfabexp2(void *src, void *dst, void *work)
     return decode(&F);
 }
 
-/* PFABCOMP -- 1168:0006: everything the reader gives, as literals, then the end token.
-   The decoder fetches the next flag word when it takes the current word's sixteenth bit,
-   before that token's bytes; so the encoder reserves the next word's two bytes the moment a
-   word fills, ahead of the bytes of the token that filled it. */
+/* The packer: everything the reader gives, as literals, then the end token.
+ * The decoder fetches the next flag word when it takes the current word's sixteenth bit,
+ * before that token's bytes; so the encoder reserves the next word's two bytes the moment a
+ * word fills, ahead of the bytes of the token that filled it. */
 typedef struct { u8 *b; size_t n, cap; size_t word_at; u16 flags, nbits; } Enc;
 
 static void enc_byte(Enc *e, u8 v)
@@ -228,6 +236,8 @@ static void enc_bit(Enc *e, int bit)
     }
 }
 
+/* Packs what rd gives into a FAB stream of literals, written through wr. type and dsize are
+ * not used. Returns 0. */
 i16 pfabcomp(FFIO rd, FFIO wr, void *work, i16 *type, u16 *dsize)
 {
     Enc e;

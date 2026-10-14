@@ -1,4 +1,23 @@
-/* sprite.c -- sprite series: loading them (.SS files) and drawing their frames. */
+/* sprite.c -- sprite series: loading them (.SS files) and drawing their frames.
+ *
+ * A sprite series is a set of frames sharing a palette. Its .SS file is a MADSPACK archive
+ * (loader.c) whose entries are read in turn: a header, a frame table (one FrameEntry a
+ * frame), the series' colour list (a PalList), and the pixels of every frame. In memory the
+ * series is one SpriteSeries block: the record with a frame record (IconRec) per frame,
+ * the header's extra block when it has one, and the pixels, which the frame records point
+ * into.
+ *
+ * Callers number frames from 1: frame n is icon[n - 1]. Bit 15 set (n | 8000h) draws the
+ * frame mirrored left to right. A frame's pixels are rows of bytes, each row opening with a
+ * mode byte:
+ *   FFh  an empty row (nothing follows);
+ *   FDh  runs: (count, colour) pairs, until FFh ends the row;
+ *   else plain: one colour a byte, FEh count colour a run, FFh ends the row.
+ * A frame ends with a row opening FCh. Colour FDh is transparent.
+ *
+ * On loading, the series' colours are given places in the palette (pal_allocate, palette.c)
+ * and every pixel is rewritten to the index its colour got (sprite_color_translate).
+ */
 #include <stddef.h>
 
 #include "msc.h"
@@ -14,79 +33,64 @@
 #include "records.h"
 #include "sprite.h"
 #include "units.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 
-/* MODULE sprite_e: MAPEDIT.EXE segment 0ddb (sprite_e.c), file 0xf3b8-0xfd1c, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn sprite_series_load 0x0f3b8
- *
- * No VICEROY twin: reconstructed from the shipped bytes.
- *
- * LOADING A SPRITE SERIES (.SS file). sprite_series_load(name, flags) (_fastcall) opens
- * NAME.SS through the loader (the memory tag is "S$" + six letters of the name, after a
- * leading '*' and an "RM" prefix are skipped), reads the 0x98-byte header and the frame
- * table (16 bytes a frame: offset, size, x0, y0, w, h), sizes the SpriteSeries record
- * (0x42 + 12 a frame, +0x68 for the header's extra block, + (count + 0x22) * 8 for a packed
- * file, + the pixel data unless flag 2 or packed) and takes it from sprite_force_memory when
- * that fits sprite_force_size, else from mem_get_name. The palette: a "$color$" list read
- * from the file (or into put_palette when the header says it carries none), then either
- * remapped by name (flag 8: each colour matched against the first four master_palette
- * entries, the rest given the spare colours from the based table) or allocated through
- * pal_allocate, and the frames are recoloured (sprite_color_translate). A packed file keeps
- * its loader open and records the file position of every frame (SpriteInfo at +0x2e,
- * FrameSize table at +0x32, flags table at +0x36) and takes an "$arena$" the size of the
- * largest frame. sprite_error is -1 (open), -2 (read), -4 (memory), -9 (palette).
- *
- *  Written
- *     as a named local it is stored before the pushes; the shipped `mov cx,ax; mov bx,dx ...
- *     mov di,cx; mov [bp-0x228],di` is the CSE temp spilled around the call.
- *   - The spare-colour table is `unsigned char spare_colors[]`: MSC
- *     keeps its segment in a CONST word (DS:0x48b6, past the runtime's _DATA, which is where
- *     the CONST class lands) and reads `mov es,[word]; mov al,[es:di+OFFSET]` with the
- *     array at offset 0 of its own 16-byte segment (15e6:0000, right below DGROUP). A
- *     `u16` variable gives a _DATA word instead; a far array a SEG immediate.
- *   - Two block-scope pad groups: 3 before / 14 after `series` (the `series + size_b`
- *     chains load size_b first) and one before `totalk` (`total <= sprite_force_size` loads
- *     the global). Nothing else moved either site.
- *   - `info->kind == 1 || info->kind == 2` on the byte just stored gives the shipped
- *     `mov cx,ax; dec al; jz; cmp cl,2` (a switch or a test of fh.kind gives cbw/dec/dec).
- *   - The packed-file pointers are a chain: `info = series->info = base + 0xfc; sizes =
- *     series->sizes = info + 0x14` (member stored before the local, then `add ax,0x14`).
- *   - The zero-arena arm is parked out of line: `if (!(flags & 2)) {...} else arena = 0;`.
- *   - `_fmemcpy(master_palette + spare * 3, COLOR + 2, 3)`: a colour not among the first
- *     four master entries is written INTO the master palette at its spare slot.
- */
-
+/* a frame table entry: where the frame's pixels are in the pixel entry, and its geometry */
 typedef struct { i32 offset; i32 size; i16 x0; i16 y0; i16 w; i16 h; } FrameEntry;
+/* the file's header entry (0x98 bytes are read) */
 typedef struct {
-    char packed;                /* +0 */
-    char b1;                    /* +1 */
-    i16 x2;                     /* +2 */
-    i16 x4;                     /* +4 */
-    i16 tab[16];                /* +6: tab[2] marks the extra block, tab[3] no palette */
-    i16 count;                  /* +0x26 */
-    char extra[0x68];           /* +0x28 */
+    char packed;                /* nonzero: the pixels stay in the file */
+    char b1;
+    i16 x2;
+    i16 x4;
+    i16 tab[16];                /* tab[2] marks the extra block, tab[3] no colour list */
+    i16 count;                  /* frames */
+    char extra[0x68];           /* the extra block */
     i16 x90;
     i16 x92;
-    i32 data_size;             /* +0x94 */
-    char unused[16];            /* the local is 0xa8 bytes; 0x98 are read */
+    i32 data_size;              /* bytes of pixels, all frames */
+    char unused[16];
 } SpriteHeader;
-/* PORT: where a packed series' SpriteInfo goes: after the 0xfc colour flags, aligned for its
+/* Port: where a packed series' SpriteInfo goes: after the 0xfc colour flags, aligned for its
    pointer */
 #define PACKED_INFO(size_b) ((((u32)(size_b) + 0xfc) + 7u) & ~7u)
-/* colour i of a list as bytes: +2 its r, g, b; +5 its index (a CSE temp in the shipped code) */
+/* colour i of a PalList as bytes: +2 its r, g, b; +5 the palette index it was given */
 #define COLOR(pal, i) ((char *)(pal) + (i) * 6)
 
-i16 sprite_error = 0;                              /* DS:0x3ade */
-char *put_palette = 0;                         /* DS:0x3ae0 */
-char *sprite_force_memory = 0;                 /* DS:0x3ae4 */
-i32 sprite_last_quantity;                         /* DS:0x5a9a */
-i32 sprite_force_size;                            /* DS:0x5ec2 */
+i16 sprite_error = 0;           /* why the last sprite_series_load failed (see there) */
+char *put_palette = 0;          /* where a series without a colour list puts its palette */
+char *sprite_force_memory = 0;  /* a caller's block to load the next series into, or 0 */
+i32 sprite_last_quantity;       /* the bytes the last series needed */
+i32 sprite_force_size;          /* the size of sprite_force_memory */
 
-/* the spare colours a named palette gets when a colour is not one of the first four */
+/* the palette entries colours not among the first four go to, in turn (flag 8) */
 u8 spare_colors[] = {7, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
-/* sprite_series_load -- 0ddb:0008, 2404 bytes */
+
+/* Loads the sprite series `name` (".SS" is added when it has no extension) and returns it, or
+ * 0 with sprite_error set: -1 the file cannot be opened, -2 a read failed, -4 out of memory,
+ * -9 no room in the palette. sprite_error is left at -2 on success, so it means something
+ * only after a failure.
+ *
+ * The block is tagged "S$" plus six letters of the name, after a leading '*' and an "RM"
+ * prefix. It is sprite_force_memory when that is set and the series fits sprite_force_size;
+ * sprite_last_quantity records the size either way. Sets mem_last_alloc_loader to 0Dh.
+ *
+ * flags:
+ *   2       load the frame records only, not the pixels;
+ *   4       keep the header's extra block (also set when the header has one);
+ *   1 or 8  do not allocate palette entries: with 8, each colour that equals one of the first
+ *           four master_palette entries takes that index, and every other one is written into
+ *           the master palette at the next spare_colors entry (the last one is reused once
+ *           they run out); with 1 alone the frames keep the file's colour numbers;
+ *   FC00h   passed on to pal_allocate otherwise (4000h: stock colours may be used).
+ * A series whose header says it has no colour list reads a 768-byte palette into put_palette
+ * instead, or skips it when put_palette is 0.
+ *
+ * A packed series records where each frame is in the file (sizes), the file and its position
+ * (info) and the palette index of each colour (color_flags). Unless flag 2 is set it keeps
+ * the file open, keeps the largest frame's size in tab[0..1] and takes an "$arena$" block
+ * that size to unpack frames into.
+ */
 SpriteSeries *sprite_series_load(char *name, i16 flags)
 {
     register i16 i;
@@ -146,14 +150,14 @@ SpriteSeries *sprite_series_load(char *name, i16 flags)
     if (hdrn.tab[2] != 0)
         flags |= 4;
     tabsize = hdrn.count << 4;
-    /* PORT: the series' size from the port's records; 1994: 0x42 + 12 a frame, and when
-       packed (count + 0x22) * 8 = 0xfc colour flags + a 0x14-byte SpriteInfo + 8 a frame */
+    /* Port: the series' size comes from the port's records, whose pointers are wider; the
+       packed part is 0xfc colour flags, a SpriteInfo and a FrameSize a frame */
     size1 = (i32)(offsetof(SpriteSeries, icon) + (u16)hdrn.count * sizeof(IconRec));
     if (flags & 4)
         size1 += 0x68;
     size_b = size1;
-    if (hdrn.packed != 0)
-        size1 += (i32)(PACKED_INFO(size_b) - size_b + sizeof(SpriteInfo) + (u16)hdrn.count * sizeof(FrameSize));   /* PORT */
+    if (hdrn.packed != 0)   /* Port: SpriteInfo aligned, as PACKED_INFO places it */
+        size1 += (i32)(PACKED_INFO(size_b) - size_b + sizeof(SpriteInfo) + (u16)hdrn.count * sizeof(FrameSize));
     totalk = size1;
     if (!(flags & 2) && hdrn.packed == 0)
         totalk += hdrn.data_size;
@@ -270,8 +274,8 @@ no_match:
     }
     if (hdrn.packed != 0) {
         series->color_flags = (char *)series + size_b;
-        info = series->info = (SpriteInfo *)((char *)series + PACKED_INFO(size_b));   /* PORT */
-        sizes7 = series->sizes = (FrameSize *)(info + 1);   /* PORT: 0x14 in 1994 */
+        info = series->info = (SpriteInfo *)((char *)series + PACKED_INFO(size_b));   /* Port */
+        sizes7 = series->sizes = (FrameSize *)(info + 1);   /* Port: right after info */
         for (i = 0; i < pal->n; i++)
             series->color_flags[i] = pal->e[i].index;
         info->b1 = hdrn.b1;
@@ -313,10 +317,9 @@ done:
     return result;
 }
 
-/* sprite_color_translate -- 1069:0006: rewrite every frame's colours in place through map: a
-   colour c becomes map[5 + 6c] (the palette list's index field). A frame's rows end with a
-   row opening FCh; FFh is an empty row, FDh a row of runs, anything else a plain row whose
-   FEh runs keep their count. Transparent FDh pixels stay. A frame with no pixels ends it. */
+/* Rewrites every frame's pixels in place through map, a PalList: colour c becomes
+ * map[5 + 6c], the palette index that list entry c was given. Run counts and transparent
+ * (FDh) pixels are left alone. It stops at the first frame without pixels. */
 void sprite_color_translate(SpriteSeries *sheet, char *map)
 {
     SpriteSeries *ss = sheet;
@@ -357,32 +360,18 @@ void sprite_color_translate(SpriteSeries *sheet, char *map)
     }
 }
 
-/* sprite.c -- the sprite drawers of sprite_1.c (and their kin), MicroProse's run-length
- * sprites, whose bodies were one block of inline assembly each.
- *
- * A sprite series (sprite_e.c's SpriteSeries) has a record per frame: its pixels (a pointer),
- * and its width and height. Callers number frames from 1: the original reaches frame n's
- * record at sheet + 36h + 12n, the series' icon[n - 1]. Bit 15 set (n | 8000h) draws the
- * frame mirrored left to right.
- *
- * A frame's pixels are rows of bytes, each row opening with a mode byte:
- *   FFh  an empty row (nothing follows);
- *   FDh  runs: (count, colour) pairs, until FFh ends the row;
- *   else plain: one colour a byte, FEh count colour a run, FFh ends the row.
- * Colour FDh is transparent. Only the columns inside the clip are drawn, and only they move
- * the destination; a row cut short by the clip skips its remaining bytes up to its FFh. All
- * of that, the clip arithmetic of a mirrored frame included, is the original's, step for
- * step.
- */
-
-
+/* frame n (from 1) of a series */
 static IconRec *frame(SpriteSeries *sheet, i16 n)
 {
     return &sheet->icon[n - 1];
 }
 
-/* the shared decoder; with under set (sprite_draw_black) a pixel is written only where the
-   destination is still 0, under what is drawn already -- the destination moves either way */
+/* Draws frame `icon` (from 1; bit 15 mirrors it) of sheet into port with its top-left corner
+ * at (x, y), clipped to the port. Only the columns inside the clip are drawn, and only they
+ * move the destination; a row cut short by the clip skips its remaining bytes up to its FFh.
+ * The clip arithmetic, that of a mirrored frame included, follows the original step for
+ * step. With `under` set (sprite_draw_black) a pixel is written only where the destination
+ * is still 0, under what is drawn already; the destination moves either way. */
 static void draw(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, int under)
 {
     i16 dir = 1, maxx1 = (i16)(port->w - 1), maxy = (i16)(port->h - 1);
@@ -517,22 +506,23 @@ static void draw(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, int
     (void)r;
 }
 
-/* sprite_draw -- 0d8f:0000 */
+/* Draws a frame (see draw). */
 void sprite_draw(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y)
 {
     draw(icon, sheet, port, x, y, 0);
 }
 
-/* sprite_draw_black -- 0e71:000c: the same, only onto pixels that are 0 */
+/* Draws a frame only onto pixels that are 0. */
 void sprite_draw_black(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y)
 {
     draw(icon, sheet, port, x, y, 1);
 }
 
-/* sprite_draw_scaled -- 0dae:000a: the frame shrunk to scale percent. A table over the
-   frame's larger dimension keeps a source row or column when an accumulator (from 50, plus
-   scale each step) reaches 100; the output is centred on x and its bottom row is y. Dropped
-   columns move only the source; kept ones are clipped and drawn as sprite_draw's are. */
+/* Draws a frame shrunk to `scale` percent. One table over the frame's larger dimension,
+ * used for both rows and columns, keeps a source row or column when an accumulator (from
+ * 50, plus scale each step) reaches 100. The output is centred on x and its bottom row is y.
+ * Dropped pixels move only the source; kept ones are clipped and drawn as draw's are.
+ * Port: the table has 320 entries and is filled only that far. */
 static void draw_scaled(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale, int under)
 {
     i16 dir = 1, maxx1 = (i16)(port->w - 1), maxy = (i16)(port->h - 1);
@@ -676,12 +666,13 @@ static void draw_scaled(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16
     }
 }
 
+/* Draws a frame shrunk to scale percent (see draw_scaled). */
 void sprite_draw_scaled(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale)
 {
     draw_scaled(icon, sheet, port, x, y, scale, 0);
 }
 
-/* sprite_draw_scaled_black -- 0e92:000a: scaled, only onto pixels that are 0 */
+/* Draws a frame shrunk to scale percent, only onto pixels that are 0. */
 void sprite_draw_scaled_black(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale)
 {
     draw_scaled(icon, sheet, port, x, y, scale, 1);

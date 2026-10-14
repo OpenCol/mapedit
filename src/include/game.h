@@ -1,4 +1,10 @@
-/* game.h */
+/* game.h -- the game's state, and stand-ins for the game functions the shared code calls.
+ *
+ * Defined in core/game.c. The editor shares modules with the game, Colonization (the map,
+ * popups, sprites), but not the game itself. These are the game's records and variables
+ * those modules read, and empty versions of the game functions they call: the stand-ins do
+ * nothing and return 0. Most of the data is never read by the editor; game_mode is always 1.
+ */
 #ifndef MAPEDIT_GAME_H
 #define MAPEDIT_GAME_H
 
@@ -25,7 +31,7 @@ extern i16 num_screens;
 extern i16 automate;
 extern char game_text_name[6];
 extern i16 going;
-extern i16 *sprite_base;
+extern i16 *sprite_base;        /* a large scratch block Find Continents borrows */
 void reset_sprite_memory(void);
 void load_main_sprites(void);
 void check_music(void);

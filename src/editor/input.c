@@ -1,6 +1,19 @@
-/* input.c -- the editor's input: the main loop, the keys, mouse strokes over the map and the minimap. */
+/* input.c -- the editor's input: the main loop, the keys, mouse strokes on the map and minimap. */
+/*
+ * turn_control_loop runs the editor once the map is loaded: it builds the menu bar and draws
+ * the screen, then human_interface_loop runs until game.game_in_progress is cleared (Exit).
+ * Each pass of that loop reads the 60 Hz clock, blinks the map cursor, and hands a key first
+ * to the menu bar (Alt+letter, then the items' hotkeys), then to the editor's own keys; a
+ * mouse stroke goes to the menu bar, then to the screen area it started in (the map, the
+ * minimap or the info window). A menu choice lands in menu_bar->f0 and runs through
+ * execute_menu_event (mapedit.c).
+ *
+ * The screen is 320 x 200: the menu bar along the top 8 rows, the map view below it from the
+ * left edge (map_pixel_size_x x map_pixel_size_y), the minimap at the top right and the info
+ * window beneath it.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "editstate.h"
 #include "font.h"
 #include "edit.h"
@@ -22,19 +35,19 @@
 #include "tilepicker.h"
 #include "timer.h"
 
-i32 game_clock;                          /* DS:0x4a14 */
+i32 game_clock;                          /* the 60 Hz clock, read once per loop pass */
 
-i16 key_parsed;                           /* DS:0x4a68 */
+i16 key_parsed;                           /* nonzero when some handler took the last key */
 
-i16 mykey;                                /* DS:0x526c */
+i16 mykey;                                /* the key being handled (keys_get's code) */
 
-i16 mouse_stroke_type;                    /* DS:0x4e8e */
+i16 mouse_stroke_type;                    /* the screen area the current stroke began in */
 
-i16 mouse_current_area;                   /* DS:0x5ace */
+i16 mouse_current_area;                   /* the screen area the mouse is in now */
 
-i32 cursor_clock;                        /* DS:0x4ea0 */
+i32 cursor_clock;                        /* when the map cursor next blinks */
 
-/* Waits for a key or a mouse stroke; returns the key (0 for the mouse). */
+/* Waits for a key or the end of a mouse stroke; returns the key, or 0 for the mouse. */
 i16 event_wait(void)
 {
     i16 running;
@@ -59,14 +72,15 @@ i16 event_wait(void)
     return key;
 }
 
+/* Nonzero while either Shift key is held (the BIOS keyboard flags' two low bits). */
 i16 shift_key(void)
 {
     return *(u8 *)(msc_bda + 0x0017) & 3;
 }
 
-/* Which screen area the mouse is in: 2 the minimap (0xfc, 9)-(0x134, 0x30), 3 the info window
- * (0xf1, 0x32)-(0x140, 0xc8), 1 the map (0, 8)-(map_pixel_size), else 0. The mouse position
- * is read straight from the globals ("e" caches them in bx/cx); locals give cmp reg,mem. */
+/* Which screen area the mouse is in: 1 the map view ((0, 8) and map_pixel_size_x by
+ * map_pixel_size_y), 2 the minimap ((0xfc, 9) to (0x134, 0x30)), 3 the info window ((0xf1,
+ * 0x32) to the bottom-right corner), 0 anywhere else. The map is tested last and wins. */
 i16 mouse_area(void)
 {
     i16 r;
@@ -81,10 +95,16 @@ i16 mouse_area(void)
     return r;
 }
 
-/* The editor's keys: the keypad and arrows move the cursor (7/9/1/3 diagonally, Home and
- * PgUp/PgDn/End the same), Backspace picks up the square (or the fill area with a feature
- * selected), Enter and Space paint the fill area, Esc, Ctrl-Q, Ctrl-X, Alt-Q and Alt-X ask
- * to exit as the Exit menu does. 1 when the key was taken. */
+/* The editor's own keys, in mykey:
+ *   - the arrows and the digits 1-9 (the keypad with Num Lock) move the cursor; Home, PgUp,
+ *     End and PgDn and 7, 9, 1, 3 move it diagonally;
+ *   - Backspace picks up the cursor's square, or with a feature selected erases the feature
+ *     over the brush (taking an undo snapshot first);
+ *   - Enter and Space paint the brush at the cursor (taking an undo snapshot first);
+ *   - Esc, Ctrl-Q, Ctrl-X, Alt-Q and Alt-X leave as the Exit command does: at once when the
+ *     map is unchanged, else after the EXIT popup (its second choice saves first, its first
+ *     leaves without saving, anything else stays).
+ * Returns 1 when the key was one of these, else 0. */
 i16 parse_main_keys(void)
 {
     register i16 r;
@@ -174,8 +194,8 @@ i16 parse_main_keys(void)
     return result;
 }
 
-/* parse_viewing_keys -- 0000:1f7e, 16 bytes */
-/* Enter in viewing mode. */
+/* The viewing mode's keys: takes Enter (already taken by parse_main_keys) and does nothing
+ * with it. Returns 1 for Enter, else 0. */
 i16 parse_viewing_keys(void)
 {
     i16 r;
@@ -191,8 +211,13 @@ i16 parse_viewing_keys(void)
     return r;
 }
 
-/* A mouse stroke over the map: the cursor follows the mouse; a click centres the view, a
- * shifted click paints (left: the square, or the fill area for a feature; right: pick up). */
+/* A mouse stroke over the map view, while it stays there. The cursor follows the mouse.
+ * Without Shift, releasing the button (or holding the right one) centres the view on the
+ * square. With Shift, the left button paints the brush; the right button picks up the square
+ * with a terrain selected, or erases the feature over the brush with a feature selected.
+ *
+ * Every stroke takes an undo snapshot when it starts, even one that only moves the view, so
+ * Undo reaches back only to the start of the last stroke. Always returns 0. */
 i16 parse_area_map(void)
 {
     i16 y;
@@ -231,9 +256,8 @@ i16 parse_area_map(void)
     return 0;
 }
 
-/* A click on the minimap (at 0xfc, 9) centres the view there.
- * The sum is the same either way; a relink would swap the two operands' addresses.
- */
+/* Releasing the button over the minimap centres the view on that square, kept inside the
+ * map's border. Does nothing when the view is already centred there. */
 void parse_area_mini(void)
 {
     register i16 x;
@@ -248,9 +272,9 @@ void parse_area_mini(void)
     }
 }
 
-/* parse_mouse_stroke -- 0000:20e0, 68 bytes */
-/* Dispatches a mouse stroke to the area it started in: 1 the map, 2 the minimap, 3 the
- * info window (a click opens the selection screen). */
+/* Sends the mouse to the handler of the area the current stroke started in: the map view,
+ * the minimap, or the info window (where releasing the button opens Map Tile Select).
+ * Returns what the map's handler returns, else 0. */
 i16 parse_mouse_stroke(void)
 {
     register i16 r;
@@ -274,9 +298,17 @@ i16 parse_mouse_stroke(void)
     return r;
 }
 
-/* One pass of the editor's event loop: blinks the cursor every 20 ticks, runs the menu bar,
- * the keys (menu hotkeys, then the editor's, then viewing mode's) and the mouse, and the
- * chosen menu command. Returns when something was done. */
+/* The editor's event loop, run until a key or a menu command has been handled. Each pass,
+ * paced to the 60 Hz clock:
+ *   - toggles the map cursor every 20 ticks (a third of a second). A key, or a press on the
+ *     menu bar, first makes the next toggle due at once if the cursor is showing, so the
+ *     cursor is hidden while the key or the menu is handled;
+ *   - a key (lower-case letters made upper case) goes to the menu bar's Alt+letter titles, the
+ *     menu items' hotkeys, parse_main_keys and parse_viewing_keys, until one takes it;
+ *   - without a key and with no menu chosen, the mouse goes to the menu bar and then, if that
+ *     did not choose anything, to parse_mouse_stroke;
+ *   - a menu choice (menu_bar->f0) runs through execute_menu_event.
+ * The cursor is drawn when the loop starts. */
 void human_interface_loop(void)
 {
     register i16 done;
@@ -329,7 +361,7 @@ void human_interface_loop(void)
     } while (!done);
 }
 
-/* human_turn -- 0000:229c, 18 bytes */
+/* Redraws the map, then runs the event loop until the editor is left. */
 void human_turn(void)
 {
     draw_map_2();
@@ -338,6 +370,9 @@ void human_turn(void)
     while (game.game_in_progress);
 }
 
+/* Runs the editor on the loaded map: builds and draws the menu bar, places the minimap,
+ * draws the map and the info window, and returns when the editor is left (human_turn only
+ * returns then, so the loop runs once). */
 void turn_control_loop(void)
 {
     construct_mapedit_menu();

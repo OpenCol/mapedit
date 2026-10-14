@@ -1,6 +1,13 @@
-/* continents.c -- Find Continents: numbering the land masses and seas of the continent plane. */
+/* continents.c -- Find Continents: numbering the land masses and seas of the continent plane.
+ *
+ * map_find_continents labels the connected regions of the map twice, first the water, then
+ * the land, and writes each square's number (1-15) into the continent plane; water and land
+ * are numbered independently. Only the playable squares are labelled (the border ring is
+ * left 0). The work is done in a scratch block the caller lends through sprite_base: 0x4000
+ * region sizes (a word each), then a word label per square.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* 2-byte record packing, as in 1994: the file formats depend on it */
 #include "font.h"
 #include "game.h"
 #include "menu.h"
@@ -12,21 +19,27 @@
 #include "map.h"
 #include "mapedit.h"
 #include "units.h"
-/* MODULE map_6: MAPEDIT.EXE segment 09c4 (map_6.obj), file 0xb242-0xb59a, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn map_find_continents 0x0b242
- *
- * Written from `ovl20_63880` (VICEROY.EXE map_find_continents, near 0.96) against
- * the shipped bytes. The editor's copy of the region labeller.
- */
 #include "records.h"
 
 
-
-
-
-/* map_find_continents -- 09c4:0002, 856 bytes */
+/* Numbers the water regions, then the land regions, into the continent plane, and copies the
+ * land regions' sizes to region_size[0..15]. The whole plane is cleared first, so every owner
+ * nibble becomes 0. Returns bit 0 set when there were more than 15 land masses and bit 1 when
+ * there were more than 15 seas; the extra regions all get number 15.
+ *
+ * The labelling scan runs down the rows and, within a row, from right to left. A square joins
+ * the region of the square scanned just before it and of the three squares above it
+ * (diagonals connect); when two regions meet, the higher number is relabelled as the lower
+ * and its size added in. A square that joins nothing opens a new region, the lowest free
+ * number. Then a second scan, left to right, keeps numbers 1-15 and gives each region above
+ * 15 the lowest free number.
+ *
+ * Quirks of the original, kept: the run carries over from the end of one row (its leftmost
+ * square) to the start of the next (its rightmost), so those two squares count as touching. A
+ * land region opened in the top or bottom playable row starts its number search above 16, so
+ * an arctic strip touching no other land is numbered after the rest. If 16383 labels were
+ * ever in use at once the scan would print "Bachunga" and wait for a key; with at most 12000
+ * squares it cannot happen. */
 i16 map_find_continents(void)
 {
     i16 *sizes;

@@ -30,7 +30,7 @@ a record read through bytes -- compiled silently.
 | `keys.c` | the keyboard queue, the keypad as a mouse |
 | `loader.c` | MADSPACK files |
 | `mem.c` | named memory blocks and the arenas carved from them |
-| `mouse.c` | the mouse driver, the software cursor, strokes, double clicks |
+| `mouse.c` | the mouse driver, the software cursor, button strokes |
 | `pack.c` | the stream plumbing around the codec |
 | `screen.c` | the screens the editor draws into (work, original, video) |
 | `sort.c`, `strings.c`, `text.c` | sorting; the string store; the text files (MAPEDIT.TXT, NAMES.TXT) |

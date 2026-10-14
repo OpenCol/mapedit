@@ -1,6 +1,12 @@
-/* distance.c -- distances and directions between squares. */
+/* distance.c -- distances and directions between squares, and two small helpers.
+ *
+ * Two distances: an approximation of the straight-line one (xy_dist, map_dist), the longer
+ * axis plus half the shorter, and the larger of the two axes (xy_dist_2, map_dist_2).
+ * bearing_adjacent counts directions 0-7, wrapping round. The module is shared with the game;
+ * the editor calls only minimax.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* 2-byte record packing, as in 1994: the file formats depend on it */
 #include "font.h"
 #include "menu.h"
 #include "pal.h"
@@ -9,34 +15,15 @@
 #include "mapedit.h"
 #include "records.h"
 #include "units.h"
-/* MODULE stuff: MAPEDIT.EXE segment 0865 (stuff.obj), file 0x9c5e-0x9db4, 7 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn minimax          0x09c5e
- * fn swap             0x09c7c
- * fn xy_dist          0x09c92
- * fn map_dist         0x09cce
- * fn xy_dist_2        0x09d16
- * fn map_dist_2       0x09d46
- * fn bearing_adjacent 0x09d8e
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_024c).
- *
- * SMALL ARITHMETIC (root code, frame 024c). Windows twins: `minimax`, swap.c,
- * xy_dist.c, map_dist.c. DOS adds the max-of-absolutes (Chebyshev) pair xy_dist_2 /
- * map_dist_2 and bearing_adjacent(a, b): whether direction a is next to b (mod 8).
- *
- * The whole file is "elg" (/Ox-style engine code): registers by lifetime throughout.
- */
 
-/* minimax -- 0865:000e, 30 bytes */
+/* value clamped to lo..hi; hi wins if lo > hi. */
 i16 minimax(i16 value, i16 lo, i16 hi)
 {
     value = max(value, lo);
     value = min(value, hi);
     return value;
 }
-/* swap -- 0865:002c, 22 bytes */
+
 void swap(i16 *a, i16 *b)
 {
     i16 t;
@@ -45,7 +32,8 @@ void swap(i16 *a, i16 *b)
     *a = *b;
     *b = t;
 }
-/* xy_dist -- 0865:0042, 60 bytes */
+
+/* The distance of an offset (dx, dy): the longer axis plus half the shorter, rounded down. */
 i16 xy_dist(i16 dx, i16 dy)
 {
     i16 r;
@@ -58,7 +46,8 @@ i16 xy_dist(i16 dx, i16 dy)
         r = (dx >> 1) + dy;
     return r;
 }
-/* map_dist -- 0865:007e, 72 bytes */
+
+/* xy_dist between two squares. */
 i16 map_dist(i16 x1, i16 y1, i16 x2, i16 y2)
 {
     i16 dx;
@@ -68,7 +57,8 @@ i16 map_dist(i16 x1, i16 y1, i16 x2, i16 y2)
     dy = y1 - y2 > 0 ? y1 - y2 : ~(y1 - y2) + 1;
     return xy_dist(dx, dy);
 }
-/* xy_dist_2 -- 0865:00c6, 48 bytes */
+
+/* The distance of an offset (dx, dy) in king's moves: the longer axis. */
 i16 xy_dist_2(i16 dx, i16 dy)
 {
     i16 r;
@@ -81,7 +71,8 @@ i16 xy_dist_2(i16 dx, i16 dy)
         r = dy;
     return r;
 }
-/* map_dist_2 -- 0865:00f6, 72 bytes */
+
+/* xy_dist_2 between two squares. */
 i16 map_dist_2(i16 x1, i16 y1, i16 x2, i16 y2)
 {
     i16 dx;
@@ -91,7 +82,8 @@ i16 map_dist_2(i16 x1, i16 y1, i16 x2, i16 y2)
     dy = y1 - y2 > 0 ? y1 - y2 : ~(y1 - y2) + 1;
     return xy_dist_2(dx, dy);
 }
-/* bearing_adjacent -- 0865:013e, 38 bytes */
+
+/* Is direction a one step (45 degrees) either side of direction b? 0 when they are equal. */
 i16 bearing_adjacent(i16 a, i16 b)
 {
     i16 r;

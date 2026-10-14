@@ -1,6 +1,22 @@
-/* edit.c -- editing the map: the selection, painting and picking up, the brush, undo, the cursor and the view. */
+/* edit.c -- the editing commands: painting, picking up, the brush, the cursor and the view. */
+/*
+ * A square's terrain byte (plane 0) holds a terrain id in its low five bits (TERRAIN_*) and
+ * the hills, mountain and river bits above them (MAP0_*). The selection lives in editstate.c
+ * and is set by Map Tile Select (tilepicker.c). It is one of two kinds:
+ *
+ *   - a terrain: selected_terrain is its id; selected_physical_and_mask says which of the
+ *     square's upper bits survive the paint (0xff, or 0x40 for ocean and sea lane, which keep
+ *     only the river bit); the or mask is 0.
+ *   - a feature (selected_right_mouse_change set): the square keeps its terrain; the and mask
+ *     clears the feature's group of bits and the or mask sets the feature. "Picking up" with
+ *     a feature selected erases it instead (the and mask alone).
+ *
+ * change_map edits one square, fill_map a brush of (2 * fill_radius + 1) squares a side. The
+ * other commands move the cursor and the view, change the zoom, create a blank map, and show
+ * the continents Find Continents numbers. Each one redraws what it changed.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "editstate.h"
 #include "font.h"
 #include "menu.h"
@@ -23,9 +39,18 @@
 #include "screen.h"
 #include "sprite.h"
 
-/* Paints the selected terrain (and/or masks) onto square (x, y) inside the view, or with
- * pickup picks the square's terrain up as the selection. Ocean squares are left alone when
- * the coastline protect is on and a terrain is selected. */
+/* Applies the selection to square (x, y). Squares on the map's border or outside the visible
+ * view are ignored.
+ *
+ * pickup 0 paints: a terrain replaces the square's terrain id (keeping the upper bits its and
+ * mask allows), a feature is added. pickup nonzero with a feature selected erases that
+ * feature; with a terrain selected it makes the square's terrain the selection instead (ocean
+ * and sea lane with and mask 0x40, anything else 0xff) and redraws the info window. A hilly
+ * square's low bits are picked up as if they were a terrain id.
+ *
+ * Ocean and sea-lane squares are never given a hills or mountain feature. With coastline
+ * protection on they are left alone altogether: the test also asks for selected_terrain >= 0,
+ * which every selection satisfies. Sets map_changes when the byte changes; does not redraw. */
 void change_map(register i16 x, register i16 y, i16 pickup)
 {
     u8 *p;
@@ -83,7 +108,9 @@ void change_map(register i16 x, register i16 y, i16 pickup)
     }
 }
 
-/* Paints (or picks up) a square of fill_radius around (x, y) and redraws it. */
+/* Applies change_map to every square of the brush centred on (x, y) -- 1, 3 or 5 squares a
+ * side for fill_radius 0, 1 or 2 -- then redraws the brush with a one-square margin, since
+ * the neighbours' coasts and seams may change too. */
 void fill_map(i16 x, i16 y, i16 pickup)
 {
     i16 x0;
@@ -102,8 +129,10 @@ void fill_map(i16 x, i16 y, i16 pickup)
     draw_map_region_2(x0 - 1, y0 - 1, size + 2, size + 2);
 }
 
-/* Centres the view on (x, y); in the editor (game_mode 1) the cursor goes there too, with
- * the cursor toggled off and on around the move when flag is set. */
+/* Centres the view on (x, y), if it is on the map, and redraws the map. In the editor
+ * (game_mode is always 1) the cursor moves there too; with flag set it is erased from its
+ * old square first and drawn on the new one (the redraw that follows paints over it, so it
+ * reappears at the next blink). */
 void set_center(register i16 x, register i16 y, i16 flag)
 {
     if (on_map(x, y)) {
@@ -123,8 +152,9 @@ void set_center(register i16 x, register i16 y, i16 flag)
     }
 }
 
-/* Re-centres on (x, y) when the rectangle (x, y)-(x2, y2) comes within 2 squares of the
- * view's edge and the view can still move that way. Returns 1 when it did. */
+/* Re-centres the view on (x, y) when the rectangle (x, y)-(x2, y2) comes within 2 squares of
+ * an edge of the view and the view can still scroll that way. flag goes to set_center.
+ * Returns 1 when it re-centred, else 0. */
 i16 possibly_center(i16 x, i16 y, i16 x2, i16 y2, i16 flag)
 {
     i16 need;
@@ -155,8 +185,9 @@ i16 possibly_center(i16 x, i16 y, i16 x2, i16 y2, i16 flag)
     return result;
 }
 
-/* move_cursor -- 0000:1514, 102 bytes */
-/* Moves the cursor by (dx, dy) when that stays inside the map's border. */
+/* Moves the cursor by (dx, dy) unless that would put it on or past the map's border, and
+ * draws it. Before the move the view may re-centre -- on the cursor's OLD square, as the
+ * original does, so the view trails the cursor by one square. */
 void move_cursor(i16 dx, i16 dy)
 {
     i16 ox;
@@ -182,12 +213,14 @@ void move_cursor(i16 dx, i16 dy)
     }
 }
 
-/* set_view_mode -- 0000:157a, 8 bytes */
+/* The View menu's "view mode" command: game_mode back to 1, which it always is. */
 void set_view_mode(void)
 {
     game_mode = 1;
 }
 
+/* Sets the zoom: level 0 (16-pixel squares) to 3 (2-pixel squares), clamped. Recomputes the
+ * view and re-centres it on the cursor if that is now near an edge, else redraws it. */
 void set_zoom_level(register i16 level)
 {
     level = max(level, 0);
@@ -198,8 +231,10 @@ void set_zoom_level(register i16 level)
         draw_map_2();
 }
 
-/* A new blank map: asks for its name (UNTITLED.MP), 0x3a x 0x48. 0 when created. Plain flags
- * (the dead wide/high stores stay, as volatile stores; the call takes the literals). */
+/* Creates a blank map: asks for its name (offering UNTITLED.MP; the extension becomes .MP,
+ * the name upper case), makes it map_name and creates a 58 x 72 map of ocean. Sets map_changes, so
+ * leaving asks to save it. Returns 0 when the map was created, 1 when the name was cancelled
+ * or the map could not be made. wide and high are written and never read. */
 i16 create_me(void)
 {
     i16 high;
@@ -222,11 +257,14 @@ i16 create_me(void)
     return result;
 }
 
-/* Find Continents: numbers the land masses and oceans (map_find_continents, with a 0xfde8
- * byte scratch block in sprite_base), warns when there are more than 15 of either, and shows
- * the continent plane (low nibble, oceans black) on the screen until a key or click.
- * The two ports are one array (port[0], the aliased work buffer, sorts deepest); the plane
- * port's stores are written w, h, bits to come out h, bits, w ("elg" reverses them). */
+/* Find Continents: numbers the land masses and oceans into the continent plane
+ * (map_find_continents, with a 65,000-byte scratch block lent through sprite_base) and warns
+ * when there are more than 15 of either. Then it shows the result straight on the screen,
+ * one pixel per square from the top-left corner, each continent in the palette colour of its
+ * number (the plane's low nibble) and water black, waits for a key or a click and restores the
+ * screen from the work buffer. port[1] wraps the continent plane; port[0] is a copy that is
+ * masked for display. Sets map_changes, since the continent numbers are saved with the map.
+ * Does nothing when the scratch block cannot be had. */
 void continent_check(void)
 {
     i16 flags;

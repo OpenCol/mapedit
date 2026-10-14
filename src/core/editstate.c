@@ -1,6 +1,18 @@
-/* editstate.c -- the editing state the views show and the commands change: the cursor, the selected terrain and how it paints, the brush, coastline protection, whether the map changed, and the one level of undo. */
+/* editstate.c -- the editing state: the cursor, the selection, the brush, coasts, undo.
+ *
+ * The views show this state and the commands change it: the cursor square, the selected
+ * terrain and how it paints, the brush size, coastline protection, whether the map has
+ * unsaved changes, and the one level of undo.
+ *
+ * Painting a square (edit.c) works on its terrain byte: the high three bits (hills or
+ * mountains, river) are ANDed with selected_physical_and_mask and ORed with
+ * selected_physical_or_mask, and the low five bits become selected_terrain. A terrain
+ * selection sets the type and keeps the overlays (ocean and sea lane keep only a river); an
+ * overlay selection (hills, mountains, a minor or major river) sets the bits and keeps the
+ * type. Picking up a square (the right button) makes its terrain the selection.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* 2-byte record packing, as in 1994: the file formats depend on it */
 #include "font.h"
 #include "loader.h"
 #include "editstate.h"
@@ -10,44 +22,46 @@
 #include "pal.h"
 #include "sprite.h"
 
-i16 map_changes = 0;                            /* DS:0x0046 */
+i16 map_changes = 0;        /* the map has changed since it was loaded or saved */
 
-i16 small_map_needs_update = 0;                 /* DS:0x0048 */
+i16 small_map_needs_update = 0;     /* unused */
 
-i16 fill_radius = 0;                            /* DS:0x004a */
+i16 fill_radius = 0;        /* the brush: paints a (2r + 1)-square block, r = 0-2 */
 
-i16 map_selected = 0;                           /* DS:0x004c */
+i16 map_selected = 0;       /* the command line named the map to edit (M:file) */
 
-i16 coastline_protect = 0;                      /* DS:0x004e */
+i16 coastline_protect = 0;  /* painting leaves ocean and sea-lane squares alone */
 
-i16 undo_available = 0;                         /* DS:0x0050 */
+i16 undo_available = 0;     /* the undo buffer was allocated at startup */
 
-i16 undo_active = 0;                            /* DS:0x0052 */
+i16 undo_active = 0;        /* the undo buffer holds a snapshot */
 
-i16 create_me_now = 0;                          /* DS:0x0054 */
+i16 create_me_now = 0;      /* start with a new map (C on the command line, or no file chosen) */
 
-/* 11 unused declarations before selected_terrain and 6 after it set its own position (mod 17)
- * for parse_spot's `cmp [bp-0xa],al` without moving any other symbol. */
-char selected_terrain = 0x19;                   /* DS:0x0056 */
+/* The terrain type the brush paints, ocean at first. (A negative value would keep each
+ * square's type; no selection sets one.) */
+char selected_terrain = 0x19;
 
-u8 selected_physical_and_mask = 0x40;/* DS:0x0057 */
+u8 selected_physical_and_mask = 0x40;    /* the high bits a painted square keeps */
 
-u8 selected_physical_or_mask = 0;    /* DS:0x0058 */
+u8 selected_physical_or_mask = 0;        /* the high bits painting sets */
 
-char selected_right_mouse_change = 0;           /* DS:0x0059 */
+/* The selection is an overlay (hills, mountains, a river): painting keeps each square's type,
+ * and picking up removes the overlay instead. */
+char selected_right_mouse_change = 0;
 
-void *map_undo_memory = 0;                  /* DS:0x005a */
+void *map_undo_memory = 0;  /* the undo buffer: a copy of the terrain plane */
 
-i16 map_undo_ems_handle = -1;                   /* DS:0x005e */
+i16 map_undo_ems_handle = -1;       /* unused */
 
-i16 cursor_x;                             /* DS:0x4b52 */
+i16 cursor_x;               /* the cursor square */
 
-i16 cursor_y;                             /* DS:0x4b54 */
+i16 cursor_y;
 
-i16 cursor_on;                            /* DS:0x6972 */
+i16 cursor_on;              /* the blinking cursor square is drawn at the moment */
 
-/* Copies the terrain plane (0x2ee0 bytes) into the undo buffer. Both have a dead
- * `result = -1` (the `mov ax,-1`) and 6 more bytes of unused frame. */
+/* Takes the undo snapshot before an edit: copies the terrain plane, all 12000 bytes of it,
+ * into the undo buffer. Only the terrain is saved; features and continents are not. */
 void make_undo(void)
 {
     i16 result;
@@ -61,7 +75,8 @@ void make_undo(void)
     }
 }
 
-/* perform_undo -- 0000:077e, 40 bytes */
+/* Restores the terrain plane from the last snapshot. The snapshot stays, so undoing twice
+ * restores the same state again. */
 void perform_undo(void)
 {
     i16 result;

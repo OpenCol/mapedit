@@ -1,4 +1,8 @@
-/* sound.h -- the functions, data and records of sound.c. */
+/* sound.h -- the sound entry points: the editor plays no sound.
+ *
+ * Defined in sys/sound.c. The shared code calls the sound driver's entry points; the map
+ * editor loads no driver, so each does nothing and returns 0.
+ */
 #ifndef MAPEDIT_SOUND_H
 #define MAPEDIT_SOUND_H
 

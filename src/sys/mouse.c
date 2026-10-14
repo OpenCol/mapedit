@@ -1,4 +1,26 @@
-/* mouse.c -- the mouse: the driver, the software cursor, strokes and double clicks. */
+/* mouse.c -- the mouse: the driver, the software cursor, strokes and the cycle the UI loops run.
+ *
+ * Strokes. Every UI loop runs mouse_init_cycle once, then mouse_begin_cycle and
+ * mouse_end_cycle around each round. mouse_begin_cycle reads the mouse and turns the button
+ * state into edges: mouse_start_stroke (a button went down; mouse_button then says which),
+ * mouse_stop_stroke (all buttons came up after a press), mouse_changed (anything moved or
+ * changed) and mouse_any_stroke (a button is down or has just come up).
+ *
+ * The cursor. In mode 13h the library draws its own 16 x 16 cursor (byte FFh is transparent)
+ * straight onto the screen, saving the pixels under it, and the mouse driver calls its event
+ * handler whenever the mouse moves. The editor draws into a work buffer and shows rectangles
+ * of it with video_update; mouse_video_update wraps that copy:
+ *
+ *     mouse_freeze();               moves are only recorded meanwhile
+ *     mouse_refresh_view_port();    the cursor drawn into the WORK BUFFER, if it overlaps
+ *     video_update(...);            so the copy to the screen carries it
+ *     mouse_refresh_done();         and taken out of the work buffer again
+ *     mouse_thaw();                 a move made meanwhile is applied
+ *
+ * This is the original's cursor code in C, step for step, with the INT 33h driver replaced by
+ * the host: its mouse events call the event handler (host_set_mouse_handler), already in
+ * screen pixels. Only the mode 13h paths exist; the editor runs in nothing else.
+ */
 #include <string.h>
 
 #include "msc.h"
@@ -15,50 +37,26 @@
 #include "timer.h"
 #include "units.h"
 #include "video.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records on 2-byte boundaries, as the 1994 compiler laid them out */
 
-/* MODULE mouse_2: MAPEDIT.EXE segment 0c21 (mouse_2.c), file 0xd810-0xd94c, 4 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn mouse_in_box      0x0d810
- * fn mouse_init_cycle  0x0d83a
- * fn mouse_begin_cycle 0x0d852
- * fn mouse_end_cycle   0x0d920
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0acb).
- * The other three have no VICEROY twin: reconstructed from the shipped bytes. Their globals
- * are the CodeView ones (mouse_x at DS:0x0724 ...); the VICEROY draft's g_mouse_* names and
- * DS:0x07e4 addresses below were the VICEROY layout and are replaced.
- *
- * MOUSE STATE (madsdev mouse_2.c; "elg"). The driver is mouse_1.ASM (mouse_get_status,
- * mouse_check_double, mouse_double_freedom).
- *   - mouse_in_box(x0, y0, x1, y1) (_fastcall) tests the mouse against a box.
- *   - mouse_init_cycle forgets the old position, takes the current button state as the
- *     stroke in progress and clears the latch.
- *   - mouse_begin_cycle(check) (_fastcall) reads the mouse and derives: mouse_stop_stroke
- *     (a release after a latched press), mouse_start_stroke (a new press, mouse_button then
- *     telling the right button from the left), mouse_changed (moved or any stroke edge) and
- *     mouse_any_stroke. It stamps mouse_clock.
- *   - mouse_end_cycle(release, wait) (_fastcall) releases the double-click guard and waits
- *     for the next timer tick when `wait`.
- */
-
-
-/* mouse_in_box -- 0c21:0000, 42 bytes */
+/* mouse_in_box -- 1 when the mouse is inside the box (x0, y0)-(x1, y1), edges included. */
 i16 mouse_in_box(i16 x0, i16 y0, i16 x1, i16 y1)
 {
     if (x0 <= mouse_x && x1 >= mouse_x && y0 <= mouse_y && y1 >= mouse_y)
         return 1;
     return 0;
 }
-/* mouse_init_cycle -- 0c21:002a, 24 bytes */
+/* mouse_init_cycle -- starts a UI loop: forgets the old position and takes a button already
+ * down as a stroke in progress, so that it starts no new one. */
 void mouse_init_cycle(void)
 {
     mouse_old_y = mouse_old_x = -1;
     mouse_stroke_going = mouse_status;
     mouse_start_stroke = mouse_latched = 0;
 }
-/* mouse_begin_cycle -- 0c21:0042, 206 bytes */
+/* mouse_begin_cycle -- reads the mouse at the start of a round and sets the stroke flags (see
+ * the top of the file); mouse_button is 0 for the left button, 1 for the right. Stamps
+ * mouse_clock with timer_read. check runs mouse_check_double first (a no-op in the port). */
 void mouse_begin_cycle(i16 check)
 {
     i16 start;
@@ -94,7 +92,8 @@ void mouse_begin_cycle(i16 check)
     else
         mouse_any_stroke = 1;
 }
-/* mouse_end_cycle -- 0c21:0110, 44 bytes */
+/* mouse_end_cycle -- ends a round: release calls mouse_double_freedom(-1); wait waits until
+ * the clock has moved on from mouse_clock. */
 void mouse_end_cycle(i16 release, i16 wait)
 {
     if (release)
@@ -102,53 +101,34 @@ void mouse_end_cycle(i16 release, i16 wait)
     if (wait)
         while (timer_read() == mouse_clock)
             timer_idle();
-    timer_idle();       /* one round of a UI loop is done: let the machine rest a moment */
+    timer_idle();       /* Port: one round of a UI loop is done: let the machine rest a moment */
 }
 
-/* The mouse state, defined here after the code (docs/msc6-codegen.md: a definition after the last
- * function moves no symbol position; defined before mouse_begin_cycle it swaps that
- * function's bx/dx). The 13 land at DS:0x0720-0x073c in this order; the module has no
- * literals.
- */
-i16 mouse_button = -1;                   /* DS:0x0720 */
-i16 mouse_status = 0;                    /* DS:0x0722 */
-i16 mouse_x = 0;                         /* DS:0x0724 */
-i16 mouse_y = 0;                         /* DS:0x0726 */
-i16 mouse_start_stroke = 0;              /* DS:0x0728 */
-i16 mouse_stroke_going = 0;              /* DS:0x072a */
-i16 mouse_changed = 0;                   /* DS:0x072c */
-i16 mouse_latched = 0;                   /* DS:0x072e */
-i16 mouse_stop_stroke = 0;               /* DS:0x0730 */
-i16 mouse_any_stroke = 0;                /* DS:0x0732 */
-i16 mouse_old_x = 0;                     /* DS:0x0734 */
-i16 mouse_old_y = 0;                     /* DS:0x0736 */
-i32 mouse_clock = 0;                    /* DS:0x0738 */
+/* The stroke state mouse_begin_cycle keeps. */
+i16 mouse_button = -1;                   /* the last stroke's button: 0 left, 1 right */
+i16 mouse_status = 0;                    /* the buttons down: bit 0 left, bit 1 right */
+i16 mouse_x = 0;                         /* the mouse position this round */
+i16 mouse_y = 0;
+i16 mouse_start_stroke = 0;              /* 1: a button went down this round */
+i16 mouse_stroke_going = 0;              /* the buttons down last round */
+i16 mouse_changed = 0;                   /* 1: moved, or a stroke started or stopped */
+i16 mouse_latched = 0;                   /* -1 from a stroke's start until the buttons come up */
+i16 mouse_stop_stroke = 0;               /* 1: the buttons came up after a stroke this round */
+i16 mouse_any_stroke = 0;                /* 1: a button is down or has just come up */
+i16 mouse_old_x = 0;                     /* the position last round (-1: none) */
+i16 mouse_old_y = 0;
+i32 mouse_clock = 0;                    /* timer_read at the start of the round */
 
-/* MODULE mouse_4: MAPEDIT.EXE segment 0c34 (mouse_4.c), file 0xd94c-0xd9ca, 2 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn mouse_video_init   0x0d94c
- * fn mouse_video_update 0x0d984
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0b70).
- *
- * SHOWING THE SCREEN PORT (root code, frame 0b70). The calls go to the assembly mouse/video
- * module at 0a58 and the copier video_update (0d11:001c).
- *   - mouse_video_init hands the screen port's pixels and size to the mouse code.
- *   - mouse_video_update(sx, sy, dx, dy, w, h) (_fastcall) hides the mouse, copies the rectangle
- *     from the screen port to video memory, and shows the mouse again if it was visible.
- */
-
-
-
-/* mouse_video_init -- 0c34:000c, 56 bytes */
+/* mouse_video_init -- makes the whole work screen (scr_work) the cursor code's view port,
+ * shown at the screen's top left. */
 void mouse_video_init(void)
 {
     mouse_set_work_buffer(scr_work.bits, scr_work.w);
     mouse_set_view_port_loc(0, 0, scr_work.w - 1, scr_work.h - 1);
     mouse_set_view_port(0, 0);
 }
-/* mouse_video_update -- 0c34:0044, 70 bytes */
+/* mouse_video_update -- copies the w x h rectangle at (sx, sy) of the work screen to (dx, dy)
+ * on the display, with the cursor drawn into it when it overlaps (see the top of the file). */
 void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h)
 {
     i16 vis;
@@ -161,62 +141,41 @@ void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h)
     mouse_thaw();
 }
 
-/* mouse.c -- mouse_1.ASM: MicroProse's mouse cursor, mode 13h.
- *
- * In mode 13h the library draws its own 16 x 16 cursor (byte FFh is transparent) straight
- * onto the screen, saving the pixels under it, and asks the mouse driver to call its event
- * handler (MOUSE_CURSOR) whenever the mouse moves. The editor draws into a work buffer and
- * shows rectangles of it with video_update; around that it calls
- *
- *     mouse_freeze();               moves are only recorded meanwhile
- *     mouse_refresh_view_port();    the cursor drawn into the WORK BUFFER, if it overlaps
- *     video_update(...);            so the copy to the screen carries it
- *     mouse_refresh_done();         and taken out of the work buffer again
- *     mouse_thaw();                 a move made meanwhile is applied
- *
- * This is that code in C, step for step, with the INT 33h driver replaced by the host: its
- * mouse events call the event handler (host_set_mouse_handler), already in screen pixels,
- * so the driver's halving of x (640-wide virtual coordinates) is gone. Only the mode 13h
- * paths exist; the editor runs in nothing else. Offsets are mouse_1.ASM's.
- */
-
-
-
-/* the public state, as named in MAPEDIT.EXE's symbol table */
+/* The cursor's public state. */
 i16 mouse_driver;               /* -1: a mouse is there */
 i16 MOUSE_FORCE_BUTTON;         /* buttons pressed through the keypad (keys.c) */
-i16 MOUSE_KNOWN_MODE;           /* -1: mode 13h, the library draws the cursor */
+i16 MOUSE_KNOWN_MODE;           /* -1: mode 13h, the library draws the cursor; 0: no cursor */
 DosPort MOUSE_CURSOR_BUFFER;    /* the cursor image as a 16 x 16 work buffer */
-i8 MOUSE_SHOWING = -1;          /* 0: shown; -1, -2 ...: hidden that many times */
+i8 MOUSE_SHOWING = -1;          /* 0 shown; -1, -2 ...: hidden that often; 80h: thawing */
 i16 MOUSE_X_TEMP, MOUSE_Y_TEMP; /* where the cursor is */
-i16 MOUSE_VIDEO_MODE;
+i16 MOUSE_VIDEO_MODE;           /* the mode mouse_init was given */
 
-static char arrow[256];         /* DS:42d8, the image */
-/* DS:3cd0 the screen under the cursor, then DS:3dd0 the cursor composed over it: one block,
-   because mouse_refresh_view_port reaches the second as the first + 100h */
+static char arrow[256];         /* the cursor image, 16 x 16 */
+/* The screen under the cursor, then the cursor composed over it: one block, because
+ * mouse_refresh_view_port reaches the second as the first + 256. */
 static char buffers[512];
 #define under    (buffers)
 #define composed (buffers + 256)
 static i16 hot_x, hot_y;        /* the hot spot */
 static i8 frozen, moved;        /* mouse_freeze: moves recorded, and whether one happened */
 static i16 pending_x, pending_y;
-static i8 busy;                 /* DS:42d6: the handler is running */
+static i8 busy;                 /* the handler is running */
 static i16 draw_x, draw_y;      /* the drawn cursor's top left on the screen, clipped */
 static i16 skip_x, skip_y;      /* how much of the image the clip cut off at the top left */
 static u8 rows, cols;           /* how much of it is on the screen */
 static i16 image_off;           /* 16 * skip_y + skip_x: where the visible part starts */
 static char *screen_at;         /* the screen address of (draw_x, draw_y) */
-static i16 double_freedom;
+static i16 double_freedom;      /* stored by mouse_double_freedom, never read */
 
-/* the view port: a work buffer, and which part of it shows where on the screen */
-static char *work;              /* DS:3cb2 */
-static i16 work_w;              /* DS:3cb4 */
-static i16 view_x0, view_x1, view_y0, view_y1;   /* DS:3cb6, 3cb8, 3cba, 3cbc: on the screen */
-static char *view_origin;       /* DS:3cc4: the work-buffer pixel at the view's top left */
-static u8 saved_rows, saved_cols;               /* DS:3cca .. 3cce: what refresh_done undoes */
+/* The view port: a work buffer, and which part of it shows where on the screen. */
+static char *work;              /* the work buffer's pixels */
+static i16 work_w;              /* its width */
+static i16 view_x0, view_x1, view_y0, view_y1;   /* the screen rectangle it shows in */
+static char *view_origin;       /* the work-buffer pixel at the view's top left */
+static u8 saved_rows, saved_cols;               /* what mouse_refresh_done undoes */
 static char *saved_under, *saved_work;
 
-/* MOUSE_COPY -- 0731: rows x cols bytes, the source rows sstep apart, the destination dstep */
+/* copy -- copies nrows x ncols bytes, the source rows sstep apart, the destination's dstep. */
 static void copy(char *d, const char *s, u8 nrows, u8 ncols, i16 sstep, i16 dstep)
 {
     while (nrows--) {
@@ -228,7 +187,7 @@ static void copy(char *d, const char *s, u8 nrows, u8 ncols, i16 sstep, i16 dste
     }
 }
 
-/* MOUSE_OVERLAY_VGA -- 0746: the cursor over what is under it, all 256 pixels */
+/* overlay -- composes the cursor over what is under it, all 256 pixels. */
 static void overlay(void)
 {
     u16 i;
@@ -236,7 +195,8 @@ static void overlay(void)
         composed[i] = (u8)arrow[i] == 0xff ? under[i] : arrow[i];
 }
 
-/* MOUSE_DRAW -- 066f: save the screen under the cursor and draw it there */
+/* draw -- saves the screen under the cursor and draws the cursor there, clipped to the
+ * 320 x 200 screen at all four edges. */
 static void draw(void)
 {
     i16 x = MOUSE_X_TEMP - hot_x, y = MOUSE_Y_TEMP - hot_y, n;
@@ -257,14 +217,16 @@ static void draw(void)
     host_vram_touched();
 }
 
-/* MOUSE_WIPE -- 064a: put back what the cursor covered */
+/* wipe -- puts back what the cursor covered. */
 static void wipe(void)
 {
     copy(screen_at, under + image_off, rows, cols, 16, 320);
     host_vram_touched();
 }
 
-/* MOUSE_CURSOR -- 03f8: the driver's event handler, at every move */
+/* event -- the driver's event handler, at every move: while frozen it only records the move;
+ * a shown cursor is redrawn at (x, y); a hidden one just takes the position (except during
+ * mouse_thaw). A call made while the handler runs is dropped. */
 static void event(i16 x, i16 y)
 {
     if (busy)
@@ -286,7 +248,8 @@ static void event(i16 x, i16 y)
     busy = 0;
 }
 
-/* 045d: the handler's second entry, mouse_thaw's: move the shown cursor unconditionally */
+/* event_move -- the handler's second entry, mouse_thaw's: moves the shown cursor
+ * unconditionally. */
 static void event_move(i16 x, i16 y)
 {
     if (busy)
@@ -299,6 +262,8 @@ static void event_move(i16 x, i16 y)
     busy = 0;
 }
 
+/* host_event -- the host's mouse callback: hands moves to the event handler once mouse_init
+ * has started the cursor. The buttons are read by mouse_get_status instead. */
 static void host_event(int x, int y, int buttons)
 {
     (void)buttons;
@@ -306,7 +271,7 @@ static void host_event(int x, int y, int buttons)
         event((i16)x, (i16)y);
 }
 
-/* mouse_show -- 0007 */
+/* mouse_show -- undoes one mouse_hide; the cursor is drawn when the count reaches 0. */
 void mouse_show(void)
 {
     if (MOUSE_KNOWN_MODE) {
@@ -319,7 +284,7 @@ void mouse_show(void)
     }
 }
 
-/* mouse_hide -- 004e */
+/* mouse_hide -- hides the cursor (wiping it if shown); calls nest. */
 void mouse_hide(void)
 {
     if (MOUSE_KNOWN_MODE) {
@@ -329,13 +294,15 @@ void mouse_hide(void)
     }
 }
 
-/* The cursor image: mouse_1.ASM's initialised data (DS:42D8, a 16 x 16 arrow), which the
-   editor never changes. This repository carries none of MicroProse's bytes, so the port
-   reads it from the player's own MAPEDIT.EXE in the game directory -- the 1.0 editor, whose
-   data segment is paragraph 15E7h -- and, without one, draws an arrow of its own. */
+/* The cursor image: a 16 x 16 arrow in the original's initialised data, which the editor
+ * never changes. Port: this repository carries none of MicroProse's bytes, so the port reads
+ * it from the player's own MAPEDIT.EXE in the game directory -- the 1.0 editor, recognised by
+ * its size; EXE_CURSOR is where its data segment keeps the image, past the EXE header -- and,
+ * without one, draws an arrow of its own. */
 #define EXE_SIZE 0x2378cL
 #define EXE_CURSOR (0x15e7L * 16 + 0x42d8)
 
+/* cursor_image -- fills arrow, from MAPEDIT.EXE or the port's own drawing. */
 static void cursor_image(void)
 {
     MSC_FILE *f = msc_fopen("MAPEDIT.EXE", "rb");
@@ -362,8 +329,10 @@ static void cursor_image(void)
         }
 }
 
-/* mouse_init -- 0086: start the mouse for a video mode (on = 0 turns it off). Returns
-   mouse_driver. The port always has a mouse. */
+/* mouse_init -- sets the video mode and starts the mouse for it: the cursor hidden, centred
+ * on (160, 100), drawn by the library in mode 13h. on = 0 switches the mouse off instead (the
+ * shutdown does that with text mode 3). Returns mouse_driver: -1 when on. Port: there is
+ * always a mouse. */
 i16 mouse_init(i16 on, i16 mode)
 {
     static int have_image;
@@ -394,14 +363,14 @@ i16 mouse_init(i16 on, i16 mode)
     return mouse_driver;
 }
 
-/* MOUSE_SET_HOTSPOT -- 01f4 */
+/* MOUSE_SET_HOTSPOT -- the image pixel (0-15 each way) that sits on the mouse position. */
 void MOUSE_SET_HOTSPOT(i16 x, i16 y)
 {
     hot_x = (i16)(x & 15);
     hot_y = (i16)(y & 15);
 }
 
-/* MOUSE_TIMING -- 020d: wait for the BIOS clock to tick (18.2 a second) */
+/* MOUSE_TIMING -- waits for the BIOS clock to tick (18.2 a second). */
 void MOUSE_TIMING(void)
 {
     u32 t = host_ms() * 182u / 10000u;
@@ -411,14 +380,14 @@ void MOUSE_TIMING(void)
 
 i16 MOUSE_GET_VIDEO_MODE(void) { return MOUSE_VIDEO_MODE; }
 
-/* the double-screen cursor (for a second monitor) has no use in the port; these keep its
-   bookkeeping only */
+/* The original's "double" entry points have nothing to do in the port: mouse_double_freedom
+ * stores its argument, the others are empty. */
 void mouse_double_freedom(i16 n) { double_freedom = n; }
 void mouse_check_double(void) { }
 void MOUSE_BEGIN_DOUBLE(i16 a, i16 b, i16 c, i16 d) { (void)a; (void)b; (void)c; (void)d; }
 void MOUSE_END_DOUBLE(void) { }
 
-/* mouse_freeze -- 04bf */
+/* mouse_freeze -- holds the cursor still: moves are recorded until mouse_thaw. */
 void mouse_freeze(void)
 {
     if (MOUSE_KNOWN_MODE) {
@@ -427,7 +396,7 @@ void mouse_freeze(void)
     }
 }
 
-/* mouse_thaw -- 04d1 */
+/* mouse_thaw -- lets the cursor move again, applying the last move recorded while frozen. */
 void mouse_thaw(void)
 {
     if (MOUSE_KNOWN_MODE) {
@@ -440,7 +409,7 @@ void mouse_thaw(void)
     }
 }
 
-/* MOUSE_FORCE -- 0500: put the cursor at (x, y) */
+/* MOUSE_FORCE -- puts the cursor, and the host's pointer, at (x, y). */
 void MOUSE_FORCE(i16 x, i16 y)
 {
     if (MOUSE_KNOWN_MODE)
@@ -459,8 +428,8 @@ void MOUSE_FORCE(i16 x, i16 y)
     }
 }
 
-/* mouse_get_status -- 057c: the cursor's position, and the buttons (the driver's, and any
-   the keypad holds down) */
+/* mouse_get_status -- stores the cursor's position in *x, *y and returns the buttons down (bit
+ * 0 left, bit 1 right): the host's, and any the keypad holds down. */
 i16 mouse_get_status(i16 *x, i16 *y)
 {
     int b = 0;
@@ -471,12 +440,12 @@ i16 mouse_get_status(i16 *x, i16 *y)
     return (i16)(b | MOUSE_FORCE_BUTTON);
 }
 
-/* MOUSE_HORIZ_BOUND / MOUSE_VERT_BOUND -- 05bf, 05d7: the driver's limits. The host keeps
-   the pointer on the 320 x 200 screen already. */
+/* MOUSE_HORIZ_BOUND / MOUSE_VERT_BOUND -- the driver's limits. Port: the host keeps the
+ * pointer on the 320 x 200 screen already. */
 void MOUSE_HORIZ_BOUND(i16 lo, i16 hi) { (void)lo; (void)hi; }
 void MOUSE_VERT_BOUND(i16 lo, i16 hi) { (void)lo; (void)hi; }
 
-/* MOUSE_CHANGE_CURSOR_BEGIN / _END -- 05ef, 0603: around a change of the cursor image */
+/* MOUSE_CHANGE_CURSOR_BEGIN / _END -- bracket a change of the cursor image; END redraws it. */
 void MOUSE_CHANGE_CURSOR_BEGIN(void)
 {
     if (MOUSE_KNOWN_MODE && MOUSE_SHOWING == 0)
@@ -495,14 +464,14 @@ void MOUSE_CHANGE_CURSOR_END(void)
 
 void MOUSE_DISABLE_SCALE(void) { }
 
-/* mouse_set_work_buffer -- 075e */
+/* mouse_set_work_buffer -- the work buffer the view port shows, and its width. */
 void mouse_set_work_buffer(char *bits, i16 w)
 {
     work = bits;
     work_w = w;
 }
 
-/* mouse_set_view_port_loc -- 0777: the part of the screen the view port shows */
+/* mouse_set_view_port_loc -- the part of the screen the view port shows (inclusive). */
 void mouse_set_view_port_loc(i16 x0, i16 y0, i16 x1, i16 y1)
 {
     view_x0 = x0;
@@ -511,15 +480,17 @@ void mouse_set_view_port_loc(i16 x0, i16 y0, i16 x1, i16 y1)
     view_y1 = y1;
 }
 
-/* mouse_set_view_port -- 07a8: the work-buffer pixel shown at the view port's top left */
+/* mouse_set_view_port -- the work-buffer pixel shown at the view port's top left. */
 void mouse_set_view_port(i16 x, i16 y)
 {
     view_origin = work + (u16)((u16)y * (u16)work_w + (u16)x);
 }
 
-/* mouse_refresh_view_port -- 07cd: if the shown cursor overlaps the view port, draw it into
-   the work buffer over the new picture, so that the next video_update shows it. Returns -1
-   when it did, 0 when not. */
+/* mouse_refresh_view_port -- if the shown cursor overlaps the view port, draws it into the
+ * work buffer over the new picture, so that the next video_update shows it, and takes the new
+ * picture as what is under the cursor. Returns -1 when it did, 0 when not. Quirk of the
+ * original: a cursor cut by the view's top or left edge is not also cut at its bottom or
+ * right, which matters only for a view shorter or narrower than the cursor. */
 i16 mouse_refresh_view_port(void)
 {
     i16 vis_w, vis_h, cx, dx, ax, bx;
@@ -572,18 +543,18 @@ i16 mouse_refresh_view_port(void)
     return -1;
 }
 
-/* mouse_refresh_done -- 0903: take the cursor out of the work buffer again */
+/* mouse_refresh_done -- takes the cursor out of the work buffer again. */
 void mouse_refresh_done(void)
 {
     if (saved_work)
         copy(saved_work, saved_under, saved_rows, saved_cols, 16, work_w);
 }
 
-/* MOUSE_HARD_CURSOR_MODE and MOUSE_SCREEN_SWAP serve text modes and a second screen */
+/* MOUSE_HARD_CURSOR_MODE and MOUSE_SCREEN_SWAP serve text modes and a second screen: no-ops. */
 void MOUSE_HARD_CURSOR_MODE(i16 mode, char *colors) { (void)mode; (void)colors; }
 void MOUSE_SCREEN_SWAP(i16 mode) { (void)mode; }
 
-/* the keypad's moves (keys.c), as KEYS_1C_HANDLER calls the event handler */
+/* mouse_keypad_move -- the keypad mouse (keys.c) moves the cursor through the event handler. */
 void mouse_keypad_move(i16 x, i16 y)
 {
     event(x, y);

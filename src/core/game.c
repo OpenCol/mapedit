@@ -1,6 +1,12 @@
-/* game.c -- the game's state and the game functions the shared modules call. The editor links MicroProse's game modules (the map, popups) without the game: these are its records and its empty stand-ins. */
+/* game.c -- the game's records and empty stand-ins for the game functions shared code calls.
+ *
+ * The editor is built from modules it shares with the game (the map, the popups, the menus),
+ * and those refer to game state and game functions the editor does not have. This file
+ * supplies them: the records the shared code reads (most never set, many never read), and
+ * functions that do nothing. Where a stand-in returns a value, it returns 0.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* 2-byte record packing, as in 1994: the file formats depend on it */
 #include "font.h"
 #include "map.h"
 #include "error.h"
@@ -13,122 +19,119 @@
 #include "records.h"
 #include "sprite.h"
 
-GameState game;                          /* DS:0x5e2c: 142 bytes */
+GameState game;             /* the game state; the editor sets only game_in_progress */
 
-Unit unit[1];                             /* DS:0x521e: one 28-byte Unit record */
+Unit unit[1];               /* one unit record, for the popups' unit sprites */
 
-i16 europe;                               /* DS:0x4e80: 2 bytes here (map.c reads it as Nation[]) */
+i16 europe;                 /* unused */
 
-i16 nationality[4];                       /* DS:0x4a74: 8 bytes, unused */
+i16 nationality[4];         /* unused */
 
-i16 active_unit = 0;                            /* DS:0x0072 */
+i16 active_unit = 0;        /* unused */
 
-i16 active_player = 0;                          /* DS:0x0074 */
+i16 active_player = 0;      /* unused */
 
-i16 colony_screen_on = 0;                       /* DS:0x0076 */
+i16 colony_screen_on = 0;   /* unused */
 
-i16 game_mode = 1;                              /* DS:0x0070 */
+i16 game_mode = 1;          /* 1: the editor (edit.c centres the cursor with the view) */
 
-i16 any_action_this_turn;                 /* DS:0x49f0 */
+i16 any_action_this_turn;   /* unused */
 
-i16 season_name[2];                       /* DS:0x49f6: 4 bytes, unused */
+i16 season_name[2];         /* unused */
 
-i16 cargo_names[16];                      /* DS:0x49ce: 32 bytes, unused */
+i16 cargo_names[16];        /* unused */
 
-i16 job_names[25];                        /* DS:0x4b18: 50 bytes, unused */
+i16 job_names[25];          /* unused */
 
-i16 order_names[13];                      /* DS:0x5ada: 26 bytes, unused */
+i16 order_names[13];        /* unused */
 
-i16 country_names[4];                     /* DS:0x697a: 8 bytes, unused */
+i16 country_names[4];       /* unused */
 
-i16 num_names;                            /* DS:0x521c */
+i16 num_names;              /* the file menu: how many files match */
 
-i16 depth_list[90];                       /* DS:0x4bb6: 180 bytes, unused */
+i16 depth_list[90];         /* unused */
 
-i16 depth_list_id[45];                    /* DS:0x4a8e: 90 bytes, unused */
+i16 depth_list_id[45];      /* unused */
 
-i16 num_screens;                          /* DS:0x4e78 */
+i16 num_screens;            /* the file menu: how many pages of ten names */
 
-i16 automate = 0;                               /* DS:0x008a */
+i16 automate = 0;           /* autoplay: popups close themselves; always 0 here */
 
-char game_text_name[6] = "GAME";                /* DS:0x0084 */
+char game_text_name[6] = "GAME"; /* the text section the shared popups read */
 
-i16 going;                                /* DS:0x6976 */
+i16 going;                  /* unused */
 
-i16 *sprite_base = 0;                       /* DS:0x008c */
+i16 *sprite_base = 0;       /* scratch memory lent to Find Continents */
 
-/* reset_sprite_memory -- 0000:0000, 2 bytes */
+/* The game frees its main sprites here when a popup's portrait does not fit in memory. */
 void reset_sprite_memory(void)
 {
 }
 
-/* load_main_sprites -- 0000:0002, 2 bytes */
+/* The game reloads its main sprites here, after a portrait popup or Find Continents. */
 void load_main_sprites(void)
 {
 }
 
-/* check_music -- 0000:0004, 2 bytes */
+/* The game keeps its music going here while a menu or popup waits for input. */
 void check_music(void)
 {
 }
 
-/* build_check -- 0000:0006, 2 bytes */
+/* Called by Find Continents after each row of the map. */
 void build_check(void)
 {
 }
 
-/* piece_draw -- 0000:0008, 2 bytes */
+/* Draws a unit piece in a popup. */
 void piece_draw(i16 piece, i16 nation, i16 x, i16 y, i16 size, i16 scale)
 {
     (void)piece; (void)nation; (void)x; (void)y; (void)size; (void)scale;
 }
 
-/* sprite_load -- 0000:000a, 2 bytes */
 void *sprite_load(char *name, i16 flags)
 {
     (void)name; (void)flags;
-    return 0;   /* 1994 returned what AX held: only the game's portraits call it */
+    return 0;   /* Port: the original returned whatever AX held; only portrait popups call it */
 }
 
-/* danger -- 0000:000c, 2 bytes */
+/* The game's debugging report, called by owner_set. */
 void danger(char *msg, i16 n, i16 x, i16 y)
 {
     (void)msg; (void)n; (void)x; (void)y;
 }
 
-/* perform_save -- 0000:000e, 2 bytes */
+/* The game's emergency save, called by owner_set. */
 void perform_save(i16 slot)
 {
     (void)slot;
 }
 
-/* piss_factor -- 0000:0010, 2 bytes */
 i16 piss_factor(i16 anger)
 {
     (void)anger;
-    return 0;   /* as sprite_load */
+    return 0;   /* Port: as sprite_load, 0 where the original returned AX */
 }
 
-/* pissed -- 0000:0012, 2 bytes */
 i16 pissed(i16 tribe, i16 nation)
 {
     (void)tribe; (void)nation;
-    return 0;   /* as sprite_load */
+    return 0;   /* Port: as sprite_load */
 }
 
-/* say_country -- 0000:0014, 2 bytes */
+/* A nation's name for a popup; buf is left as it was. */
 void say_country(i16 nation, i16 flag, char *buf)
 {
     (void)nation; (void)flag; (void)buf;
 }
 
-/* cycle_save -- 0000:0016, 2 bytes */
+/* The game saves (1) and restores (0) its colour cycling here around a portrait load. */
 void cycle_save(i16 save)
 {
     (void)save;
 }
 
-/* computer_turn -- 0000:22ae, 2 bytes */
+/* Nothing calls it. */
 void computer_turn(void)
 {
 }

@@ -1,4 +1,27 @@
-/* pack.c -- packing and unpacking: the stream plumbing around the FAB codec (fab.c). */
+/* pack.c -- packing and unpacking: the stream plumbing around the FAB codec (fab.c).
+ *
+ * pack_data moves a block of bytes from a source to a destination through a codec: method 0
+ * compresses, method 1 expands, any other method copies the bytes unchanged (a "stored"
+ * entry). The source and the destination are each either memory or an open file.
+ *
+ * The codecs never see the source or the destination. They pull bytes through a reader and
+ * push them through a writer (FFIO callbacks), and pack_data installs the matching pair in
+ * pack_read_routine and pack_write_routine:
+ *
+ *     pack_read_memory    from pack_read_memory_ptr        pack_read_file    from a FILE
+ *     pack_write_memory   to pack_write_memory_ptr         pack_write_file   to a FILE
+ *
+ * Each callback is asked for *n bytes and moves no more than its allowance (pack_read_size,
+ * pack_write_size) has left; a negative allowance means no limit. It subtracts what it moved
+ * from the allowance and adds it to its counter (pack_read_count, pack_write_count).
+ *
+ * Two codec families plug in through function pointers: PKWARE's implode/explode
+ * (pack_implode_routine, pack_explode_routine) and MicroProse's FAB (pack_pFAB*_routine).
+ * pack_strategy 1 selects FAB. The editor installs only FAB (pack_enable_pfab, at startup); the
+ * PKWARE pointers stay null, and asking for a codec that is not installed is a fatal error.
+ * The editor's one caller is the MADSPACK loader (loader.c), which sets pack_strategy from each
+ * entry's type and always unpacks into memory.
+ */
 #include <string.h>
 
 #include "msc.h"
@@ -13,69 +36,17 @@
 #include "records.h"
 #include "sprite.h"
 #include "units.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records on 2-byte boundaries, as the 1994 compiler laid them out */
 
-/* MODULE pack_1: MAPEDIT.EXE segment 1359 (PACK_1.C), file 0x14b96-0x14c0a, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn pack_read_memory 0x14b96
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_1066).
- *
- * THE MEMORY READER FOR IMPLODE/EXPLODE (root code past the C runtime, frame 1066; pascal).
- * pack_read_memory(buf, n) copies up to *n bytes from pack_read_memory_ptr into buf, capped by pack_read_size
- * unless its high word is -1 (unlimited); a zero allowance returns 0. It advances pack_read_memory_ptr
- * and normalises it with mem_normalize, and counts the bytes into pack_read_count. The body is an
- * `_asm` block (the `push ax; or ax,dx; pop ax` zero test and `rep movsb` are not MSC's).
- */
+/* Where pack_read_memory reads next. */
+char *pack_read_memory_ptr;
 
+/* Where pack_write_memory writes next. */
+char *pack_write_memory_ptr;
 
-/* pack_read_memory -- 1359:0006, 116 bytes */
-/* PORT: pack_read_memory is in port/ (inline assembly) */
-
-
-/* The module's uninitialised data (communal, BSS). */
-char *pack_read_memory_ptr;           /* DS:0x6348 */
-
-/* MODULE pack_2: MAPEDIT.EXE segment 1360 (PACK_2.C), file 0x14c0a-0x14c78, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn pack_write_memory 0x14c0a
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_106d).
- *
- * THE MEMORY WRITER FOR IMPLODE/EXPLODE (root code past the C runtime, frame 106d; pascal).
- * pack_write_memory(buf, n) is ff_read_mem (root_1066.c) the other way round: up to *n bytes of
- * buf into pack_write_memory_ptr, capped by pack_write_size unless its high word is -1, counted into
- * pack_write_count, pack_write_memory_ptr advanced and normalised. It has no return statement: it returns what
- * mem_normalize left in ax (the new offset), not the count -- the shipped code keeps no
- * local for it.
- */
-
-
-/* pack_write_memory -- 1360:000a, 110 bytes */
-/* PORT: pack_write_memory is in port/ (inline assembly) */
-
-
-/* The module's uninitialised data (communal, BSS). */
-char *pack_write_memory_ptr;          /* DS:0x5a9e */
-
-/* MODULE pack_3: MAPEDIT.EXE segment 1367 (PACK_3.C), file 0x14c78-0x14cf2, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn pack_read_file 0x14c78
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_1074).
- *
- * THE FILE READER FOR IMPLODE/EXPLODE (root code past the C runtime, frame 1074; pascal).
- * pack_read_file(buf, n) is one of the four I/O callbacks ff_decode (ovl28_772ba.c) hands the
- * compression library: it reads up to *n bytes from pack_read_file_handle into buf with fileio_fread_f,
- * capped by pack_read_size when that is not negative (unlimited), and counts them into pack_read_count.
- */
-
-
-
-/* pack_read_file -- 1367:0008, 122 bytes */
+/* pack_read_file -- the reader over a file: reads up to *n bytes from pack_read_file_handle
+ * into data, no more than pack_read_size allows, and returns how many it got (fewer at the end
+ * of the file). *n is not written back. */
 u16 pack_read_file(void *data, u16 *n)
 {
     char *buf = data;
@@ -94,25 +65,12 @@ u16 pack_read_file(void *data, u16 *n)
     return got;
 }
 
-/* The module's uninitialised data (communal, BSS). */
-MSC_FILE *pack_read_file_handle;              /* DS:0x4e7c */
+/* The file pack_read_file reads from. */
+MSC_FILE *pack_read_file_handle;
 
-/* MODULE pack_4: MAPEDIT.EXE segment 136f (PACK_4.C), file 0x14cf2-0x14d84, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn pack_write_file 0x14cf2
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_107c).
- *
- * THE FILE WRITER FOR IMPLODE/EXPLODE (root code past the C runtime, frame 107c; pascal).
- * pack_write_file(buf, n) writes up to *n bytes of buf to pack_write_file_handle with fileio_fwrite_f, capped
- * by pack_write_size when that is not negative, and counts them into pack_write_count; a failed write
- * returns 0. The twin of ff_read_file (root_1074.c).
- */
-
-
-
-/* pack_write_file -- 136f:0002, 146 bytes */
+/* pack_write_file -- the writer to a file: writes up to *n bytes of data to
+ * pack_write_file_handle, no more than pack_write_size allows. Returns the count, or 0 when the
+ * write fails (and then counts nothing). */
 u16 pack_write_file(void *data, u16 *n)
 {
     char *buf = data;
@@ -135,38 +93,12 @@ u16 pack_write_file(void *data, u16 *n)
     return got;
 }
 
-/* The module's uninitialised data (communal, BSS). */
-MSC_FILE *pack_write_file_handle;             /* DS:0x4e7a */
+/* The file pack_write_file writes to. */
+MSC_FILE *pack_write_file_handle;
 
-/* MODULE pack_5: MAPEDIT.EXE segment 1202 (pack_5.c), file 0x13628-0x137a0, 2 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn pack_raw_copy 0x13628
- * fn pack_a_packet 0x136a6
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl28_776f4).
- *
- * MADSPACK CODEC DISPATCH (overlay 28, para 138: the segment starts at 0x776f0, inside
- * far_fwrite's last bytes). DOS-only engine code; the state is the g_ff_* block that
- * ff_decode (ovl28_772ba.c) fills.
- *   - pack_raw_copy() (thunk 181f:2fe8) is the stored method: while pack_read_size > 0 and no
- *     error, it moves min(pack_buffer_size, pack_read_size) bytes through the work buffer with
- *     the pascal reader and writer callbacks (which keep the counters). A short read is
- *     error 4.
- *   - pack_a_packet(method, kind) (_fastcall, thunk 181f:2ee4) runs one codec call: method 0
- *     calls an implode-style packer (pack_strategy 1: DS:0x26d4, else 0x26cc) with the level
- *     word DS:0x26c6 and a 0x1000 dictionary size; method 1 an explode-style unpacker
- *     (pack_strategy 1: kind 0 reader->writer 0x26d8, kind 1 reader->memory 0x26dc, kind 2
- *     memory->memory 0x26e0; else 0x26d0); anything else pack_raw_copy. Every codec is a far
- *     pascal pointer (the calls are followed by `leave`, so cdecl is not ruled out).
- *
- * `#pragma optimize("elg")`. Both switches open with `default:` (the dispatch chain then
- * falls into the default arm). pack_raw_copy's min must be computed as a long and narrowed.
- */
-
-
-
-/* pack_raw_copy -- 1202:0008, 126 bytes */
+/* pack_raw_copy -- the stored method: while pack_read_size has bytes left, moves up to
+ * pack_buffer_size of them at a time through pack_buffer from the reader to the writer.
+ * Returns 0, or 4 when the reader comes back short (the source ended early). */
 i16 pack_raw_copy(void)
 {
     u16 n;
@@ -184,9 +116,16 @@ i16 pack_raw_copy(void)
     }
     return err;
 }
-/* pack_a_packet -- 1202:0086, 250 bytes */
 
-
+/* pack_a_packet -- runs the codec once with the installed reader, writer and work buffer, and
+ * returns its error code (0 for success).
+ *   method 0  compress: FAB when pack_strategy is 1, else implode, with pack_mode as the
+ *             compression type and a 4 KB dictionary;
+ *   method 1  expand: under FAB, kind picks the variant -- 0 reader to writer, 1 reader to
+ *             memory (pack_write_memory_ptr), 2 memory to memory (pack_read_memory_ptr to
+ *             pack_write_memory_ptr); otherwise explode, reader to writer;
+ *   other     pack_raw_copy.
+ * The routine pointers are not checked here: pack_data has already reported a missing one. */
 i16 pack_a_packet(i16 method, i16 kind)
 {
     u16 dsize;
@@ -214,79 +153,54 @@ i16 pack_a_packet(i16 method, i16 kind)
     }
 }
 
-/* The packer's data, defined here after the code (a definition after the last function
- * moves no symbol position). The initialised ones land at DS:0x4488-0x44a6 in this order
- * (the module has no literals); the rest are communals (BSS). */
-i16 pack_mode = 0;                        /* DS:0x4488 */
-char pack_zip_enabled = 0;                /* DS:0x448a */
-char pack_pfab_enabled = 0;               /* DS:0x448b */
-i16 pack_strategy = 1;                    /* DS:0x448c */
-FFPACK pack_implode_routine = 0;          /* DS:0x448e */
-FFUNPACK pack_explode_routine = 0;        /* DS:0x4492 */
-FFPACK pack_pFABcomp_routine = 0;         /* DS:0x4496 */
-FFUNPACK pack_pFABexp0_routine = 0;       /* DS:0x449a */
-FFUNPACK_TO pack_pFABexp1_routine = 0;    /* DS:0x449e */
-FFUNPACK_MEM pack_pFABexp2_routine = 0;   /* DS:0x44a2 */
-i32 pack_write_size;                     /* DS:0x4a84 */
-i32 pack_read_count;                     /* DS:0x4b0a */
-void *pack_buffer;                    /* DS:0x4ea4 */
-i32 pack_read_size;                      /* DS:0x5290 */
-u16 pack_buffer_size;                /* DS:0x6028 */
-FFIO pack_read_routine;                   /* DS:0x6042 */
-FFIO pack_write_routine;                  /* DS:0x64e8 */
-i32 pack_write_count;                    /* DS:0x6984 */
+/* The packer's state. */
+i16 pack_mode = 0;                        /* the compression type handed to the packers */
+char pack_zip_enabled = 0;                /* never set: the PKWARE codecs are not installed */
+char pack_pfab_enabled = 0;               /* -1 once pack_enable_pfab has run */
+i16 pack_strategy = 1;                    /* 1: the FAB codecs; otherwise implode/explode */
+FFPACK pack_implode_routine = 0;          /* PKWARE implode (never installed) */
+FFUNPACK pack_explode_routine = 0;        /* PKWARE explode (never installed) */
+FFPACK pack_pFABcomp_routine = 0;         /* FAB compressor */
+FFUNPACK pack_pFABexp0_routine = 0;       /* FAB expander, reader to writer */
+FFUNPACK_TO pack_pFABexp1_routine = 0;    /* FAB expander, reader to memory */
+FFUNPACK_MEM pack_pFABexp2_routine = 0;   /* FAB expander, memory to memory */
+i32 pack_write_size;                     /* bytes the writer may still write; negative: no limit */
+i32 pack_read_count;                     /* bytes the reader has read */
+void *pack_buffer;                    /* the codec's work buffer */
+i32 pack_read_size;                      /* bytes the reader may still read; negative: no limit */
+u16 pack_buffer_size;                /* the work buffer's size */
+FFIO pack_read_routine;                   /* the installed reader */
+FFIO pack_write_routine;                  /* the installed writer */
+i32 pack_write_count;                    /* bytes the writer has written */
 
-/* MODULE pack_6: MAPEDIT.EXE segment 1309 (pack_6.c), file 0x1469a-0x149ea, 4 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn far_to_near             0x1469a
- * fn io_call_hook            0x146a4
- * fn pack_set_special_buffer 0x146ba
- * fn pack_data                 0x146da
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl28_772ba).
- *
- * FILE-I/O HOOKS (overlay 28, para 70: the segment starts at 0x772b0, inside the previous
- * module's last function, and this module's code at 0x772ba). DOS-only engine code.
- *   - far_to_near returns the offset half of a far pointer (inline les).
- *   - io_call_hook calls the far hook pack_special_function, if one is set (inline asm, which is why
- *     di is saved).
- *   - pack_set_special_buffer installs two far hooks: pack_special_buffer (DS:0x245a) and pack_special_function
- *     (DS:0x245e).
- *   - ff_decode(method, from_file, to_file, bytes, src, dst) (_fastcall, thunk 181f:2eba)
- *     is the MADSPACK codec driver, a wrapper round the PKWARE Data Compression Library
- *     (the work-buffer sizes are implode's 0x89b8 and explode's 0x311e). It installs the
- *     pascal reader/writer callbacks in g_ff_reader/g_ff_writer (root code at 181f:2f10 /
- *     2f06 for a far buffer / FILE source, 2efc / 2ef2 for the destination; to_file 2 keeps
- *     the writer), sets the byte counters g_ff_in/out(_left), and picks a work size and
- *     codec per method: 0 = compress (g_ff_type 1: 0x71be, else implode 0x89b8), 1 =
- *     expand (g_ff_type 1: three variants, memory-to-memory, to memory, or to the writer;
- *     else explode 0x311e), anything else = stored copy (0x1000). A missing codec pointer
- *     is fatal_error(-29, 3, 24, method, g_ff_type). The work buffer is pack_special_buffer when
- *     set (so that "hook" is really a caller-supplied work block), otherwise
- *     far_alloc_tagged(size, "$pack$"). It then runs ff_codec (181f:2ee4, ovl28_775ec.c)
- *     once (expanding to memory) or until the counter reaches 0; a codec error is
- *     fatal_error(-28, 3, 24, ...). Returns the selected byte count.
- *     `#pragma optimize("elg")` for this function only (si/di register locals). The
- *     `to_file != 1 && to_file != 2` spelling puts the 0x820 arm first, as shipped.
- */
+/* A caller-supplied work buffer for pack_data and a function it calls when it is done with it,
+ * set together by pack_set_special_buffer; when the buffer is null pack_data allocates its own.
+ * The buffer is a data block despite its function-pointer type. The editor never sets them. */
+void (*pack_special_buffer)(void) = 0;
+void (*pack_special_function)(void) = 0;
 
-void (*pack_special_buffer)(void) = 0;          /* DS:0x4512 (defined here: before pack_data's "$pack$") */
-void (*pack_special_function)(void) = 0;        /* DS:0x4516 */
-/* far_to_near -- 1309:000a, 10 bytes */
-/* PORT: far_to_near is in port/ (inline assembly) */
-
-/* io_call_hook -- 1309:0014, 22 bytes */
-/* PORT: io_call_hook is in port/ (inline assembly) */
-
-/* pack_set_special_buffer -- 1309:002a, 32 bytes */
+/* pack_set_special_buffer -- installs a work buffer and a done-hook for pack_data (see above);
+ * nulls restore the default. */
 void pack_set_special_buffer(void (*a)(void), void (*b)(void))
 {
     pack_special_buffer = a;
     pack_special_function = b;
 }
-/* pack_data -- 1309:004a, 784 bytes */
 
+/* pack_data -- packs, unpacks or copies `bytes` bytes from src to dst.
+ *   method     0 compress, 1 expand, anything else copy unchanged;
+ *   from_file  0: src is memory; otherwise src is a MSC_FILE * to read from;
+ *   to_file    0: dst is memory; otherwise dst is a MSC_FILE * to write to;
+ *   bytes      for a compress or a copy, the size of the input; for an expand, the size of the
+ *              output.
+ * It installs the reader and writer, sets their allowances, picks the work-buffer size for the
+ * codec, gets the buffer ("$pack$") unless a special one is set, and runs the codec: once when
+ * expanding to memory, otherwise packet by packet until the allowance runs out.
+ *
+ * Returns the bytes copied (a copy), the bytes read (a compress), or the bytes written (an
+ * expand to a file). An expand to memory returns `bytes` itself, whatever the codec produced.
+ * Returns 0 when the work buffer cannot be had. A codec that is not installed, or one that
+ * fails, goes to error_report, which ends the program. */
 i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
                          void *src, void *dst)
 {
@@ -301,14 +215,14 @@ i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes,
         pack_read_memory_ptr = src;
     } else {
         pack_read_routine = pack_read_file;
-        pack_read_file_handle = (MSC_FILE *)src;   /* PORT: the whole pointer (1994: its offset, far_to_near) */
+        pack_read_file_handle = (MSC_FILE *)src;   /* Port: 1994 kept the offset */
     }
     if (to_file == 0) {
         pack_write_routine = pack_write_memory;
         pack_write_memory_ptr = dst;
     } else {
         pack_write_routine = pack_write_file;
-        pack_write_file_handle = (MSC_FILE *)dst;   /* PORT: the whole pointer (1994: its offset, far_to_near) */
+        pack_write_file_handle = (MSC_FILE *)dst;   /* Port: 1994 kept the offset */
     }
     pack_read_count = pack_write_count = 0;
     switch (method) {
@@ -396,24 +310,25 @@ out:
     return *count;
 }
 
-/* far_to_near -- 1309:000a: a far pointer's offset. The port's pointers have no segment;
-   what callers hand on is the pointer's low bits, as the original's offset. */
+/* far_to_near -- in 1994, the offset half of a far pointer. Port: pointers have no segment, so
+ * this returns the pointer's low 16 bits, which is what callers hand on as the offset. */
 u16 far_to_near(void *p)
 {
     return (u16)(uintptr_t)p;
 }
 
-/* io_call_hook -- 1309:0014: the packers' special function, when there is one */
+/* io_call_hook -- calls pack_special_function, if one is set. */
 void io_call_hook(void)
 {
     if (pack_special_function)
         pack_special_function();
 }
 
-/* pack_read_memory -- 1359:0006: the packers' reader over a block of memory. Takes *n bytes,
-   no more than pack_read_size has left, counts them, returns how many. A size whose high
-   word is FFFFh (any negative one) means no limit; only a size under 64 KB clamps. *n is not
-   written back. */
+/* pack_read_memory -- the reader over memory: copies *n bytes from pack_read_memory_ptr into
+ * data, advances the pointer, counts them and returns how many. A negative allowance (one whose
+ * high word is FFFFh) means no limit; an allowance of 0 returns 0. Only an allowance under
+ * 64 KB clamps the count, as in the original: a larger one is just decremented. *n is not
+ * written back. */
 u16 pack_read_memory(void *data, u16 *n)
 {
     char *buf = data;
@@ -433,10 +348,11 @@ u16 pack_read_memory(void *data, u16 *n)
     return c;
 }
 
-/* pack_write_memory -- 1360:000a: the writer, the same way round. The original has no return
-   statement and returns what mem_normalize left in AX, the new pointer's offset after
-   normalising (0-15), which depends on where DOS put the block; PKWARE's library, which calls
-   it, ignores a writer's result. The port returns the count. */
+/* pack_write_memory -- the writer to memory, pack_read_memory the other way round: copies up
+ * to *n bytes of data to pack_write_memory_ptr, under the same allowance rules.
+ * Port: the original has no return statement and returns whatever its pointer normalisation
+ * left behind (the new pointer's offset, 0-15, which depends on where DOS put the block). No
+ * codec uses a writer's result. The port returns the count. */
 u16 pack_write_memory(void *data, u16 *n)
 {
     char *buf = data;
@@ -456,19 +372,8 @@ u16 pack_write_memory(void *data, u16 *n)
     return c;
 }
 
-/* MODULE pack_9: MAPEDIT.EXE segment 0f16 (pack_9.c), file 0x1076e-0x107aa, 1 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn pack_enable_pfab 0x1076e
- *
- * No VICEROY twin: reconstructed from the shipped bytes.
- *
- * pack_enable_pfab() switches the MADSPACK codec to the FAB compressor: strategy 1, the
- * enable flag, and the four pascal routines PFABCOMP and PFABEXP0..2 (pfab*.ASM) into
- * pack_5.c's routine pointers.
- */
-
-/* pack_enable_pfab -- 0f16:000e, 60 bytes */
+/* pack_enable_pfab -- installs the FAB codec (fab.c) and selects it: pack_strategy 1,
+ * pack_pfab_enabled set, and the compressor and the three expanders in the routine pointers. */
 void pack_enable_pfab(void)
 {
     pack_strategy = 1;

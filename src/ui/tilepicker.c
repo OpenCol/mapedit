@@ -1,6 +1,19 @@
-/* tilepicker.c -- Map Tile Select: the palette of terrains and features to paint with. */
+/* tilepicker.c -- Map Tile Select: the palette of terrains and features to paint with.
+ *
+ * The screen replaces the whole work screen with three rows of 16 x 16 pictures, each a hot
+ * spot (id 0x13): the eight unforested terrains, the eight forested ones, then Arctic, Ocean,
+ * Sea Lane and the four features (major river, minor river, mountains, hills). The current
+ * selection is boxed in colour 15 and named at the top right. Picking one sets the editing
+ * state the paint commands use (editstate.c):
+ *   selected_terrain              the terrain painted (0 for a feature);
+ *   selected_physical_and_mask    which of the square's feature bits painting keeps;
+ *   selected_physical_or_mask     the feature bits painting adds (0 for a terrain);
+ *   selected_right_mouse_change   set for a feature: painting changes only the feature bits.
+ * The mouse picks a spot and leaves the screen when the button is released; the arrow keys
+ * move the selection; any other key leaves.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "editstate.h"
 #include "font.h"
 #include "menu.h"
@@ -21,11 +34,12 @@
 #include "sprite.h"
 #include "tilepicker.h"
 
-/* add_item -- 0000:0d2a, 116 bytes */
-i16 myspot = 1;                                                 /* DS:0x01ce (defined here: lands after info_window_draw's "Coast Protect: OFF") */
+i16 myspot = 1;                         /* the hot spot the arrow keys move from (1-based) */
 
-/* A 16x16 icon on the selection screen with its hot spot (id 0x13, values 3 and n); the
- * selected one is boxed in white and remembered in myspot. */
+/* Draws sprite `icon` of the PHYS0 series at (x, y) with a hot spot over it (values 3 and n);
+ * when sel is set it is boxed and becomes myspot. Only the bottom row goes through add_item and
+ * add_item_2, so only a selection there updates myspot; a terrain picked in the two upper rows
+ * with the mouse leaves myspot where it was, as in the original. */
 void add_item(i16 x, i16 y, i16 icon, i16 n, i16 sel)
 {
     sprite_draw(icon, tiles, &scr_work, x, y);
@@ -36,8 +50,7 @@ void add_item(i16 x, i16 y, i16 icon, i16 n, i16 sel)
     }
 }
 
-/* add_item_2 -- 0000:0d9e, 118 bytes */
-/* The same for a terrain tile. */
+/* The same for terrain tile `tile`. */
 void add_item_2(i16 x, i16 y, i16 tile, i16 n, i16 sel)
 {
     tile_draw(terrain_1, tile, &scr_work, x, y);
@@ -48,10 +61,10 @@ void add_item_2(i16 x, i16 y, i16 tile, i16 n, i16 sel)
     }
 }
 
-/* selection_screen_display -- 0000:0e14, 696 bytes */
-/* The terrain selection screen: two rows of eight terrain tiles (the second row forested,
- * hot spot values row/column), then ocean, sea lane, lakes and the four features (values 3
- * and 0-6), the selected one boxed; the selection's name at (0xa0, 0xa). */
+/* Draws the selection screen and puts it on the video screen. The upper rows' hot spots carry
+ * the row (0 or 1) and the column; a forested tile gets the forest sprite drawn over it,
+ * except Scrub (column 1), whose tile already shows its trees. The bottom row's spots carry 3
+ * and 0-6. The selection's name is written at (160, 10). */
 void selection_screen_display(void)
 {
     i16 r;
@@ -121,10 +134,14 @@ void selection_screen_display(void)
     mouse_video_update(0, 0, 0, 0, 0x140, 0xc8);
 }
 
-/* parse_spot -- 0000:10cc, 290 bytes */
-/* A hot spot hit on the selection screen: rows 0-2 pick a terrain (column, +8 forested,
- * +0x10), value 3 picks ocean, sea lane, lakes or a feature (and/or masks on the map byte,
- * right-mouse change for the features). Redraws when the selection changed. */
+/* Selects what hot spot n stands for (0, no spot, does nothing). Rows 0 and 1 select terrain
+ * column or column + 8; a row 2 would add 0x10, but the screen has none. The bottom row
+ * selects Arctic, Ocean or Sea Lane, or a feature. The masks:
+ *   a terrain or Arctic   keeps every feature bit;
+ *   Ocean, Sea Lane       keep only a river (0x40);
+ *   major river clears all three bits and sets 0xc0;  minor river clears 0xc0, sets 0x40;
+ *   mountains   clears all three bits and sets 0xa0;  hills clears 0xa0, sets 0x20.
+ * The screen is redrawn only when the selection changed. */
 void parse_spot(i16 n)
 {
     i16 clr;
@@ -209,7 +226,8 @@ void parse_spot(i16 n)
     }
 }
 
-/* A mouse stroke on the selection screen; 0 once the stroke ended. */
+/* Handles a mouse stroke on the selection screen: selects the spot under the mouse. Returns
+ * 0 once the stroke has ended (the screen then closes), else 1. */
 i16 selection_mouse(void)
 {
     i16 running;
@@ -223,9 +241,13 @@ i16 selection_mouse(void)
     return running;
 }
 
-/* selection_screen -- 0000:1226, 234 bytes */
-/* The terrain selection screen's event loop: the arrow keys (or keypad 8/4/6/2) move the
- * selection around the 3 rows of 8, the mouse picks, any other key leaves. */
+/* Runs Map Tile Select until a key other than an arrow, or the end of a mouse stroke, and
+ * then redraws the main screen. The arrows move myspot over the 23 spots, numbered row by row
+ * (8, 8, 7), and select the spot they land on. Right and left run on through the rows and
+ * wrap from the last spot to the first, but left from the first spot goes to the end of the
+ * top row. Down wraps from the bottom row to the top; down from the last spot of the middle
+ * row, which has nothing below it, goes up instead. Up from the top row stays put, except
+ * from its last spot, which goes down to the middle row. */
 void selection_screen(void)
 {
     i16 running;

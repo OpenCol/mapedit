@@ -1,5 +1,9 @@
-/* sound.c -- sound_1.ASM and sound_2.ASM. The map editor loads no sound driver: every entry
- * goes through the driver's jump table to the dummy driver, which does nothing. */
+/* sound.c -- the sound entry points, all of which do nothing.
+ *
+ * The shared code calls the sound system, but the map editor loads no sound driver: in the
+ * original every entry reaches the dummy driver, which does nothing. Each function here is that
+ * dummy: the ones that return a value return 0 (no sound system, no driver, nothing queued).
+ */
 #include "msc.h"
 #include "records.h"
 #include "sound.h"

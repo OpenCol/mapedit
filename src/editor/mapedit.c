@@ -1,6 +1,20 @@
-/* mapedit.c -- the editor: startup and the command line, the menu bar's commands, the file menu, the session. */
+/* mapedit.c -- the editor: startup, the command line, the menu bar's commands, the file menu. */
+/*
+ * editor_main reads the command line and calls viceroy_game, which sets up the screen, the
+ * clock, the mouse, the palette, the fonts and the art, gets a map ready (start_new_game) and
+ * runs the editor (turn_control_loop, input.c) until it is left, then puts the screen back in
+ * text mode. A failure on the way sets exit_value, which editor_main prints.
+ *
+ * The menu bar comes from MAPMENU.TXT, one section per title (game, view, cup, help), each
+ * listing the title and then its items in order; construct_mapedit_menu gives every item its
+ * command id and execute_menu_event carries the commands out. The popups' texts come from
+ * MAPEDIT.TXT by section name (SAVE, EXIT, HELP1 ...).
+ *
+ * mapfile.c reads and writes the map files (.MP); this file only chooses them: map_name is
+ * the current one, and file_menu offers the ones in the game folder.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "editstate.h"
 #include "assets.h"
 #include "edit.h"
@@ -34,104 +48,18 @@
 #include "units.h"
 #include "video.h"
 #include "records.h"
-/* MODULE mapedit: MAPEDIT.EXE segment 0000 (mapedit.obj), file 0x1600-0x3f7c, 64 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn reset_sprite_memory      0x01600
- * fn load_main_sprites        0x01602
- * fn check_music              0x01604
- * fn build_check              0x01606
- * fn piece_draw               0x01608
- * fn sprite_load              0x0160a
- * fn danger                   0x0160c
- * fn perform_save             0x0160e
- * fn piss_factor              0x01610
- * fn pissed                   0x01612
- * fn say_country              0x01614
- * fn cycle_save               0x01616
- * fn popups_normal            0x01618
- * fn event_wait               0x01660
- * fn forest_fix               0x016b6
- * fn shift_key                0x01786
- * fn construct_mapedit_menu   0x01796
- * fn file_menu                0x01b6a
- * fn make_undo                0x01d50
- * fn perform_undo             0x01d7e
- * fn info_window_clear        0x01da6
- * fn info_window_update       0x01e2c
- * fn info_terrain             0x01e42
- * fn info_terrain_2           0x01ee2
- * fn info_window_draw         0x01f4e  (914 bytes)
- * fn main_screen_refresh      0x022e0  (74 bytes)  near `ovl22_6b6c4` blank_screen (0.40)
- * fn add_item                 0x0232a  (116 bytes)
- * fn add_item_2               0x0239e  (118 bytes)
- * fn selection_screen_display   0x02414  (696 bytes)
- * fn parse_spot               0x026cc  (290 bytes)
- * fn selection_mouse          0x027ee  (56 bytes)
- * fn selection_screen         0x02826  (234 bytes)
- * fn cursor_update            0x02910  (244 bytes)
- * fn set_center               0x02a04  (90 bytes)
- * fn possibly_center          0x02a5e  (182 bytes)
- * fn move_cursor              0x02b14  (102 bytes)
- * fn set_view_mode            0x02b7a  (8 bytes)
- * fn set_zoom_level           0x02b82  (74 bytes)
- * fn memory_check             0x02bcc  (48 bytes)
- * fn create_me                0x02bfc  (116 bytes)
- * fn continent_check          0x02c70  (368 bytes)
- * fn execute_menu_event       0x02de0  (932 bytes)
- * fn mouse_area               0x03184  (92 bytes)
- * fn change_map               0x031e0  (328 bytes)
- * fn fill_map                 0x03328  (142 bytes)
- * fn parse_main_keys          0x033b6  (456 bytes)
- * fn parse_viewing_keys       0x0357e  (16 bytes)
- * fn parse_area_map           0x0358e  (244 bytes)
- * fn parse_area_mini          0x03682  (94 bytes)
- * fn parse_mouse_stroke       0x036e0  (68 bytes)
- * fn human_interface_loop     0x03724  (376 bytes)
- * fn human_turn               0x0389c  (18 bytes)
- * fn computer_turn            0x038ae  (2 bytes)
- * fn turn_control_loop        0x038b0  (52 bytes)
- * fn load_terrain             0x038e4  (82 bytes)  near `ovl26_73270` load_terrain (0.63)
- * fn load_data                0x03936  (324 bytes)
- * fn start_new_game           0x03a7a  (156 bytes)
- * fn viceroy_game             0x03b16  (712 bytes)
- * fn show_logo                0x03dde  (24 bytes)
- * fn show_flags               0x03df6  (50 bytes)
- * fn scan_past                0x03e28  (74 bytes)
- * fn flag_parse               0x03e72  (102 bytes)
- * fn main                     0x03ed8  (164 bytes)
- *
- * No VICEROY twin: reconstructed from the shipped bytes.
- *
- * THE MAP EDITOR'S MAIN MODULE. The first twelve functions are empty stubs standing in for
- * game functions the shared madsdev/game modules reference (popup.obj calls cycle_save,
- * reset_sprite_memory, sprite_load, pissed, piss_factor; the others are the game's hooks).
- * The module's own data is defined here: the editor state and colour bytes at DS:0x42-0x9b
- * (mads_mode .. border2, above shift_key, so they precede the first literal), myspot at
- * DS:0x1ce (after info_window_draw's literals), and the BSS communals from DS:0x49c6
- * (video_mode .. country_names) after the last function.
- */
 
-/* popups_normal -- 0000:0018, 72 bytes */
+/* Settings of the game's engine that the editor keeps but does not use: editor_main clears
+ * mads_mode and file_set, and nothing reads any of the four. */
+i16 mads_mode = 0;
+i16 file_set = 0;
+i16 load_error = 0;
+void *game_menu = 0;
 
-/* event_wait -- 0000:0060, 86 bytes */
-
-/* forest_fix -- 0000:00b6, 208 bytes */
-
-/* shift_key -- 0000:0186, 16 bytes */
-/* mapedit.obj's initialised data, defined here (the 42 land at DS:0x0042-0x009c in this
- * order, ahead of construct_mapedit_menu's "game", the module's first literal: MSC emits a
- * global after the literals of the function that follows its definition, and shift_key has
- * none). A global first declared further down keeps a pad there; 2 pads after the block bring
- * the 32 symbols it adds to 0 mod 17. */
-i16 mads_mode = 0;                              /* DS:0x0042 */
-i16 file_set = 0;                               /* DS:0x0044 */
-i16 load_error = 0;                             /* DS:0x0060 */
-void *game_menu = 0;                        /* DS:0x007c */
-
-/* construct_mapedit_menu -- 0000:0196, 980 bytes */
-
-/* The menu bar from MAPMENU.TXT: Editor (1), View (2), Map (6), Help (7). 1 on failure. */
+/* Builds the menu bar from MAPMENU.TXT: the titles Editor (bar id 1), View (2), Map (6) and
+ * Help (7, placed at the right), their items in the file's order with the command ids
+ * execute_menu_event takes, and "" items as separators. Sets menu_bar. Returns 0, or 1 when
+ * a section of MAPMENU.TXT is missing (the bar is then left half built). */
 i16 construct_mapedit_menu(void)
 {
     i16 result;
@@ -184,11 +112,12 @@ i16 construct_mapedit_menu(void)
 out:
     return result;
 }
-/* file_menu -- 0000:056a, 486 bytes */
-
-/* The file picker (VICEROY's choose_file): the files matching pattern, ten per page with
- * (More) items at 0x62/0x63; the choice's name is left in file_select. Returns the index
- * chosen, -1 for none. */
+/* A file picker: a popup (section key of the text file `file`) listing the files that match
+ * the DOS wildcard pattern in the game folder, ten to a page, with "(More)" items to step to
+ * the previous and the next page. Counts the files into num_names and the pages into
+ * num_screens; the chosen name is copied into file_names and file_select points at it.
+ * Returns the chosen file's index on its page (0-9), or a negative value when there are no
+ * files or the popup is cancelled. */
 i16 file_menu(char *file, char *key, char *pattern)
 {
     i16 screen;
@@ -258,48 +187,41 @@ out:
         mem_free(popup);
     return choice;
 }
-/* make_undo -- 0000:0750, 46 bytes */
 
-/* info_window_clear -- 0000:07a6, 134 bytes */
-
-/* info_terrain -- 0000:0842, 160 bytes */
-
-/* info_window_draw -- 0000:094e, 914 bytes */
-
-/* main_screen_refresh -- 0000:0ce0, 74 bytes */
-
-/* selection_mouse -- 0000:11ee, 56 bytes */
-
-/* cursor_update -- 0000:1310, 244 bytes */
-
-/* set_center -- 0000:1404, 90 bytes */
-
-/* possibly_center -- 0000:145e, 182 bytes */
-
-/* set_zoom_level -- 0000:1582, 74 bytes */
-
-/* memory_check -- 0000:15cc, 48 bytes */
+/* The menu bar's record as memory_check reads it: the free count of the menu's arena, at
+ * the position it had in 1994. */
 typedef struct { char pad[0x4a]; i32 avail; } MenuArena;
 
-/* The free memory and the menu arena's free count, in DEBUG.TXT's MEMORY popup. */
+/* Shows the free memory and the menu arena's free count in DEBUG.TXT's MEMORY popup.
+ * Reached only through command 0x6a, which no menu item carries.
+ * Port: MenuArena describes the 1994 layout of the Menu record. The port's Menu has wider
+ * pointers, so on a 64-bit build `avail` falls on other bytes (part of the arena's base
+ * pointer) and the number shown is meaningless. */
 void memory_check(void)
 {
     popup_subst_number[0] = mem_get_avail();
     popup_subst_number[1] = ((MenuArena *)menu_bar)->avail;
     popup_box("DEBUG", "MEMORY", 0);
 }
-/* create_me -- 0000:15fc, 116 bytes */
 
-/* continent_check -- 0000:1670, 368 bytes */
-
-/* execute_menu_event -- 0000:17e0, 932 bytes */
-
-/* The menu bar's commands by item id (MAPMENU.TXT): Editor 0x13 Save As, 0x14 Create,
- * 0x1a Save, 0x1b Load, 0x1f Exit; View 0x21 view mode, 0x24/0x25 zoom in/out, 0x26-0x29
- * zoom levels, 0x2b centre; Map 0x4a continents, 0x4b tile select, 0x4c fill mode, 0x4d
- * coastline protect, 0x4e undo; Help 0x51-0x54, 0x5f about; 0x6a the memory check. */
-/* Source order: Save (0x1a) before Save As (0x13): the literals say so, while MSC lays the
- * arms out in case-value order. */
+/* Carries out the menu command with item id `id`:
+ *   Editor  0x1a Save (after the SAVE popup's first choice), 0x13 Save As (asks for a name of
+ *           up to 14 characters; the extension becomes .MP, and map_name changes even when
+ *           the write then fails), 0x14 Create, 0x1b Load, 0x1f Exit;
+ *   View    0x24 and 0x25 zoom in and out, 0x26-0x29 zoom levels 3 to 0, 0x2b centre the view
+ *           on the cursor;
+ *   Map     0x4a Find Continents, 0x4b Map Tile Select, 0x4c the brush size (cycles 1, 3, 5
+ *           squares), 0x4d coastline protection on or off, 0x4e Undo;
+ *   Help    0x51-0x54 the four help pages, 0x5f About.
+ * 0x21 (view mode) and 0x6a (memory check) are handled but no menu item carries them.
+ *
+ * Create and Load ask first when the map has unsaved changes and go ahead on the popup's
+ * first choice. Create then re-centres the cursor and the view and redraws the screen even
+ * when no map was created. Load picks a file (MAPTOLOAD), loads it, converts its old forest
+ * codes (forest_fix) and re-centres; a failed load shows ERROR. Exit leaves at once when the
+ * map is unchanged, else after the EXIT popup (its second choice saves first, its first
+ * leaves without saving). Undo restores the snapshot, if one was taken, and redraws; it does
+ * nothing when there is no undo buffer. A failed save shows ERROR and keeps map_changes. */
 void execute_menu_event(i16 id)
 {
     register i16 r;
@@ -439,30 +361,19 @@ void execute_menu_event(i16 id)
     }
 out:;
 }
-/* mouse_area -- 0000:1b84, 92 bytes */
 
-/* change_map -- 0000:1be0, 328 bytes */
-
-/* fill_map -- 0000:1d28, 142 bytes */
-
-/* parse_main_keys -- 0000:1db6, 456 bytes */
 #include "msc.h"
 
-/* parse_area_map -- 0000:1f8e, 244 bytes */
-
-/* parse_area_mini -- 0000:2082, 94 bytes */
-
-/* human_interface_loop -- 0000:2124, 376 bytes */
-
-/* turn_control_loop -- 0000:22b0, 52 bytes */
-
-/* load_terrain -- 0000:22e4, 82 bytes */
+/* Unused here: the same layout as map.h's TerrainInfo. */
 typedef struct { i16 name; char f2; char f3; char f4; char pad[2]; char v[9]; } TerrainRow;
 
-/* start_new_game -- 0000:247a, 156 bytes */
-
-/* Picks the map to edit (MAPTOEDIT, or -m:file; Esc creates one), allocates the map and
- * loads or creates it, cursor at the centre. 0 when ready, 1 to quit. */
+/* Gets a map ready to edit. Unless the command line named one (-m) or asked for a new one
+ * (-c), the MAPTOEDIT file picker chooses it; cancelling there creates a new map. The planes
+ * are allocated at their full size: map_force is set, so map_startup does not read the
+ * file's header (the test of (u16)map_force < 0 is never true). Then the map is loaded, its
+ * old forest codes converted (forest_fix), or created (create_me), and the cursor and the
+ * view go to its centre. Returns 0 when ready, 1 to quit; a failed load leaves map_error in
+ * exit_value. */
 i16 start_new_game(void)
 {
     register i16 result;
@@ -496,11 +407,18 @@ i16 start_new_game(void)
     }
     return result;
 }
-/* viceroy_game -- 0000:2516, 712 bytes */
-
-/* The editor's main: video mode 0x13, the mouse, the palette, the screen buffers, the fonts,
- * the tile and icon sheets, the backdrop tile (WOODTILE), the data and the undo buffer; then
- * the map and the editor loop; exit_value 0x13-0x1b names what failed to load. */
+/* The editor from start to finish: the string store, the clock, mode 13h, the mouse, the
+ * palette (VICEROY.PAL, kept past the visible screen in video memory, as in 1994), the work
+ * and original screens, the fonts, the terrain tiles, the cursor, terrain-icon and icon
+ * sheets, the backdrop tile (WOODTILE) that windows and menus are filled with, the terrain
+ * table and colours (NAMES.TXT), the minimap colours and the undo buffer (12,000 bytes; Undo
+ * is off without it). Then the map (start_new_game) and the editor (turn_control_loop).
+ * Whatever happened, it hides the mouse, resets it for text mode and returns to video mode
+ * 3, clearing the screen unless it was already in mode 3.
+ *
+ * exit_value says what could not be loaded: 0x13 the palette, 0x14 a screen buffer, 0x15
+ * FONTINTR, 0x16 FONTTINY, 0x17 CURSOR, 0x18 PHYS0, 0x19 ICONS, 0x1a the backdrop buffer,
+ * 0x1b WOODTILE; load_terrain_tiles sets its own (0x321, 0x322). */
 void viceroy_game(void)
 {
     void *wood;
@@ -597,14 +515,13 @@ out:
     video_init(3, mode != 3 ? 1 : 0);
     timer_remove();
 }
-/* show_logo -- 0000:27de, 24 bytes */
-
+/* Prints the program's name and copyright. */
 void show_logo(void)
 {
     msc_printf("Colonization Map Editor\n");
     msc_printf("Copyright (C) 1994 by Microprose Software\n\n");
 }
-/* show_flags -- 0000:27f6, 50 bytes */
+/* Prints the name and the command-line options (for a "?" argument). */
 void show_flags(void)
 {
     show_logo();
@@ -613,9 +530,9 @@ void show_flags(void)
     msc_printf("  mapedit -c        = Force creation of new map\n");
     msc_printf("  mapedit -m:file   = Edits specified file\n");
 }
-/* scan_past -- 0000:2828, 74 bytes */
-/* Advances *p to the next c (or the end); 1 when c was found and skipped. The pointer is
- * left on the last character rather than past it. */
+/* Advances *p past the next c in the string; returns 1 when c was found, else 0. When the
+ * string ends, *p is left on its last character rather than on the terminator, so the
+ * caller's own step lands on the terminator. scan_past(p, 0) moves to the end. */
 i16 scan_past(char **p, char c)
 {
     i16 r;
@@ -636,8 +553,9 @@ i16 scan_past(char **p, char c)
         (*p)--;
     return r;
 }
-/* flag_parse -- 0000:2872, 102 bytes */
-/* A command-line flag: C creates a new map, M:file names the map to edit. */
+/* One command-line flag letter at *p, either case: C creates a new map; M:file names the map
+ * to edit (sets map_name, and skips *p to the end of the argument). An M without ":file"
+ * still marks the map as chosen, leaving map_name as it was. Other letters are ignored. */
 void flag_parse(char **p)
 {
     i16 c;
@@ -656,8 +574,11 @@ void flag_parse(char **p)
         break;
     }
 }
-/* main -- 0000:28d8, 164 bytes */
-
+/* The program's main, called from port/main.c. Each argument starting with - or / is a run
+ * of flags, every letter of it passed to flag_parse (so flags may be run together: -cm:FILE);
+ * an argument starting with ? prints the options and quits without editing (-? does not).
+ * Other arguments are ignored. Enables the FAB codec for the art, runs the editor, and
+ * prints "Exit value: n" when it failed. */
 void editor_main(i16 argc, char **argv)
 {
     register i16 i;
@@ -684,8 +605,6 @@ done:
         msc_printf("Exit value: %d\n", exit_value);
 }
 
-/* @@END@@ */
-
-char *file_select;                        /* DS:0x49ee */
-char file_names[10][13];                  /* DS:0x64f0: 130 bytes */
+char *file_select;                        /* the name file_menu chose (into file_names) */
+char file_names[10][13];                  /* file_menu's page: up to ten 8.3 names */
 

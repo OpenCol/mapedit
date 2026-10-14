@@ -1,4 +1,34 @@
-/* mapview.c -- the map view: its geometry, drawing the terrain with its coasts, rivers and seams, the gradual reveal, refreshing it and the cursor square. */
+/* mapview.c -- the map view: its geometry, the terrain renderer, refreshing it, the cursor. */
+/*
+ * The view shows map_view_size_x x map_view_size_y squares, from map_corner_x, map_corner_y
+ * to map_corner_x2, map_corner_y2, around map_center_x, map_center_y. map_scale is the
+ * zoom: at 0 the view holds 15 x 12 squares of 16 pixels, and each step doubles the squares
+ * and halves their size, down to 120 x 96 squares of 2 pixels at 3, so the view is always
+ * 240 x 192 pixels. A map smaller than the view is centred in it (map_tile_inset_x/y).
+ *
+ * Drawing goes through two buffers: the terrain is rendered into the original screen
+ * (scr_orig) and copied into the work screen (scr_work) 8 rows down, below the menu bar;
+ * mouse_video_update then copies the work screen to the display. The cursor square is drawn
+ * in the work screen only, so restoring a square from scr_orig erases it.
+ *
+ * generate_terrain_map_region renders a region square by square. For each it points the scan
+ * globals at the square (scan_map, scan_feature and scan_site into planes 0, 1 and 3; scan_x,
+ * scan_y) and sets its pixel position (gen_tile_x at its centre column, gen_tile_y at its
+ * bottom row); draw_square and its helpers read those. A square is built in layers: its
+ * terrain tile, seams that dither each differing neighbour's terrain into its edges, then
+ * icons from the terrain-icon sheet for forest, plowing, hills and mountains, rivers and roads.
+ * Each icon is chosen by which neighbours carry the same thing, as a mask with north 8,
+ * south 4, west 2 and east 1 (roads look at all eight). A water square next to land is drawn
+ * as land with the coast cut out of it. The seams and the coasts are drawn only at zoom 0.
+ * Squares on the map's border, and squares the viewing nation has not seen, are drawn as
+ * unexplored; the editor renders for nation -1, which sees everything.
+ *
+ * The renderer is shared with the game. Resources and Lost City Rumours never appear in the
+ * editor (both follow from a seed that is 0 here); the colony view (map_colony_mode), the
+ * simplified terrain view (map_view_base_terrain) and map_high_memory_mode (a map too big
+ * for the planes, which map_check refuses) are never entered; range_scan, nb_mask_p1,
+ * draw_map_icon2, generate_colony_map, map_init and show_map_gradually are not called.
+ */
 #include <stdlib.h>
 
 #include "msc.h"
@@ -25,112 +55,14 @@
 #include "timer.h"
 #include "units.h"
 #include "w16types.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 
-/* MODULE map_a: MAPEDIT.EXE segment 0a47 (map_a.obj), file 0xba76-0xcb64, 19 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn compute_view_parameters     0x0ba76
- * fn coast_scan                  0x0bc1e
- * fn range_count                 0x0bd24
- * fn range_scan                  0x0bd40
- * fn nb_mask_p0                  0x0bd7e
- * fn nb_match_p0                 0x0bdde
- * fn is_land_seam                0x0be4e
- * fn nb_land_seam                0x0be88
- * fn nb_mask_p1                  0x0beee
- * fn nb8_mask_p1                 0x0bf4e
- * fn draw_map_icon               0x0bfc2
- * fn draw_map_tile               0x0c022
- * fn draw_map_icon2              0x0c086
- * fn draw_map_tile2              0x0c0e6
- * fn draw_seams                  0x0c14a
- * fn draw_square                 0x0c3a2
- * fn generate_terrain_map_region 0x0c7d6
- * fn generate_terrain_map        0x0ca92
- * fn generate_colony_map         0x0cb18
- * fn map_init                    0x0cb28
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl21_6787c).
- *
- * THE 1994 TERRAIN RENDERER. Windows rebuilt map drawing around sprites and a precomputed seam
- * map (SetupDitherMap, draw_tile_with_overlays ..), so only the outer functions have Windows twins:
- * compute_view_parameters (MapWin_ComputeViewParameters), generate_terrain_map_region,
- * generate_terrain_map (= GenerateTerrainMap) and generate_colony_map. Everything in between is DOS-only:
- * draw_square draws one map square into the backdrop port from the cursor globals
- * (scan_map/p1/p3 into map planes 0/1/3, scan_x/y, gen_tile_x/py) that generate_terrain_map_region
- * walks across the region; the near helpers count matching neighbours (4 orthogonal, bit
- * 8/4/2/1 = north/south/west/east) to pick the edge, river, road and coast icons.
- *
- * dos-modules.json's proposals here (draw_tile_with_overlays, terrain_tile_index, ColonistIcon,
- * pick_ship_in_chain, PieceIconDraw, FortDraw, animate_unit_move, buffer_draw_box, is_forest,
- * font_height, to_upper_char) are all wrong: none of these bodies match.
- *
- *  No volatiles: the three were length hacks
- *     standing in for five source shapes. (2) The 8-way scan body is
- *     `if ((k & 1) || sx < 0 || sy < 0) continue;` then `if (sx >= w || sy >= h) continue;`:
- *     the first `|| continue` parks the bound tests at the loop top before the decrement, the
- *     second parks the map_get body after the `jmp` (docs/msc6-codegen.md: "|| before continue"). (3) The
- *     dead `les bx,[scan_feature]` is a never-read local: `feat_b = scan_feature[off_l]` (store
- *     dropped, address kept) beside a single-use `site_f = scan_site[off_l]` folded into the
- *     vis_mask test; both keep a slot (bp-6, bp-0x1a), like the three ?: temps at bp-0x28..
- *     (4) `dx_e = ..; dy_g = ..;` in that order: only the FIRST assignment sinks, so dx sinks
- *     into nx_b and dy is loaded first into cx. (5) `cmp al,[cls_i]` is a byte compare,
- *     `(unsigned char)cc_f == cls_i`; and `tt_f = (unsigned char)(map_get(..) & 0x1f)` with
- *     `int map_get()` gives `and al,0x1f; sub ah,ah` (an unsigned char prototype folds the
- *     zero-extend into `and ax`). Then 6 pads before the function flip the two bound
- *     compares to load map_file first; the two new `continue`s count as symbols, so the
- *     compensation is 4 pads after it plus 2 before map_init (3 once generate_terrain_map_region
- *     lost its filler; a single group after draw_seams cannot serve draw_square/
- *     generate_terrain_map_region and map_init at once).
- *     The old note follows. That register-cache state the note blamed is what `volatile` buys:
- *     `volatile int dx_e`, `volatile int feat_b` and `volatile int sx_n` keep three of the
- *     stores-and-reloads MSC was folding. A greedy climb over all 19 locals picks
- *     dx_e (-> 580), then feat_b (-> 594), then cls_i (-> 601, 326 bytes) -- but sx_n as the
- *     third is the one that lands on 600 exactly, and the exact length is what matters here,
- *     because it is what let draw_square match. Pads 0..16 add nothing on top (0..3 are equal,
- *     4+ are worse). What is still left: the shipped code reloads t/tt/cc from memory after
- *     each `if (x < 0x18) x &= 7` and keeps a dead `les bx,[scan_feature]` before the scan_site[off]
- *     load, and the 8-way scan loop is laid out differently.
- * without the three volatiles (574 bytes) the residue reads as if shipped had no
- *     register cache at these sites (`and byte [t],7`, `and word [tt],7`, `push word [x]`).
- *     Byte-identical, so no lead: `t &= 7` vs `t = t & 7` (all three clamps), the clamp as
- *     `if ((t = ... & 0x1f) < 0x18) t &= 7;`, and `scan_feature[off_l];` as a statement for the
- *     dead les. Single pragma letters on/off, with and without the volatiles: nothing better
- *     ("c" off is 623-635 bytes). Both of its problems are gone: draw_seams is the right
- *     LENGTH now (see above), which fixes the 26 near-call displacements, and the swapped
- *     `mov al,[map_player_mask]; test [gen_site_tile],al` is fixed by reading the second global as an
- *     element of the first. map_player_mask (0xa89e), gen_feature_tile (0xa89f), gen_site_tile (0xa8a0),
- *     gen_base_tile (0xa8a1) and gen_map_tile (0xa8a2) are one byte array, so `(&map_player_mask)[2]` IS
- *     gen_site_tile, and an element read is not merged with a plain read of the same cell -- which
- *     is what no spelling, type or 17x17 position grid could do. The reverse element read
- *     (`(&gen_site_tile)[-2]` for map_player_mask) costs 881 bytes, and a volatile view leaves the split. (1) The clamp
- *     block in the WINDOWS order, dead `w = x1_b - x + 1;` included: `x = max; y = max; x1_b =
- *     min; y1_d = min; w = ..; h = ..; rx_p = ..; ry_b = ..`. Each clamp sinks to its next
- *     reader (x and x1_b to w, y and y1_d to h) and only then is the dead w dropped, which is
- *     how shipped lands on x1_b-min, x-max (cx), y1_d-min (ax), y-max (dx), h, rx_p, ry_b with
- *     the clamped x in cx across the y clamps. Without the w statement the clamps sink to rx_p/h
- *     instead (204). (2) The two entry tests are Windows' `if (map_corner_x2 < x) goto out;` with an
- *     `out: ;` label at the end: that loads the parameter and compares the global against it;
- *     `if (x > map_corner_x2) return;` loads the global at every pad count. (3) The label and goto
- *     shifted y1_d's position so `min(map_corner_y2, y1_d)` loaded the local first: nine block-scope
- *     `extern int pad_gty_N;` lines before `int y1_d;` (9 or 10 work) put the global first
- *     without moving a slot. The 9 block pads plus the label are 10 symbols, exactly the old
- *     pad_60..69 group after the function, which is therefore gone (generate_terrain_map,
- *     generate_colony_map and map_init unchanged; any other count breaks map_init).
- *
- * COMPILER NOTES (NEW): in this file several helpers match only with `if (c) goto out; ... out:
- * return n;` instead of `if (!c) { ... }` (nb_mask_p0 etc., is_land_seam): with the label the
- * register cache and constant knowledge die after the test, so `n += 8` is not folded to `n = 8` and
- * the fastcall parameter is re-read from its spill slot. Negation is spelled `~x + 1` (not/inc) in
- * nb8_mask_p1 and the abs() macro; `-x` gives neg, and an `x > 0 ? x : -x` macro is recognised as abs
- * (cwd/xor/sub). `t = t & 7` and `t &= 7` compile differently (memory `and byte [t],7` vs al).
- */
-
-
-
-
-/* compute_view_parameters -- 0a47:0006, 424 bytes */
+/* Derives the view from map_scale and the centre: the view's size in squares and the
+ * square size in pixels; the corner squares, kept so that the view stays inside the map's
+ * border; the insets that centre a map narrower or shorter than the view; the part of the
+ * planes the renderer walks (map_area_*: the whole map, or a window around the view in
+ * high-memory mode); the sprite scale in percent and the scroll speed. In colony mode the
+ * view is 5 x 5 squares around the centre at zoom 0, and is not kept off the border. */
 void compute_view_parameters(void)
 {
     i16 x1;
@@ -181,11 +113,20 @@ void compute_view_parameters(void)
     map_corner_x2 = map_view_size_x + map_corner_x - 1;
     map_corner_y2 = map_view_size_y + map_corner_y - 1;
 }
-/* coast_scan -- 0a47:01ae, 262 bytes */
-static u8 nb_flags[4];      /* DS:0x499a: the module's BSS, first after the initialised data (where the linker's _edata label falls); no public */
+/* coast_scan's land code for each quarter of the square: NW, NE, SE, SW */
+static u8 nb_flags[4];
 
-/* Counts the land squares among the 8 around a water square; the bits go to scan_flags and
- * the corner table, the last orthogonal land terrain to gen_base_tile. */
+/* For the water square at the scan pointers, at zoom 0: finds which of its eight neighbours
+ * are land (anything but ocean and sea lane; forests count as their open terrain).
+ *   - scan_flags gets bit i for direction i of move_x/move_y (N, NE, E, SE, S, SW, W, NW),
+ *     scan_index the count;
+ *   - nb_flags gives each quarter of the square a 3-bit code of the land at its corner: 4 for
+ *     the orthogonal neighbour clockwise of the corner (N for NW, E for NE ...), 2 for the
+ *     diagonal, 1 for the orthogonal neighbour anticlockwise of it;
+ *   - gen_base_tile becomes the terrain of the last orthogonal land neighbour -- the land
+ *     the coast is drawn on -- and gen_map_tile the terrain that shows for it. With land only
+ *     on the diagonals they stay the square's own.
+ * Returns the number of land neighbours; at other zooms, 0, so the water is drawn plain. */
 i16 coast_scan(void)
 {
     u8 c;
@@ -227,8 +168,8 @@ i16 coast_scan(void)
     gen_map_tile = terrain_fix_2(gen_base_tile);
     return scan_index;
 }
-/* range_count -- 0a47:02b4, 28 bytes */
-
+/* Adds n to scan_index when the terrain byte at offset off from the scan square lies in
+ * scan_greater..scan_less. */
 void range_count(i16 off, i16 n)
 {
     u8 c;
@@ -237,7 +178,8 @@ void range_count(i16 off, i16 n)
     if (c >= scan_greater && c <= scan_less)
         scan_index += n;
 }
-/* range_scan -- 0a47:02d0, 62 bytes */
+/* The orthogonal neighbours whose terrain byte lies in lo..hi, as a direction mask (N 8,
+ * S 4, W 2, E 1); 0 when the zoom is above maxzoom. */
 i16 range_scan(char lo, char hi, i16 maxzoom)
 {
     scan_index = 0;
@@ -252,7 +194,8 @@ i16 range_scan(char lo, char hi, i16 maxzoom)
 out:
     return scan_index;
 }
-/* nb_mask_p0 -- 0a47:030e, 96 bytes */
+/* The orthogonal neighbours whose terrain byte has a bit of mask set, as a direction mask
+ * (N 8, S 4, W 2, E 1); 0 when the zoom is above maxzoom. */
 i16 nb_mask_p0(i16 mask, i16 maxzoom)
 {
     i16 n;
@@ -271,7 +214,8 @@ i16 nb_mask_p0(i16 mask, i16 maxzoom)
 out:
     return n;
 }
-/* nb_match_p0 -- 0a47:036e, 112 bytes */
+/* The orthogonal neighbours whose hills and mountain bits (0xa0) equal val, as a direction
+ * mask; 0 when the zoom is above maxzoom. */
 i16 nb_match_p0(i16 val, i16 maxzoom)
 {
     i16 n;
@@ -292,7 +236,9 @@ i16 nb_match_p0(i16 val, i16 maxzoom)
 out:
     return n;
 }
-/* is_land_seam -- 0a47:03de, 58 bytes */
+/* 1 when the square at offset off from the scan square is a forest that gets the forest
+ * icon: any forest but scrub forest (the forest on desert), which has its own tile. The
+ * first parameter is unused. */
 i16 is_land_seam(i16 unused, i16 off)
 {
     i16 res;
@@ -307,7 +253,8 @@ i16 is_land_seam(i16 unused, i16 off)
 out:
     return res;
 }
-/* nb_land_seam -- 0a47:0418, 102 bytes */
+/* The orthogonal neighbours that pass is_land_seam, as a direction mask; 0 when the zoom is
+ * above maxzoom. */
 i16 nb_land_seam(i16 a, i16 maxzoom)
 {
     i16 n;
@@ -326,7 +273,8 @@ i16 nb_land_seam(i16 a, i16 maxzoom)
 out:
     return n;
 }
-/* nb_mask_p1 -- 0a47:047e, 96 bytes */
+/* The orthogonal neighbours whose feature byte (plane 1) has a bit of mask set, as a
+ * direction mask; 0 when the zoom is above maxzoom. */
 i16 nb_mask_p1(i16 mask, i16 maxzoom)
 {
     i16 n;
@@ -345,7 +293,8 @@ i16 nb_mask_p1(i16 mask, i16 maxzoom)
 out:
     return n;
 }
-/* nb8_mask_p1 -- 0a47:04de, 116 bytes */
+/* All eight neighbours whose feature byte has a bit of mask set: bit i for direction i of
+ * move_x/move_y (N, NE, E ... NW). 0 when the zoom is above maxzoom. */
 i16 nb8_mask_p1(i16 mask, i16 maxzoom)
 {
     i16 i;
@@ -365,10 +314,13 @@ i16 nb8_mask_p1(i16 mask, i16 maxzoom)
 out:
     return res;
 }
-/* draw_map_icon -- 0a47:0552, 96 bytes */
-static u8 g_icon_dx = 0;           /* DS:0x0714 (defined here: the module has no literals; module statics, no public) */
-static u8 g_icon_dy = 0;           /* DS:0x0715 */
+/* An offset for full-size icons, in pixels: draw_square sets it for the coast's quarters. */
+static u8 g_icon_dx = 0;
+static u8 g_icon_dy = 0;
 
+/* Draws icon `icon` of the terrain-icon sheet on the current square in scr_orig: at full
+ * size from the square's top-left corner (moved by g_icon_dx, g_icon_dy), otherwise scaled
+ * to the zoom. */
 void draw_map_icon(i16 icon)
 {
     void *s;
@@ -379,8 +331,8 @@ void draw_map_icon(i16 icon)
     else
         sprite_draw_scaled(icon, s, &scr_orig, gen_tile_x, gen_tile_y, map_sprite_scale);
 }
-/* draw_map_tile -- 0a47:05b2, 100 bytes */
-
+/* Draws terrain tile `tile` on the current square in scr_orig: at full size (moved by
+ * g_icon_dx, g_icon_dy) at zoom 0, otherwise scaled. */
 void draw_map_tile(i16 tile)
 {
     void *s;
@@ -391,8 +343,7 @@ void draw_map_tile(i16 tile)
     else
         tile_draw_scale(s, tile, &scr_orig, gen_tile_x, gen_tile_y, map_scale);
 }
-/* draw_map_icon2 -- 0a47:0616, 96 bytes */
-
+/* draw_map_icon, drawing only onto pixels that are 0. */
 void draw_map_icon2(i16 icon)
 {
     void *s;
@@ -403,8 +354,8 @@ void draw_map_icon2(i16 icon)
     else
         sprite_draw_scaled_black(icon, s, &scr_orig, gen_tile_x, gen_tile_y, map_sprite_scale);
 }
-/* draw_map_tile2 -- 0a47:0676, 100 bytes */
-
+/* draw_map_tile, drawing only onto pixels that are 0: the tile shows through the holes an
+ * icon has left (a seam's or a coast's). */
 void draw_map_tile2(i16 tile)
 {
     void *s;
@@ -415,10 +366,21 @@ void draw_map_tile2(i16 tile)
     else
         tile_draw_scale_mask(s, tile, &scr_orig, gen_tile_x, gen_tile_y, map_scale);
 }
-/* draw_seams -- 0a47:06da, 600 bytes */
+/* The absolute value. It replaces <stdlib.h>'s abs for the rest of this file. */
 #define abs(x) ((x) > 0 ? (x) : ~(x) + 1)
 
-/* The seams between this square and its four orthogonal neighbours. */
+/* Draws the seams between the current square and its four orthogonal neighbours: for a
+ * neighbour of a different terrain, edge icon 0x69 + direction (N, E, S, W) leaves a dithered
+ * pattern of holes along that edge and the neighbour's tile shows through them.
+ *   - A water neighbour stands for the first land square orthogonally beside it (looking W,
+ *     S, E, then N), and gives no seam when there is none. With no_scan set it is taken as
+ *     water, and seams only with `always` set, into an unexplored square, or when hidden.
+ *     Plain water squares pass both no_scan and always.
+ *   - hidden_only is for an unexplored square: only its visible neighbours seam into it,
+ *     whatever their terrain.
+ *   - A hidden neighbour (unseen, on the map's border or outside a colony's reach) is never
+ *     skipped as matching; its real terrain is drawn into the edge.
+ * gen_variation is held at 0 meanwhile and restored after. */
 void draw_seams(i16 hidden_only, i16 no_scan, i16 always)
 {
     i16 i_h;
@@ -493,8 +455,29 @@ void draw_seams(i16 hidden_only, i16 no_scan, i16 always)
     }
     gen_variation = save;
 }
-/* draw_square -- 0a47:0932, 1076 bytes */
-
+/* Renders the square at the scan pointers into scr_orig, from the bottom layer up.
+ *   - Unexplored (hidden set, or unseen by map_player_mask): the unexplored icon (0x95) and,
+ *     at zoom 0, the seams of the visible neighbours.
+ *   - Water with no land around (or any water above zoom 0): the water tile, then at zoom 0
+ *     its resource and its seams with any differing neighbour, sea lane against ocean
+ *     included.
+ *   - Otherwise the terrain tile -- for a coastal water square, the tile of the land
+ *     neighbour coast_scan chose, forest and all -- and at zoom 0 its seams. Forests other
+ *     than scrub add the forest icon (0x41 + the forest neighbours); scrub forest replaces
+ *     the tile with tile 0x11 instead. Then plowing (0x96), and on land only: hills or
+ *     mountains (0x31 or 0x21 + the neighbours with the same, counted up to zoom 2); a river
+ *     (minor 0x11, major 1, + the river neighbours, all four when there are none). At zoom 0
+ *     in the full view, the resource and a Lost City Rumour; on land in the full view, a road
+ *     or settlement (0x52 + direction for each road neighbour, counted up to zoom 1; the lone
+ *     road 0x51 when there are none).
+ *   - A coastal water square then gets its coast: one whole-square icon (0x97 + 0-3) when the
+ *     shore runs diagonally across it (land on three sides around one corner, water on the
+ *     opposite three), otherwise one icon per quarter by its nb_flags code, then the water
+ *     tile through the holes they leave. A river on the square adds a river
+ *     mouth (0x8d major, 0x91 minor, + direction) toward each land neighbour with a river,
+ *     and at zoom 0 the resource is drawn again on top.
+ * `hidden` comes from generate_terrain_map_region (border and colony reach). hill_p holds
+ * the square's river bits. */
 void draw_square(i16 hidden)
 {
     u8 water_n;
@@ -630,8 +613,13 @@ void draw_square(i16 hidden)
             draw_map_icon(res_e + 0x5a);
     }
 }
-/* generate_terrain_map_region -- 0a47:0d66, 700 bytes */
-
+/* Renders the squares (x, y, w, h), clipped to the view, into scr_orig as nation `nation`
+ * sees them: map_player_mask becomes its bit in the site plane, or 0 (everything visible)
+ * for -1. Recomputes the view first; does nothing when the region starts beyond the view.
+ * Squares on the map's border, and in colony mode those outside the colony's reach, are
+ * drawn hidden. The scan pointers do not advance over border squares, so a border square
+ * reads the planes at the next interior square. gen_variation alternates along each row;
+ * nothing reads it. */
 void generate_terrain_map_region(i16 x, i16 y, i16 w, i16 h, i16 nation)
 {
     u8 *p1_p;
@@ -648,8 +636,6 @@ void generate_terrain_map_region(i16 x, i16 y, i16 w, i16 h, i16 nation)
     i16 x1_b;
     i16 dist_h;
     i16 ry_b;
-    /* nine block-scope pads: they move y1_d's symbol position (mod 17) without moving its
-     * slot, so `min(map_corner_y2, y1_d)` loads the global first; 10 would do as well */
     i16 y1_d;
     u8 *p3_l;
 
@@ -666,9 +652,7 @@ void generate_terrain_map_region(i16 x, i16 y, i16 w, i16 h, i16 nation)
         goto out;
     x1_b = w + x - 1;
     y1_d = h + y - 1;
-    /* The Windows order. Each clamp sinks to its next reader: x and x1_b to the dead
-     * `w = ..` (dropped after scheduling), y and y1_d to h -- which is how shipped keeps the
-     * clamped x in cx across the y clamps and stores rx_p/ry_b after h. */
+    /* clip to the view; w is computed but not used again */
     x = max(x, map_corner_x);
     y = max(y, map_corner_y);
     x1_b = min(x1_b, map_corner_x2);
@@ -729,9 +713,9 @@ void generate_terrain_map_region(i16 x, i16 y, i16 w, i16 h, i16 nation)
 out:
     ;
 }
-/* generate_terrain_map -- 0a47:1022, 134 bytes */
-
-/* Windows GenerateTerrainMap. */
+/* Renders the whole view into scr_orig for nation `nation` (-1: everything). When the map
+ * does not fill the view, the original screen is first covered with the backdrop tile
+ * (aligned with the screen below the menu bar), or black without one. */
 void generate_terrain_map(i16 nation)
 {
     compute_view_parameters();
@@ -743,15 +727,14 @@ void generate_terrain_map(i16 nation)
     }
     generate_terrain_map_region(map_corner_x, map_corner_y, map_view_size_x, map_view_size_y, nation);
 }
-/* generate_colony_map -- 0a47:10a8, 16 bytes */
+/* Renders the view in colony mode `mode` (the game's colony screen). */
 void generate_colony_map(i16 nation, i16 mode)
 {
     map_colony_mode = mode;
     generate_terrain_map(nation);
     map_colony_mode = 0;
 }
-/* map_init -- 0a47:10b8, 60 bytes */
-
+/* Clears the owner of every square (owner -1). */
 void map_init(void)
 {
     i16 x;
@@ -764,40 +747,27 @@ void map_init(void)
             owner_set(x, y, -1);
 }
 
-/* The module's uninitialised data (communals, BSS; a one-byte communal is not word-aligned). */
-u8 scan_greater;               /* DS:0x49c4 */
-u8 *scan_feature;          /* DS:0x4a7e */
-i16 gen_tile_x;                           /* DS:0x4b0e */
-i16 gen_tile_y;                           /* DS:0x4b16 */
-u8 gen_feature_tile;           /* DS:0x4c6a */
-u8 gen_base_tile;              /* DS:0x4e84 */
-i16 gen_variation;                        /* DS:0x4e90 */
-u8 scan_less;                  /* DS:0x526e */
-u8 *scan_site;             /* DS:0x52da */
-u8 map_player_mask;            /* DS:0x5aaa */
-u8 gen_map_tile;               /* DS:0x5acc */
-u8 scan_flags;                 /* DS:0x5ad3 */
-u8 *scan_map;              /* DS:0x5afa */
-i16 scan_x;                               /* DS:0x5f16 */
-i16 scan_y;                               /* DS:0x634c */
-u8 scan_index;                 /* DS:0x6974 */
-u8 gen_site_tile;              /* DS:0x6988 */
+/* The renderer's state: where it is and what the current square holds. */
+u8 scan_greater;               /* range_scan's lower bound */
+u8 *scan_feature;          /* the current square in the feature plane (1) */
+i16 gen_tile_x;                           /* the current square's centre column in scr_orig */
+i16 gen_tile_y;                           /* the current square's bottom row in scr_orig */
+u8 gen_feature_tile;           /* the current square's feature byte */
+u8 gen_base_tile;              /* its terrain byte (a coast's: the land it is drawn on) */
+i16 gen_variation;                        /* alternates along each row; not read */
+u8 scan_less;                  /* range_scan's upper bound */
+u8 *scan_site;             /* the current square in the site plane (3) */
+u8 map_player_mask;            /* the viewing nation's site-plane bit; 0 sees everything */
+u8 gen_map_tile;               /* the terrain that shows: terrain_fix_2(gen_base_tile) */
+u8 scan_flags;                 /* coast_scan's land neighbours, a bit per direction */
+u8 *scan_map;              /* the current square in the terrain plane (0) */
+i16 scan_x;                               /* the current square */
+i16 scan_y;
+u8 scan_index;                 /* a neighbour count (coast_scan) or mask (range_scan) */
+u8 gen_site_tile;              /* the current square's site byte */
 
-/* MODULE map_5: MAPEDIT.EXE segment 08a2 (map_5.obj), file 0xa02a-0xa0d0, 2 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn draw_map_region_2 0x0a02a
- * fn draw_map_2        0x0a088
- *
- * No VICEROY twin: reconstructed from the shipped bytes. The editor's whole-map redraw:
- * draw_map_region_2(x, y, w, h) clamps the region to the view (conform_to_view_size), renders
- * its terrain for every nation (-1), copies it to the screen and refreshes the minimap;
- * draw_map_2 clears the work screen (buffer_draw_box over scr_work, colour 0) and does the same
- * for the whole view.
- */
-
-
-/* draw_map_region_2 -- 08a2:000a, 94 bytes */
+/* Redraws the squares (x, y, w, h) of the view: clips them, renders them for nation -1,
+ * copies them to the work screen and the display, and redraws the minimap. */
 void draw_map_region_2(i16 x, i16 y, i16 w, i16 h)
 {
     conform_to_view_size(&x, &y, &w, &h);
@@ -806,8 +776,9 @@ void draw_map_region_2(i16 x, i16 y, i16 w, i16 h)
     show_map_region(x, y, w, h);
     show_mini(1, -1);
 }
-/* draw_map_2 -- 08a2:0068, 72 bytes */
-
+/* Redraws the whole view: a black line just outside it (along its top and right edges; the
+ * rest is off the screen), the terrain for nation -1, the copy to the work screen and the
+ * display, and the minimap. */
 void draw_map_2(void)
 {
     buffer_draw_box(-1, 7, map_pixel_size_x, scr_work, map_pixel_size_y + 8, 0);
@@ -817,29 +788,7 @@ void draw_map_2(void)
     show_mini(1, -1);
 }
 
-/* MODULE map_2: MAPEDIT.EXE segment 087b (map_2.obj), file 0x9db4-0xa02a, 7 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn conform_to_view       0x09db4
- * fn conform_to_view_size  0x09dfa
- * fn update_terrain_region 0x09e70
- * fn update_terrain        0x09eda
- * fn show_map_gradually    0x09f10
- * fn show_map              0x09fcc
- * fn show_map_region       0x09fe4
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/ovl21_66e0c).
- *
- * THE 1994 MAP-VIEW PLUMBING: Windows conform_to_view_size, update_terrain_region, show_map_region
- * (1040:xxxx) and the whole-map update_terrain / show_map, with the MapWin
- * and MiniWin calls replaced by blits. The map is drawn into the backdrop port (DS:0x839e) and
- * copied to the screen port at y + 8 (below the menu bar).
- */
-
-/* plain flags */
-
-/* conform_to_view -- 087b:0004, 70 bytes */
-/* Clips a corner pair to the visible map squares. */
+/* Clips a corner pair, (*x0, *y0) and (*x1, *y1) inclusive, to the view's squares. */
 void conform_to_view(i16 *x0, i16 *y0, i16 *x1, i16 *y1)
 {
     *x0 = max(*x0, map_corner_x);
@@ -847,7 +796,7 @@ void conform_to_view(i16 *x0, i16 *y0, i16 *x1, i16 *y1)
     *x1 = min(*x1, map_corner_x2);
     *y1 = min(*y1, map_corner_y2);
 }
-/* conform_to_view_size -- 087b:004a, 118 bytes */
+/* Clips the region (*x, *y, *w, *h) to the view's squares; an empty result has w or h 0. */
 void conform_to_view_size(i16 *x, i16 *y, i16 *w, i16 *h)
 {
     i16 x1;
@@ -864,8 +813,8 @@ void conform_to_view_size(i16 *x, i16 *y, i16 *w, i16 *h)
     *w = max(0, *w);
     *h = max(0, *h);
 }
-/* update_terrain_region -- 087b:00c0, 106 bytes */
-
+/* Copies the squares (x, y, w, h) of the view from scr_orig into the work screen, 8 rows
+ * down. The region must already lie inside the view. */
 void update_terrain_region(i16 x, i16 y, i16 w, i16 h)
 {
     i16 px;
@@ -879,23 +828,17 @@ void update_terrain_region(i16 x, i16 y, i16 w, i16 h)
     ph = map_tile_size_y * h;
     buffer_rect_copy_2(px, py, px, scr_orig, scr_work, py + 8, pw, ph);
 }
-/* update_terrain -- 087b:012a, 54 bytes */
-
+/* Copies the whole view from scr_orig into the work screen. */
 void update_terrain(void)
 {
     buffer_rect_copy_2(0, 0, 0, scr_orig, scr_work, 8, map_pixel_size_x, map_pixel_size_y);
 }
-/* show_map_gradually -- 087b:0160, 188 bytes */
-
-/* Reveals the map view square by square in a pseudo-random order (a 16-bit LFSR). */
-/* PORT: show_map_gradually is in port/ (inline assembly) */
-
-/* show_map -- 087b:021c, 24 bytes */
+/* Copies the view from the work screen to the display. */
 void show_map(void)
 {
     mouse_video_update(0, 8, 0, 8, map_pixel_size_x, map_pixel_size_y);
 }
-/* show_map_region -- 087b:0234, 70 bytes */
+/* Copies the squares (x, y, w, h) of the view from the work screen to the display. */
 void show_map_region(i16 x, i16 y, i16 w, i16 h)
 {
     i16 px;
@@ -910,9 +853,11 @@ void show_map_region(i16 x, i16 y, i16 w, i16 h)
     mouse_video_update(px, py, px, py, pw, ph);
 }
 
-/* show_map_gradually -- 087b:0160: copy the map view to the screen a square at a time, in the
-   order of a 16-bit Galois LFSR (taps B400h) over 65,536 steps; a small view (180 squares or
-   fewer) waits a 600 Hz tick between squares */
+/* Reveals the view: copies it from the work screen to the display a square at a time, in
+ * the pseudo-random order of a 16-bit Galois LFSR (taps B400h) run for 65,536 steps, each
+ * value below the number of squares naming a square. A small view (180 squares or fewer)
+ * waits a 600 Hz tick between squares. Zeroes the 600 Hz counter first.
+ * Port: the original is inline assembly; this is its C equivalent. */
 void show_map_gradually(void)
 {
     u16 lfsr = 1, total, pos, count = 0;
@@ -939,8 +884,8 @@ void show_map_gradually(void)
     }
 }
 
-/* mapview.c -- the map view on screen: refreshing it, and the blinking cursor square. */
-
+/* Redraws the whole screen: clears it, then draws the menu bar, the map with the minimap,
+ * and the info window. */
 void main_screen_refresh(void)
 {
     buffer_fill(0, scr_work);
@@ -950,8 +895,9 @@ void main_screen_refresh(void)
     info_window_draw();
 }
 
-/* Toggles the cursor: redraws the info window, restores the square from the backdrop and
- * draws the cursor icon (0x13 + zoom) over it when it is on. */
+/* Toggles the map cursor (cursor_on) and redraws the info window. When the cursor's square
+ * is in the view, restores the square from scr_orig, draws the cursor icon for the zoom
+ * (icon 0x13 + map_scale) over it if the cursor is now on, and shows the square. */
 void cursor_update(void)
 {
     i16 cx;
@@ -974,4 +920,4 @@ void cursor_update(void)
     }
 }
 
-Menu *menu_bar = 0;                         /* DS:0x0078 */
+Menu *menu_bar = 0;                         /* the editor's menu bar (construct_mapedit_menu) */

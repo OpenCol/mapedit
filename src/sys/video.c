@@ -1,8 +1,8 @@
-/* video.c -- video_1.ASM and video_2.ASM: the mode 13h screen.
+/* video.c -- the mode 13h screen: setting the mode, copying work buffers to the screen.
  *
- * The screen is the host's framebuffer (platform/host.h), 320 x 200 palette indices at what
- * was A000:0000. Writing it marks it changed; the host shows it at the next 70 Hz frame, as
- * the VGA did.
+ * The screen is the host's framebuffer (platform/host.h): 320 x 200 palette indices, row-major,
+ * where the original had the VGA's memory. Writing it marks it changed; the host shows it at
+ * the next 70 Hz frame, as the VGA did.
  */
 #include "msc.h"
 #include "error.h"
@@ -18,15 +18,16 @@
 #include "video.h"
 #include "host.h"
 
-/* VIDEO_ADDRESS -- 1114:0002: the screen address of (x, y), x in CX and y in DX */
+/* VIDEO_ADDRESS -- the address of screen pixel (x, y). The offset is computed in 16 bits. */
 char *VIDEO_ADDRESS(i16 x, i16 y)
 {
     return (char *)host_vram() + (u16)((u16)y * 320u + (u16)x);
 }
 
-/* video_init -- 0ec5:0008: remember the mode; set it through the BIOS (INT 10h, AH=0) when
-   asked. Mode 13h is the only graphics mode the port has; setting a mode clears the screen,
-   as the BIOS did. */
+/* video_init -- record the video mode in video_mode and, when set is nonzero, set it, which
+ * clears the screen as the BIOS mode switch did. Mode 13h is the only graphics mode the port
+ * has, so setting a mode does nothing else.
+ */
 void video_init(i16 mode, i16 set)
 {
     video_mode = mode;
@@ -39,8 +40,9 @@ void video_init(i16 mode, i16 set)
     }
 }
 
-/* video_update -- 0ec5:0024: copy w x h pixels at (sx, sy) of a work buffer to the screen at
-   (dx, dy). The work buffer is a DosPort; rows advance by its width and the screen's 320. */
+/* video_update -- copy w x h pixels at (sx, sy) of a work buffer to the screen at (dx, dy).
+ * Rows advance by the buffer's width and the screen's 320. Nothing is clipped.
+ */
 void video_update(DosPort *port, i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h)
 {
     const char *s = port->bits + ((u32)(u16)sy * (u16)port->w + (u16)sx);
@@ -55,17 +57,15 @@ void video_update(DosPort *port, i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h)
     host_vram_touched();
 }
 
-/* mapedit.obj's uninitialised data: communals, placed by the linker in BSS (from DS:0x4999).
- * Sizes are the distance to the next public; a global nothing in the editor reads keeps a
- * plain array of that size. A definition after the last function moves no symbol position. */
-i16 video_mode;                           /* DS:0x49c6 */
+i16 video_mode;                           /* the mode last passed to video_init */
 
-/* MCGA_SHAKE -- 12ad:000c: one step of a screen shake (the CRTC's start address, which the
-   editor never shakes); counts the shake down */
+/* MCGA_SHAKE -- one step of a screen shake: counts MCGA_SHAKES down to 0. The original also
+ * moved the CRTC's start address; the editor never starts a shake, so the port only counts.
+ */
 void MCGA_SHAKE(void)
 {
     if (MCGA_SHAKES)
         MCGA_SHAKES--;
 }
 
-i16 MCGA_SHAKES = 0;                             /* DS:0x450e: shakes left (defined here) */
+i16 MCGA_SHAKES = 0;                             /* steps of screen shake left */

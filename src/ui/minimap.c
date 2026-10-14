@@ -1,6 +1,14 @@
-/* minimap.c -- the minimap: the whole map a pixel a square, and the view's rectangle on it. */
+/* minimap.c -- the minimap: the map at a pixel a square, and the view's rectangle on it. */
+/*
+ * The minimap sits at the top right of the screen: 56 x 39 squares, one pixel each, drawn
+ * into the work screen with its top-left square at pixel (0xfc, 9), inside a frame and on the
+ * backdrop tile. It shows the squares from mini_x, mini_y, which follow the view's centre
+ * and stay inside the map's border; a white rectangle marks the squares the map view shows.
+ * Each square is the colour terrain_colors gives its terrain, a table built at startup from
+ * the centre pixel of each terrain's tile or icon.
+ */
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "assets.h"
 #include "font.h"
 #include "menu.h"
@@ -12,39 +20,14 @@
 #include "mouse.h"
 #include "screen.h"
 #include "sprite.h"
-/* MODULE me_mini: MAPEDIT.EXE segment 0b56 (me_mini.obj), file 0xcb64-0xd030, 10 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn get_a_color       0x0cb64
- * fn get_a_color_2     0x0cb98
- * fn get_tile_colors   0x0cbcc
- * fn allocate_mini     0x0cc38
- * fn generate_mini     0x0cc3c
- * fn blast_mini_region 0x0cc7c
- * fn blast_mini        0x0cdd4
- * fn show_mini_region  0x0cdee
- * fn show_mini         0x0cf14
- * fn new_mini          0x0d02a
- *
- *  Globals carry their
- * CodeView names (tiles = the icon sheet DS:0x4c0, terrain_1 = the tile sheet, scr_work = the
- * work screen port, main_tile = the backdrop tile port, mini_x/mini_y, map_corner_x..y2).
- *
- * THE 1994 MINIMAP: the DOS side of the Windows MiniWin class (1060:6xxx). The minimap is a
- * 56x39-square window of the map (0x38 x 0x27) drawn one pixel per square straight into the
- * screen port at (0xfc, 9); its top-left square is mini_x/mini_y, which generate_mini keeps
- * around the main map's centre. blast_mini_region is MiniWin_BlastMiniRegion with the GDI rects
- * replaced by a pixel pointer.
- */
 
 #include "units.h"
 #include "terrain.h"
 #include "records.h"
 
-
-
-/* get_a_color -- 0b56:0004, 52 bytes */
-/* The colour at the centre (8,8) of a 16x16 icon. */
+/* The colour at the centre (8, 8) of terrain icon `icon`, drawn into a 16 x 16 scratch
+ * buffer. The buffer is not cleared first: were the icon's centre pixel transparent, the
+ * result would be whatever the buffer held. */
 u8 get_a_color(i16 icon)
 {
     u8 buf[256];
@@ -55,9 +38,7 @@ u8 get_a_color(i16 icon)
     sprite_draw(icon, tiles, &port, 0, 0);
     return buf[0x88];
 }
-/* get_a_color_2 -- 0b56:0038, 52 bytes */
-
-/* The colour at the centre (8,8) of a 16x16 terrain tile. */
+/* The colour at the centre (8, 8) of terrain tile `tile`. */
 u8 get_a_color_2(i16 tile)
 {
     u8 buf[256];
@@ -68,10 +49,10 @@ u8 get_a_color_2(i16 tile)
     tile_draw(terrain_1, tile, &port, 0, 0);
     return buf[0x88];
 }
-/* get_tile_colors -- 0b56:006c, 108 bytes */
-
-/* The minimap palette: one colour per base terrain (0-7, repeated for the two forest bands at
- * 8-15 and 16-23), the three water tiles, then mountains and hills from their icons. */
+/* Fills terrain_colors, the minimap's colour for each terrain id: the eight open terrains
+ * from their tiles, each forest the colour of its open terrain (so forests do not show on the
+ * minimap), arctic, ocean and sea lane from their tiles, and mountains and hills from their
+ * single-square icons. */
 void get_tile_colors(void)
 {
     i16 i;
@@ -87,13 +68,13 @@ void get_tile_colors(void)
     terrain_colors[TERRAIN_MOUNTAINS] = get_a_color(0x21);
     terrain_colors[TERRAIN_HILLS] = get_a_color(0x31);
 }
-/* allocate_mini -- 0b56:00d8, 4 bytes */
+/* The minimap needs no memory of its own: returns 0 (success). */
 i16 allocate_mini(void)
 {
     return 0;
 }
-/* generate_mini -- 0b56:00dc, 64 bytes */
-
+/* Places the minimap: its top-left square 28 columns left of and 19 rows above the view's
+ * centre, kept inside the map's border. */
 void generate_mini(void)
 {
     mini_x = map_center_x - 28;
@@ -101,16 +82,12 @@ void generate_mini(void)
     mini_x = minimax(mini_x, 1, map_file.w - 57);
     mini_y = minimax(mini_y, 1, map_file.h - 40);
 }
-/* blast_mini_region -- 0b56:011c, 344 bytes */
-
-
-/* VICEROY's BlastMiniRegion without the settlement and unit colours (the editor has neither):
- * one pixel per square into scr_work at (0xfc, 9), white when `white`, black where `viewer`
- * has not seen the square, else the terrain colour. The feature and continent planes are still
- * walked into `feature` and `t2`, which nothing reads: under "elg" those reads and the p1/p2
- * steps compile to NOTHING, but they are what gives the shipped frame (0x3a, with their four
- * never-touched words) and the shipped pairing (p0 in si, p3 in di, dst in cx, mask in memory).
- * Without them MSC puts mask in si and the frame is 0x2a (181 bytes differ). */
+/* Draws the squares (x, y) to (x + cols - 1, y + rows - 1) into the minimap in the work
+ * screen, one pixel each: white (15) when `white` is set; black where nation `viewer` has not
+ * seen the square (its bit in the site plane's high nibble), unless viewer is -1, which sees
+ * everything; otherwise the colour of the square's terrain, hills and mountains taking theirs
+ * whatever lies under them. The region must lie inside the minimap. The feature and
+ * continent planes are walked alongside, but nothing uses what is read from them. */
 void blast_mini_region(i16 x, i16 y, i16 cols, i16 rows, i16 viewer, i16 white)
 {
     u8 *p0;
@@ -170,13 +147,15 @@ void blast_mini_region(i16 x, i16 y, i16 cols, i16 rows, i16 viewer, i16 white)
         dst += portw - cols;
     }
 }
-/* blast_mini -- 0b56:0274, 26 bytes */
+/* Draws every square of the minimap as `viewer` sees it. */
 void blast_mini(i16 viewer)
 {
     blast_mini_region(mini_x, mini_y, 0x38, 0x27, viewer, 0);
 }
-/* show_mini_region -- 0b56:028e, 294 bytes */
-
+/* Redraws the squares (x, y, w, h) on the minimap, clipped to what it shows, and the view's
+ * rectangle over them; with `update` set, copies those squares to the screen (the rectangle's
+ * other sides only reach the screen with a later update). Re-places the minimap first, but
+ * draws only the region, so a minimap that has moved shows the change only there. */
 void show_mini_region(i16 x, i16 y, i16 w, i16 h, i16 update, i16 viewer, i16 white)
 {
     i16 x0;
@@ -196,8 +175,9 @@ void show_mini_region(i16 x, i16 y, i16 w, i16 h, i16 update, i16 viewer, i16 wh
     if (update)
         mouse_video_update(x0 - mini_x + 0xfc, y0 - mini_y + 9, x0 - mini_x + 0xfc, y0 - mini_y + 9, w, h);
 }
-/* show_mini -- 0b56:03b4, 278 bytes */
-
+/* Redraws the whole minimap: re-places it, fills its corner of the screen with the backdrop
+ * tile (or black without one), draws its frame, the squares as `viewer` sees them and the
+ * view's rectangle in white; with `update` set, copies the corner to the screen. */
 void show_mini(i16 update, i16 viewer)
 {
     generate_mini();
@@ -213,14 +193,13 @@ void show_mini(i16 update, i16 viewer)
     if (update)
         mouse_video_update(0xf1, 8, 0xf1, 8, 0x4f, 0x29);
 }
-/* new_mini -- 0b56:04ca, 6 bytes */
+/* Re-places the minimap for a new or newly loaded map. */
 void new_mini(void)
 {
     generate_mini();
 }
 
-/* The module's uninitialised data (communals, BSS). */
-i16 mini_y;                               /* DS:0x49c2 */
-u8 terrain_colors[30];         /* DS:0x4aec */
-i16 mini_x;                               /* DS:0x6982 */
+i16 mini_y;                               /* the map row of the minimap's top row */
+u8 terrain_colors[30];         /* the minimap colour of each terrain id (get_tile_colors) */
+i16 mini_x;                               /* the map column of the minimap's left column */
 

@@ -1,7 +1,13 @@
-/* strings.c -- the string store: names and labels read from the text files, kept end to end and found by number. */
+/* strings.c -- the string store: names and labels from the text files, found by number.
+ *
+ * The strings are kept end to end, each with its NUL, in one arena (strings_heap, a memory
+ * block named "$STRING"). strings_store adds one and returns its number, counting from 0;
+ * strings(n) finds string n by walking the n before it. Nothing is ever removed. The editor
+ * makes the store at startup (strings_init); nothing calls strings_shrink.
+ */
 #include <string.h>
 #include "msc.h"
-#pragma pack(2)   /* MSC 6's default structure packing (/Zp2) */
+#pragma pack(2)   /* records on 2-byte boundaries, as in 1994: the file formats depend on it */
 #include "popup.h"
 #include "error.h"
 #include "pack.h"
@@ -12,52 +18,31 @@
 #include "mem.h"
 #include "records.h"
 #include "text.h"
-/* MODULE strings: MAPEDIT.EXE segment 0334 (strings.obj), file 0x494a-0x49de, 4 functions in source order.
- * cl /c /AM /G2 /Gs /Ot /Ow
- *
- * fn strings_init   0x0494a
- * fn strings_shrink 0x0496c
- * fn strings_store  0x04976
- * fn strings        0x049ac
- *
- * The game, VICEROY.EXE, links the same module (dos-decomp src/root_0000). The CodeView names: the pool is strings_heap (DS:0x4a02), the
- * count num_strings (DS:0x6040), and the arena calls are heap_create / heap_shrink (heap_1.c).
- *
- * THE STRING POOL (root code, frame 0000: the first module of the program). DOS keeps the pool in an ovl31 arena (strings_heap, kind 9,
- * tag "$STRING") instead of a MemBlock:
- *   - strings_init(size) creates it and zeroes the count;
- *   - strings_shrink gives the arena's unused tail back to DOS (heap_shrink). Windows has
- *     strings_shutdown here instead;
- *   - strings_store(s) copies s into the next strlen + 1 bytes and returns its index;
- *   - strings(n) walks n NUL-terminated strings from the pool's base (inline repne scasb).
- *     Unlike Windows, it has no bounds check.
- */
 
-/* strings_init -- 0334:000a, 34 bytes */
+/* Makes an empty store of `size` bytes (9 is the arena's number in error reports). */
 void strings_init(i32 size)
 {
     heap_create(9, &strings_heap, size, "$STRING");
     num_strings = 0;
 }
-/* strings_shrink -- 0334:002c, 10 bytes */
+/* Gives the store's unused space back to the memory pool; the store cannot grow after this. */
 void strings_shrink(void)
 {
     heap_shrink(&strings_heap);
 }
-/* strings_store -- 0334:0036, 54 bytes */
+/* Copies s into the store and returns its number. A full store ends the program with an
+ * error report (heap_get). */
 i16 strings_store(char *s)
 {
     msc__fstrcpy(heap_get((i16)msc__fstrlen(s) + 1, &strings_heap), s);
     return num_strings++;
 }
-/* strings -- 0334:006c, 50 bytes */
-/* PORT: strings is in port/ (inline assembly) */
 
-/* The module's uninitialised data (communals, BSS). */
-Arena strings_heap;                       /* DS:0x4a02 */
-i16 num_strings;                          /* DS:0x6040 */
+Arena strings_heap;                       /* the strings, end to end */
+i16 num_strings;                          /* how many are stored */
 
-/* strings -- 0334:006c: the n-th of the NUL-separated strings in the string heap */
+/* String n of the store. There is no bounds check: an n past the last string walks on into
+ * the arena's unused space. */
 char *strings(i16 n)
 {
     char *p = strings_heap.base;
