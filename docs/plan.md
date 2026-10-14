@@ -41,7 +41,7 @@ The C implementations of what the asm modules and DOS did, keeping the original 
   the cursor drawn into the work buffer and wiped, view ports, freeze/thaw);
 - **keyboard**: the INT 9 handler and the BIOS queue (`KEYS_*`, `keys_*`): SDL key events
   become the scan code / ASCII pairs the editor reads;
-- **timer**: the INT 8 handler (`timer_install`, `timer_read`, `timer_read_600`), from a
+- **timer**: the INT 8 handler (`timer_install`, `timer_read`), from a
   monotonic clock, or from a virtual clock that counts reads (for the gates);
 - **files**: DOS file names in the game directory, found whatever their case;
 - **memory**: `mem_get` and friends on `malloc`; EMS, XMS and upper memory report "absent";

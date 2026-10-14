@@ -212,9 +212,6 @@ out:
 i16 create_blank_map(i16 w, i16 h)
 {
     i16 err = 1;
-    i16 wd;
-    i16 ht;
-    i16 n;
 
     map_file.w = w;
     map_file.h = h;

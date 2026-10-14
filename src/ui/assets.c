@@ -24,13 +24,9 @@ void *cursor = 0;                           /* CURSOR's sprite series (loaded, n
 
 void *icons = 0;                            /* ICONS (the map's cursor square, by zoom) */
 
-void *buildings = 0;                        /* unused */
-
 DosPort *main_tile = 0;                         /* the tile the backgrounds are filled with */
 
 DosPort scr_back;                         /* the 32 x 24 wood backdrop tile (WOODTILE) */
-
-DosPort scr_slide;                        /* unused */
 
 /* Loads the sprite series `name` and draws its first 12 sprites into a new sheet of 12
  * 16 x 16 tiles, sprite i + 1 into tile i. Returns the sheet, or 0 with exit_value set:

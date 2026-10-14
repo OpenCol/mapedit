@@ -27,14 +27,14 @@ a record read through bytes -- compiled silently.
 | `error.c` | error reports, the fatal shutdown, console output |
 | `fab.c` | MicroProse's FAB codec (LZ77) |
 | `fileio.c` | DOS file names in the game folder, block reads and writes, text lines |
-| `keys.c` | the keyboard queue, the keypad as a mouse |
+| `keys.c` | the keyboard queue (scan codes, Alt key folding) |
 | `loader.c` | MADSPACK files |
 | `mem.c` | named memory blocks and the arenas carved from them |
 | `mouse.c` | the mouse driver, the software cursor, button strokes |
 | `pack.c` | the stream plumbing around the codec |
 | `screen.c` | the screens the editor draws into (work, original, video) |
 | `sort.c`, `strings.c`, `text.c` | sorting; the string store; the text files (MAPEDIT.TXT, NAMES.TXT) |
-| `sound.c` | the sound entry points (the editor plays none) |
+| `sound.c` | the three sound calls the editor makes (it plays nothing) |
 | `timer.c` | the 600 Hz and 60 Hz clocks; `timer_idle`, where the UI loops rest |
 | `video.c` | mode 13h, the screen shake |
 
@@ -47,7 +47,7 @@ a record read through bytes -- compiled silently.
 | `terrain.c` | the terrain table from NAMES.TXT |
 | `continents.c` | Find Continents |
 | `editstate.c` | the cursor, the selection and how it paints, the brush, coast protection, undo |
-| `distance.c`, `compass.c` | distances and directions |
+| `distance.c`, `compass.c` | minimax; the eight directions |
 | `game.c` | the game's records and empty stand-ins for game functions the shared modules call |
 
 ## ui
@@ -61,7 +61,7 @@ a record read through bytes -- compiled silently.
 | `popup.c`, `menu.c` | popups and menus |
 | `write.c`, `font.c`, `theme.c` | text, fonts, the editor's colours |
 | `sprite.c`, `tile.c`, `assets.c` | sprite series, tiles, the art the editor loads |
-| `palette.c`, `hotspot.c` | the palette and colour cycling; click rectangles |
+| `palette.c`, `hotspot.c` | the palette (colour allocation, the DAC); click rectangles |
 
 ## editor
 
@@ -79,3 +79,7 @@ a record read through bytes -- compiled silently.
 | `tools/golden.py` (in `ctest` with `$MAPEDIT_GAME`) | yes | 14 sessions give the same screens and files as recorded |
 | `tests/oracle` (with `$MAPEDIT_EXE`) | the EXE | the C for the 1994 assembly computes what the original does |
 | `tools/m4.py` | yes, and DOSBox-X | the port saves the same files as the original under DOSBox-X |
+
+Maintenance tools: `tools/dead_code.py` lists what the program never references (macOS: the
+linker's dead stripping); `tools/remove_symbols.py` removes functions and globals with their
+comments and declarations; `tools/same_code.py` proves a change touched comments only.

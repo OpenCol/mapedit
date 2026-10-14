@@ -33,13 +33,11 @@ their subsystem's file (they lived in `port/lib/` until the layering: docs/archi
 
 | Module | Function |
 | --- | --- |
-| `editor/env_1` | `env_exist` |
 | `editor/tile` | `tile_draw` |
 | `editor/tile` | `tile_draw_mask` |
 | `editor/tile` | `tile_draw_scale` |
 | `editor/tile` | `tile_draw_scale_mask` |
 | `editor/strings` | `strings` |
-| `editor/map_2` | `show_map_gradually` |
 | `madsdev/hspot_7` | `hspot_which` |
 | `madsdev/keys_1` | `keys_any` |
 | `madsdev/keys_1` | `keys_get` |
@@ -49,41 +47,27 @@ their subsystem's file (they lived in `port/lib/` until the layering: docs/archi
 | `madsdev/buffer_9` | `buffer_hline` |
 | `madsdev/buffer_a` | `buffer_vline` |
 | `madsdev/buffer_i` | `buffer_pointer` |
-| `madsdev/mem_2` | `mem_alloc_paras` |
-| `madsdev/mem_2` | `mem_check_chain` |
 | `madsdev/mem_2` | `mem_set_block_name` |
 | `madsdev/mem_2` | `mem_get_name` |
-| `madsdev/mem_2` | `mem_get_block_name` |
 | `madsdev/mem_2` | `mem_free` |
-| `madsdev/mem_2` | `mem_adjust` |
-| `madsdev/mem_4` | `mem_conv_largest` |
 | `madsdev/mem_4` | `mem_conv_get_avail` |
 | `madsdev/font_2` | `font_write` |
 | `madsdev/font_4` | `font_string_width` |
 | `madsdev/mcga_7` | `mcga_setpal` |
-| `madsdev/mcga_c` | `mcga_time_palette_swap` |
 | `madsdev/mcga_c` | `mcga_compute_retrace_parameters` |
 | `madsdev/sprite_1` | `sprite_draw` |
 | `madsdev/sprite_2` | `sprite_draw_scaled` |
-| `madsdev/sprite_l` | `sprite_draw_black` |
-| `madsdev/sprite_m` | `sprite_draw_scaled_black` |
 | `madsdev/error_1` | `error_shutdown_report` |
-| `madsdev/cycle_1` | `cycle_colors` |
-| `madsdev/heap_1` | `heap_shrink` |
 | `madsdev/mem_1` | `mem_normalize` |
 | `madsdev/timer_2` | `TIMER_SET_RATE` |
-| `madsdev/mcga_8` | `mcga_getpal` |
 | `madsdev/mcga_b` | `mcga_retrace` |
-| `madsdev/mcga_b` | `mcga_setpal_range` |
 | `madsdev/sprite_h` | `sprite_color_translate` |
 | `madsdev/pal_1` | `pal_get_hash` |
 | `madsdev/echo_1` | `echo` |
 | `madsdev/mcga_d` | `MCGA_SHAKE` |
 | `madsdev/sort_3` | `sort_insertion_8` |
-| `madsdev/pack_6` | `far_to_near` |
 | `madsdev/pack_6` | `io_call_hook` |
 | `madsdev/magic_e` | `magic_hash_color` |
-| `madsdev/mem_3` | `mem_check_overflow` |
 | `madsdev/pack_1` | `pack_read_memory` |
 | `madsdev/pack_2` | `pack_write_memory` |
 
@@ -101,3 +85,9 @@ their subsystem's file (they lived in `port/lib/` until the layering: docs/archi
   (`buffer_1.c` ... `buffer_z.c` and the C written for their assembly became `sys/buffer.c`)
   and sorted into sys, core, ui and editor; mapedit.c was split among them. EMS, XMS and the
   high-memory directory, which a machine without them never used, are gone.
+- Dead code removed: every function and global nothing in the program referenced (the
+  linker's view: tools/dead_code.py), about 240 of them -- the game's helpers the editor
+  linked but never called (the palette manager's allocation and cycling, most of the
+  string-building and popup shortcuts, the keypad mouse, the sound driver entry points),
+  and the locals the 1994 source kept only to shape MSC's stack frames.
+

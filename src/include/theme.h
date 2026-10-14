@@ -15,7 +15,6 @@ extern u8 grey_color;           /* greyed (disabled) items */
 extern u8 enhance_color;        /* the font's third colour */
 extern u8 shadow_color;         /* the font's fourth colour */
 extern u8 select_color;         /* the bar behind the selected item */
-extern u8 notice_color;         /* not read */
 extern u8 border0;              /* the popup frame's outer box */
 extern u8 border1;              /* its inner top and right lines */
 extern u8 border2;              /* its inner left and bottom lines */

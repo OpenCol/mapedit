@@ -1,11 +1,10 @@
 /* screen.c -- the screens the editor draws into: the work, original and video ports.
  *
  * Each screen is a DosPort (buffer.c): a height, a width and a pointer to row-major palette
- * indices. scr_video is the 320 x 200 mode 13h frame buffer; the others start empty and are
- * allocated at run time. The editor uses two of them, both 320 x 200 and allocated at startup:
- * the map view is rendered into scr_orig, regions of it are copied into scr_work, where the
- * cursor, menus and popups are drawn over them, and scr_work goes to the screen. scr_main,
- * scr_depth, scr_walk and scr_special belong to the game's shared code and stay empty here.
+ * indices. scr_video is the 320 x 200 mode 13h frame buffer; scr_orig and scr_work start empty
+ * and are allocated at startup, both 320 x 200: the map view is rendered into scr_orig,
+ * regions of it are copied into scr_work, where the cursor, menus and popups are drawn over
+ * them, and scr_work goes to the screen.
  */
 #include "msc.h"
 #include "font.h"
@@ -29,10 +28,6 @@ void screen_dominant_mode(i16 mode)
         *(u8 *)(msc_bda + 0x0010) |= 0x20;
 }
 
-DosPort scr_main = { 0, 0, 0 };
 DosPort scr_work = { 0, 0, 0 };   /* what goes to the screen: the map plus overlays */
 DosPort scr_orig = { 0, 0, 0 };   /* the map view as rendered, without overlays */
-DosPort scr_depth = { 0, 0, 0 };
-DosPort scr_walk = { 0, 0, 0 };
-DosPort scr_special = { 0, 0, 0 };
 DosPort scr_video = { 200, 320, (void *)(msc_vga + 0x0000) };   /* the screen itself */

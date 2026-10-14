@@ -98,16 +98,8 @@ def test_sprite_draw(m, lib, rng):
     run(m, lib, rng, 'sprite_draw')
 
 
-def test_sprite_draw_black(m, lib, rng):
-    run(m, lib, rng, 'sprite_draw_black')
-
-
 def test_sprite_draw_scaled(m, lib, rng):
     run(m, lib, rng, 'sprite_draw_scaled')
-
-
-def test_sprite_draw_scaled_black(m, lib, rng):
-    run(m, lib, rng, 'sprite_draw_scaled_black')
 
 
 def test_sprite_color_translate(m, lib, rng):

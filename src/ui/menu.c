@@ -5,7 +5,8 @@
  * arena allocated with the Menu. A title or item text marks its hot key with ~ before the
  * letter ("~Save Map"); "~F~1" marks the function key F1 (menu_get_hotkey). An item with an
  * empty text is a separator. Item flags: 1 disabled (drawn grey, cannot be chosen), 2 hidden;
- * title flag 1 hides the title.
+ * title flag 1 hides the title. menu_add_item gives a separator flag 1; nothing sets the
+ * others.
  *
  * The bar and the drop-downs each have a text style (MenuStyle): the extra spacing after each
  * character, the plain colour, the colour of disabled text, the hot-key colour and the font.
@@ -236,90 +237,6 @@ MenuSub *menu_bar_item(Menu *m, i16 id)
     }
     return result;
 }
-/* The item with this id, under any title, or 0. */
-MenuEntry *menu_item(Menu *m, i16 id)
-{
-    i16 found;
-    MenuSub *sub;
-    MenuEntry *it;
-    MenuEntry *result;
-
-    found = 0;
-    result = 0;
-    sub = m->subs;
-    while (found == 0) {
-        if (sub == 0)
-            break;
-        it = sub->items;
-        while (found == 0) {
-            if (it == 0)
-                break;
-            if (it->id == id) {
-                found = 1;
-                result = it;
-            } else
-                it = it->next;
-        }
-        sub = sub->next;
-    }
-    return result;
-}
-/* Hides (on set) or shows the title with this id; an unknown id is ignored. */
-void menu_bar_hide(Menu *m, i16 id, i16 on)
-{
-    MenuSub *sub;
-
-    sub = menu_bar_item(m, id);
-    if (sub != 0) {
-        if (on)
-            sub->flags |= 1;
-        else
-            sub->flags &= ~1;
-    }
-}
-/* Disables (on set) or enables the item with this id. The id must exist: the item is not
- * checked for 0. */
-void menu_grey(Menu *m, i16 id, i16 on)
-{
-    MenuEntry *it;
-
-    it = menu_item(m, id);
-    if (on)
-        it->flags |= 1;
-    else
-        it->flags &= ~1;
-}
-/* Enables every item. */
-void menu_release_all_grey(Menu *m)
-{
-    MenuSub *sub;
-    MenuEntry *it;
-
-    for (sub = m->subs; sub != 0; sub = sub->next)
-        for (it = sub->items; it != 0; it = it->next)
-            it->flags &= ~1;
-}
-/* Hides (on set) or shows the item with this id. As in menu_grey, the id must exist. */
-void menu_off(Menu *m, i16 id, i16 on)
-{
-    MenuEntry *it;
-
-    it = menu_item(m, id);
-    if (on)
-        it->flags |= 2;
-    else
-        it->flags &= ~2;
-}
-/* Shows every item. */
-void menu_release_all_off(Menu *m)
-{
-    MenuSub *sub;
-    MenuEntry *it;
-
-    for (sub = m->subs; sub != 0; sub = sub->next)
-        for (it = sub->items; it != 0; it = it->next)
-            it->flags &= ~2;
-}
 /* Appends a title to the bar, title_gap pixels after the last one, or against the right edge
  * of the screen when right is set; its width is the text's plus gap on each side. Returns the
  * new title. */
@@ -537,7 +454,6 @@ void menu_bar_run(MenuSub *sub)
     i16 wrapped28;
     i16 alt2j;
     MenuEntry *it;
-
 
     altnav = 0;
     sel3 = 0;
@@ -827,38 +743,5 @@ i16 menu_key_parse(Menu *m, i16 key)
         m->f0 = r;
     }
     return r;
-}
-/* Reads the menu colours from MENUCOLR.SS, one from the pixel of each of its first seven
- * sprites: the backgrounds, their second colours, the selection, its second colour, the text,
- * the hot keys and the disabled text, each for both the bar and the drop-downs. The seventh
- * goes to menu_bar_font_main_color where menu_bar_font_grey_color is meant, as in the original,
- * so the title text takes the disabled colour and the bar's disabled colour keeps its default.
- * The editor does not call this; it takes its colours from NAMES.TXT. */
-void menu_read_colors(void)
-{
-    u8 pix;
-    void *colr;
-    DosPort port;
-
-    port.h = port.w = 1;
-    port.bits = &pix;
-    colr = sprite_series_load("MENUCOLR.SS", 0);
-    if (colr != 0) {
-        sprite_draw(1, colr, &port, 0, 0);
-        menu_background_color_0 = menu_bar_background_color_0 = pix;
-        sprite_draw(2, colr, &port, 0, 0);
-        menu_background_color_1 = menu_bar_background_color_1 = pix;
-        sprite_draw(3, colr, &port, 0, 0);
-        menu_select_color_0 = menu_bar_select_color_0 = pix;
-        sprite_draw(4, colr, &port, 0, 0);
-        menu_select_color_1 = menu_bar_select_color_1 = pix;
-        sprite_draw(5, colr, &port, 0, 0);
-        menu_font_main_color = menu_bar_font_main_color = pix;
-        sprite_draw(6, colr, &port, 0, 0);
-        menu_font_hilite_color = menu_bar_font_hilite_color = pix;
-        sprite_draw(7, colr, &port, 0, 0);
-        menu_font_grey_color = menu_bar_font_main_color = pix;
-        mem_free(colr);
-    }
 }
 

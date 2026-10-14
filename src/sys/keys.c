@@ -1,15 +1,13 @@
-/* keys.c -- the keyboard: the BIOS queue and the keypad as a mouse.
+/* keys.c -- the keyboard: the BIOS queue, and the clock tick's keyboard work.
  *
  * keys_any and keys_get read the keyboard queue, which in 1994 was the BIOS's (INT 16h). A key
  * comes back as one number: its ASCII code, or 100h + its scan code for a key without one
  * (arrows, function keys, Alt+letter). keys_fix_alt turns Alt+letter into the letter.
  *
- * KEYS_INSTALL hooks the keyboard (INT 9 in 1994, host_set_key_hook here) to make the numeric
- * keypad a mouse. While the hook is enabled, keypad keys (not the grey ones) never reach the
- * queue; they set bits in `held`, and every clock tick (keys_tick, 1994's INT 1Ch handler)
- * moves the cursor by them: 4 pixels, 8 with a shift key, 1 with scroll lock on. The editor
- * never calls KEYS_INSTALL, so in practice keys_tick only steps the screen shake (which the
- * editor never starts either).
+ * keys_tick runs on every clock tick (1994's INT 1Ch handler). It moves the cursor by the
+ * keypad keys recorded in `held` -- 4 pixels, 8 with a shift key, 1 with scroll lock on -- but
+ * nothing in the program sets `held`, so in practice keys_tick only steps the screen shake
+ * (which the editor never starts either).
  */
 #include "msc.h"
 #include "host.h"
@@ -26,13 +24,6 @@
 #include "units.h"
 #pragma pack(2)   /* records on 2-byte boundaries, as the 1994 compiler laid them out */
 #include "video.h"
-
-/* keys_flush -- discards every key waiting in the queue. */
-void keys_flush(void)
-{
-    while (keys_any())
-        keys_get();
-}
 
 /* keys_fix_alt -- maps an Alt+letter key (100h + its scan code) to the upper-case letter, and
  * any other key to itself with a-z upper-cased. */
@@ -100,29 +91,11 @@ i16 keys_fix_alt(i16 key)
 
 i16 KEYS_SPECIAL_BUTTON;        /* 1 while the keypad's '-' (the special button) is held */
 
-static i8 installed, enabled;  /* -1 / 0 */
+static i8 installed;  /* -1: the keyboard hook is set; nothing sets it */
 /* The keypad keys held down: 01h up, 02h down, 04h left, 08h right, 10h the left button,
- * 20h the right, 40h the special button; 80h means something changed since the last tick. */
+ * 20h the right, 40h the special button; 80h means something changed since the last tick.
+ * Nothing sets it, so it stays 0. */
 static u8 held;
-
-/* The bits of each keypad key, by scan code from 47h: 7 8 9 - 4 5 6 + 1 2 3 0 . (5 and 0 are
- * the left button, '.' the right, '-' the special button, '+' nothing). */
-static const u8 keypad_bits[13] = { 0x05, 0x01, 0x09, 0x40, 0x04, 0x10, 0x08, 0x00, 0x06, 0x02, 0x0a, 0x10, 0x20 };
-
-/* hook -- the keyboard hook: while enabled, takes a keypad key (pressed or released) into
- * `held` and swallows it (returns 1); any other key goes on to the queue (returns 0). */
-static int hook(int scan, int down, int keypad)
-{
-    u8 bits;
-    if (!enabled || !keypad || scan < 0x47 || scan > 0x53)
-        return 0;
-    bits = keypad_bits[scan - 0x47];
-    if (down)
-        held |= (u8)(bits | 0x80);
-    else
-        held = (u8)((held & (u8)~bits) | 0x80);
-    return 1;
-}
 
 /* keys_tick -- the clock tick's keyboard work (1994's INT 1Ch handler; timer.c calls it). When
  * the cursor is the library's own and a keypad key is held or has changed, it sets the forced
@@ -156,16 +129,8 @@ void keys_tick(void)
         MCGA_SHAKE();
 }
 
-/* KEYS_INSTALL -- hooks the keyboard and enables the keypad mouse. */
-void KEYS_INSTALL(void)
-{
-    held = 0;
-    MOUSE_FORCE_BUTTON = 0;
-    host_set_key_hook(hook);
-    installed = enabled = -1;
-}
-
-/* keys_remove -- unhooks the keyboard and releases any forced button. */
+/* keys_remove -- releases any forced button, and unhooks the keyboard when `installed` is set
+ * (which it never is). */
 void keys_remove(void)
 {
     if (installed)
@@ -173,12 +138,6 @@ void keys_remove(void)
     installed = 0;
     MOUSE_FORCE_BUTTON = 0;
 }
-
-/* Whether the hook is installed (-1 or 0); turning the keypad mouse on and off while it is.
- * Disabling forgets the held keys but leaves MOUSE_FORCE_BUTTON as it was. */
-i16 KEYS_CHECK_INSTALLED(void) { return installed; }
-void KEYS_ENABLE(void) { enabled = -1; }
-void KEYS_DISABLE(void) { enabled = 0; held = 0; }
 
 /* keys_any -- 1 when a key is waiting in the queue, else 0. Does not wait. */
 i16 keys_any(void)

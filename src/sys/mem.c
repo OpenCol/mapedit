@@ -1,21 +1,19 @@
 /* mem.c -- memory: named blocks, the arenas carved from them, the free-memory figures.
  *
  * mem_get_name hands out blocks of a given size, each with a tag of up to 8 characters
- * ("$sys$", "$pack$", ...) that mem_get_block_name reads back; mem_free returns them. After
- * every allocation and release it calls an optional hook, mem_manager_update. In 1994 these
- * blocks came from DOS's memory-control-block chain or from upper memory, and the tag lived in
- * the block's DOS header. The port has one flat heap: a block is a calloc'd Block header (the
- * tag and the size) followed by the caller's bytes, and the functions that walked the DOS chain
- * are stubs.
+ * ("$sys$", "$pack$", ...); mem_free returns them. After every allocation and release it calls
+ * an optional hook, mem_manager_update, which nothing sets. In 1994 these blocks came from
+ * DOS's memory-control-block chain or from upper memory, and the tag lived in the block's DOS
+ * header. The port has one flat heap: a block is a calloc'd Block header (the tag and the
+ * size) followed by the caller's bytes.
  *
  * The free-memory figures describe a 640 KB machine with no upper, expanded or extended
  * memory, on which the original keeps everything in conventional memory: CONVENTIONAL_FREE
  * bytes are always free. They appear only in error reports.
  *
  * An Arena (heap_create, heap_declare) is a bump allocator over one block: heap_get takes the
- * next n bytes from the front and nothing is freed until heap_destroy releases the whole
- * block; heap_shrink gives back the unused tail. An arena's kind is the module number its
- * errors are reported under.
+ * next n bytes from the front, and nothing is ever given back. An arena's kind is the module
+ * number its errors are reported under.
  */
 #include <stdlib.h>
 #include <string.h>
@@ -40,56 +38,17 @@ char *mem_normalize(char *p)
     return p;
 }
 
-/* The allocator's bookkeeping. In the port only mem_last_alloc_failed and the hook are kept
- * up to date; the free-memory minima and maxima keep their initial values. */
-char mem_initialized = 0;               /* never set in the port */
-char mem_max_free_set = 0;              /* mem_max_free has been seeded */
-char umb_max_free_set = 0;              /* umb_max_free has been seeded */
 char mem_last_alloc_failed = 0;         /* the last mem_get_name returned null */
-i16 mem_last_alloc_loader = 11;         /* module number memory errors are reported under */
-i32 mem_last_alloc_size = 0;           /* the last request's size, for the error report */
-i32 mem_last_alloc_avail = 0;          /* conventional memory free at the last request */
-i32 mem_last_alloc_umb = 0;            /* upper memory free at the last request */
-i32 mem_max_free = -1L;                /* most conventional memory ever free */
-i32 mem_min_free = 100000000L;         /* least conventional memory ever free */
-i32 umb_max_free = -1L;                /* the same for upper memory */
-i32 umb_min_free = 100000000L;
+i16 mem_last_alloc_loader = 11;         /* a module number; the loaders set it, nothing reads it */
+i32 mem_last_alloc_size = 0;           /* shown by the error report; never set, so 0 */
+i32 mem_last_alloc_avail = 0;          /* shown by the error report; never set, so 0 */
 void (*mem_manager_update)(void) = 0;   /* called after each allocation and release */
 i16 mem_manager_active = 0;             /* -1 while the hook runs */
-/* mem_call_hook -- calls a hook passed as the two 16-bit halves of a 1994 far pointer, with
- * mem_manager_active raised while it runs. Unused: the port calls mem_manager_update through
- * call_hook below. Port: the call reads a function pointer from the first half's address,
- * which is only meaningful for a 16-bit far pointer. */
-void mem_call_hook(u16 off, u16 seg)
-{
-    if (off | seg) {
-        mem_manager_active = -1;
-        (*(void (**)(void))&off)();
-        mem_manager_active = 0;
-    }
-}
 /* mem_get -- a block of size bytes tagged "$sys$"; null when there is no memory. */
 void *mem_get(i32 size)
 {
     return mem_get_name(size, "$sys$");
 }
-/* mem_save_free -- remembers the two low-water marks for mem_restore_free. */
-void mem_save_free(void)
-{
-    mem_save_free_area = mem_min_free;
-    umb_save_free_area = umb_min_free;
-}
-/* mem_restore_free -- brings the low-water marks back to what was saved, or to what is free
- * now if that is less. */
-void mem_restore_free(void)
-{
-    mem_min_free = min(mem_save_free_area, mem_conv_get_avail());
-    umb_min_free = min(umb_save_free_area, 0);   /* no upper memory */
-}
-
-/* The low-water marks mem_save_free saved. */
-i32 mem_save_free_area;
-i32 umb_save_free_area;
 
 /* mem_get_avail -- the larger of the free conventional and upper memory: always
  * CONVENTIONAL_FREE in the port. */
@@ -101,10 +60,6 @@ i32 mem_get_avail(void)
     dos = mem_conv_get_avail();
     heap = 0;                   /* no upper memory */
     return heap >= dos ? heap : dos;
-}
-/* mem_set_video_mode -- does nothing, in 1994 too. */
-void mem_set_video_mode(void)
-{
 }
 
 /* heap_create -- makes a an arena over a new block of size bytes tagged tag, owned by the arena.
@@ -134,14 +89,6 @@ void heap_declare(i16 kind, Arena *a, char *base, i32 size)
     a->kind = kind;
     a->base = a->next = base;
     a->size = a->left = size;
-}
-/* heap_destroy -- frees the block if the arena owns it and empties the arena. */
-void heap_destroy(Arena *a)
-{
-    if (a->owned)
-        mem_free(a->base);
-    a->base = 0;
-    a->size = a->left = 0;
 }
 /* heap_get -- the next n bytes of the arena, or null after error_report (which ends the
  * program) when they do not fit. The pointer advances by n's low 16 bits, as in 1994, where
@@ -191,11 +138,6 @@ static Block *block_of(void *p)
     return (Block *)p - 1;
 }
 
-/* mem_alloc_paras, mem_check_chain -- in 1994, allocate from and check DOS's memory-control-
- * block chain. The port has no chain: stubs. */
-u16 mem_alloc_paras(u16 paras) { (void)paras; return 0; }
-void mem_check_chain(void) { }
-
 /* mem_set_block_name -- stores up to 8 characters of name as block's tag. */
 void mem_set_block_name(void *block, char *name)
 {
@@ -224,13 +166,6 @@ void *mem_get_name(i32 size, char *tag)
     return b + 1;
 }
 
-/* mem_get_block_name -- copies block's tag into dest (9 bytes, terminated). */
-void mem_get_block_name(void *block, char *dest)
-{
-    memcpy(dest, block_of(block)->tag, 8);
-    dest[8] = 0;
-}
-
 /* mem_free -- frees a block from mem_get_name and calls the hook. Returns 0, or -1 for null. */
 i16 mem_free(void *p)
 {
@@ -241,36 +176,6 @@ i16 mem_free(void *p)
     return 0;
 }
 
-/* mem_adjust -- resizes block p in place to size bytes. Shrinking always works (the port keeps
- * the memory and records the new size); growing fails with -1. Returns 0 on success. */
-i16 mem_adjust(i32 size, void *p)
-{
-    Block *b = block_of(p);
-    if ((size_t)size > b->size)
-        return -1;
-    b->size = (size_t)size;
-    return 0;
-}
-
-/* mem_conv_largest -- the largest free conventional block, in 16-byte paragraphs. */
-u16 mem_conv_largest(void) { return (u16)(CONVENTIONAL_FREE >> 4); }
-
-/* mem_conv_get_avail -- the same in bytes. */
+/* mem_conv_get_avail -- the conventional memory free, in bytes: always CONVENTIONAL_FREE. */
 i32 mem_conv_get_avail(void) { return CONVENTIONAL_FREE; }
 
-/* mem_check_overflow -- in 1994, folded a far pointer whose offset had passed 8000h back by
- * 32 KB into its segment. Flat pointers need nothing: returns p. Unused. */
-void *mem_check_overflow(void *p) { return p; }
-
-/* heap_shrink -- gives back the arena's unused tail, unless fewer than 16 bytes are left, so
- * that the arena is exactly full. Returns the arena's size. */
-i32 heap_shrink(Arena *a)
-{
-    if (a->left >= 0x10) {
-        i32 used = a->size - a->left;
-        mem_adjust(used, a->base);
-        a->size = used;
-        a->left = 0;
-    }
-    return a->size;
-}

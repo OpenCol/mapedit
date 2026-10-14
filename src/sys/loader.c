@@ -25,18 +25,7 @@
 #include "units.h"
 #pragma pack(2)   /* records on 2-byte boundaries, as in 1994: the file formats depend on it */
 
-/* Statistics the original's loader kept. Only loader_found_on_disk is counted (one per
- * successful loader_open); the others stay 0, and nothing in the editor reads any of them. */
-i32 loader_found_in_ems = 0;
-i32 loader_found_in_xms = 0;
 i32 loader_found_on_disk = 0;
-i32 loader_timing_ems = 0;
-i32 loader_timing_xms = 0;
-i32 loader_timing_disk = 0;
-i32 loader_size_ems = 0;
-i32 loader_size_xms = 0;
-i32 loader_size_disk = 0;
-i16 loader_ems_search_disabled = 0;     /* not read by anything */
 char loader_last[14] = "";              /* the name last given to loader_open, up to 13 chars */
 /* Opens the MADSPACK file `name` (a data file name, see env_open) into fh with the fopen mode
  * `how`, which it lower-cases in place. Returns 0 when it opened, -1 when it did not.
@@ -93,11 +82,6 @@ i16 loader_open(char *how, i16 mode, FileIO *fh, char *name)
 out:
     return err;
 }
-/* Sets the first directory entry's flag byte. */
-void loader_set_priority(i16 flag, FileIO *fh)
-{
-    fh->ent[0].flag = (char)flag;
-}
 /* Closes fh if it is open. A file opened for writing gets its header written again first.
  * Returns 1 when that write failed, otherwise 0. */
 i16 loader_close(FileIO *fh)
@@ -132,7 +116,6 @@ i32 loader_read(i32 size, void *buf, i32 count, FileIO *fh)
     fpos_t pos8;
     i32 packed;
     i16 done4;
-    i32 unused6;
     i32 got;
     register i16 i;
 

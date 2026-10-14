@@ -16,9 +16,9 @@
  * terrain_at reports it as ocean.
  *
  * Most of this module is shared with the game, so it also answers questions the editor
- * never asks: owners, settlements, units, resources and Lost City Rumours. The editor never
- * sets map_base_seed, so resource_at and lost_city_at always report nothing; the settlement
- * and unit tests read MAP1_* bits that only a game would set.
+ * never asks: owners, villages, resources and Lost City Rumours. The editor never sets
+ * map_base_seed, so resource_at and lost_city_at always report nothing; is_village reads a
+ * MAP1_* bit that only a game would set.
  *
  * The rest is the map view's geometry (the visible window, the scale, the tile size), which
  * mapview.c computes and the editor's commands read.
@@ -40,7 +40,6 @@
 #include "records.h"
 
 #define ABS(x) ((x) > 0 ? (x) : ~(x) + 1)
-
 
 /* Is (x, y) a playable square? 0 on the border ring and beyond, 1 inside it. */
 i16 on_map(i16 x, i16 y)
@@ -81,19 +80,6 @@ out:
     return r;
 }
 
-/* Is (x, y) inside the visible map window (map_corner_x..x2, map_corner_y..y2 inclusive)? */
-i16 on_screen(i16 x, i16 y)
-{
-    i16 r;
-
-    r = 1;
-    if (x < map_corner_x || x > map_corner_x2)
-        r = 0;
-    if (y < map_corner_y || y > map_corner_y2)
-        r = 0;
-    return r;
-}
-
 i16 map_file_version = 0;   /* the version word of the loaded map file (4) */
 char map_ext[4] = "mp";     /* the map files' extension */
 i16 map_error = 0;          /* why the last map file operation failed (mapfile.c), or 0 */
@@ -103,8 +89,8 @@ i16 map_error = 0;          /* why the last map file operation failed (mapfile.c
 i16 map_high_memory_mode = 0;
 u8 *map = 0;                /* the terrain plane */
 
-/* The address of a square's byte in each plane (map_loc, feature_loc, continent_loc,
- * site_loc), and its value (map_get, ...). None of them checks the coordinates. */
+/* The address of a square's byte in a plane (map_loc, feature_loc, site_loc), and its value
+ * (map_get, feature_get, continent_get). None of them checks the coordinates. */
 u8 *map_loc(i16 x, i16 y)
 {
     u8 *p;
@@ -139,22 +125,9 @@ u8 feature_get(i16 x, i16 y)
     return *p;
 }
 
-/* Sets (on != 0) or clears the bits of mask in a square's features. */
-void feature_set(i16 x, i16 y, i16 mask, i16 on)
-{
-    u8 *p;
-
-    p = feature_loc(x, y);
-    if (on)
-        *p |= mask;
-    else
-        *p &= ~mask;
-}
-
 u8 *continent = 0;          /* the continent plane: region number | owner << 4 */
 u8 *site = 0;               /* the sight plane: 0x10 << nation where that nation has seen */
 void *terrain_1 = 0;        /* the terrain tile sheet */
-void *terrain_2 = 0;        /* unused */
 void *tiles = 0;            /* the map icon sheet (PHYS0): hills, rivers, resources, ... */
 void *tiles2 = 0;           /* the same sheet as tiles once it has loaded */
 i16 map_center_x = 0;       /* the square the view is centred on */
@@ -180,13 +153,6 @@ i16 resource_index[TERRAIN_COUNT] = {
     1, 8, 9, 10, 10, 6, 6, -1,
     7, -1, 12, 13
 };
-u8 *continent_loc(i16 x, i16 y)
-{
-    u8 *p;
-
-    p = continent + y * map_file.w + x;
-    return p;
-}
 
 u8 continent_get(i16 x, i16 y)
 {
@@ -194,21 +160,6 @@ u8 continent_get(i16 x, i16 y)
 
     p = continent + y * map_file.w + x;
     return *p;
-}
-
-/* The region number of a square: the low nibble of its continent byte. */
-u8 continent_at(i16 x, i16 y)
-{
-    return continent_get(x, y) & 0xf;
-}
-
-/* Sets a square's region number (the low nibble), keeping its owner. */
-void continent_set(i16 x, i16 y, i16 c)
-{
-    u8 *p;
-
-    p = continent_loc(x, y);
-    *p ^= (*p ^ c) & 0xf;
 }
 
 /* The owner of a square (the high nibble of its continent byte), or -1 for nobody (0xf). */
@@ -222,73 +173,12 @@ char owner_of(i16 x, i16 y)
     return v;
 }
 
-/* Sets a square's owner to n (-1: nobody), keeping its region number. Giving a village's square
- * to a European nation, or to nobody (-1 is below 4 too), is a fatal error: the game's danger
- * and perform_save hooks run (empty in the editor), then error_report shuts the program down.
- * Only map_init calls this, and nothing calls map_init. */
-void owner_set(i16 x, i16 y, i16 n)
-{
-    u8 *p;
-
-    if (n < 4 && is_village(x, y) >= 0) {
-        danger("Illegal entry into village", n, x, y);
-        perform_save(5);
-        error_report(-0x54, 1, 0x2d, (i32)x, (i32)y);
-    }
-    p = continent_loc(x, y);
-    *p = (*p & 0xf) | (n << 4);
-}
-
-/* The region number of a land square inside the border, or -1 for water and the border. */
-i16 land_region_at(i16 x, i16 y)
-{
-    i16 n;
-
-    n = -1;
-    if (on_map(x, y) && !terrain_is_ocean(x, y))
-        n = continent_at(x, y);
-    return n;
-}
-
 u8 *site_loc(i16 x, i16 y)
 {
     u8 *p;
 
     p = site + y * map_file.w + x;
     return p;
-}
-
-u8 site_get(i16 x, i16 y)
-{
-    u8 *p;
-
-    p = site + y * map_file.w + x;
-    return *p;
-}
-
-/* The owner of a unit on the square (MAP1_UNIT), or -1. */
-i16 is_unit(i16 x, i16 y)
-{
-    i16 n;
-
-    n = -1;
-    if (feature_get(x, y) & MAP1_UNIT)
-        n = owner_of(x, y);
-    return n;
-}
-
-/* The European owner (0-3) of a settlement on the square, or -1. */
-i16 is_colony(i16 x, i16 y)
-{
-    i16 n;
-
-    n = -1;
-    if (feature_get(x, y) & MAP1_SETTLEMENT) {
-        n = owner_of(x, y);
-        if (n >= 4)
-            n = -1;
-    }
-    return n;
 }
 
 /* A settlement whose owner is a tribe (4 and up): the tribe, or -1. */
@@ -302,28 +192,6 @@ i16 is_village(i16 x, i16 y)
         if (n < 4)
             n = -1;
     }
-    return n;
-}
-
-/* Any settlement: its owner, or -1. */
-i16 is_city(i16 x, i16 y)
-{
-    i16 n;
-
-    n = -1;
-    if (feature_get(x, y) & MAP1_SETTLEMENT)
-        n = owner_of(x, y);
-    return n;
-}
-
-/* The owner of a settlement on the square, else of a unit, else -1. */
-i16 is_anything(i16 x, i16 y)
-{
-    i16 n;
-
-    n = is_city(x, y);
-    if (n < 0)
-        n = is_unit(x, y);
     return n;
 }
 
@@ -435,7 +303,6 @@ i16 map_tile_size_x;        /* the pixels a square takes in the view (16 >> map_
 i16 map_tile_size_y;
 DosPort scr_map;            /* the terrain plane as a port (set_plane_ports) */
 i32 map_size;               /* map_file.w * map_file.h, the squares in each plane */
-char sea_moves[270];        /* unused in the editor */
 i16 region_size[16];        /* the squares in each land region (1-15) Find Continents numbered */
 /* The squares the view shows across and down: (15 x 12) << map_scale, less for a map smaller
  * than that. */
@@ -449,7 +316,6 @@ i16 map_tile_inset_y;
 i16 map_area_base_x;        /* the first column and row the planes hold, in that mode */
 i16 map_area_base_y;
 DosPort scr_continent;      /* the continent plane as a port */
-char land_moves[270];       /* unused in the editor */
 i16 map_corner_x2;
 i16 map_corner_y2;
 i16 map_pixel_size_x;       /* the view's size in pixels (240 x 192) */

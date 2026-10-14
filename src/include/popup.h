@@ -3,8 +3,8 @@
  * Defined in ui/popup.c; theme.c's popups_normal sets the colours. popup_create makes an
  * empty popup, the popup_add_* functions add its parts, popup_layout sizes and places it,
  * popup_draw draws it and popup_exec runs it and returns the chosen key. popup_box and
- * popup_ask do all of that for one section of a text file (MAPEDIT.TXT in the editor);
- * pop, popi and the other short wrappers do it for the game's text file. popup.c describes
+ * popup_ask do all of that for one section of a text file (MAPEDIT.TXT in the editor).
+ * popup.c describes
  * the text file's sections, the markup and the popup flags.
  */
 #ifndef MAPEDIT_POPUP_H
@@ -15,8 +15,8 @@
 #include "sprite.h"
 
 #pragma pack(push, 2)
-/* popup_add_cursor's record: the caller's value b and pointer a; the other words are unused.
- * The popup only tests whether it has one, and nothing in the editor adds one. */
+/* A record attached to a popup: a value b and a pointer a; the other words are unused. The
+ * popup only tests whether it has one, and nothing attaches one. */
 typedef struct { i16 f0; i16 f2; i16 b; i16 f6; i16 f8; i16 fa; void *a; } DosAttach;
 /* An entry field: flags (80h: the text is still the preset one, shown selected, and typing
  * replaces it), the label's width and the field's (len 'W's) in pixels, the most characters
@@ -75,7 +75,7 @@ typedef struct { i16 spacing; i16 color; i16 hi_color; i16 alt_color; i16 c8; i1
  *   sel_item         the selected item
  *   first_sprite     the active sprite, despite the name
  *   items .. edits   the four lists of parts
- *   attach           popup_add_cursor's record, or 0
+ *   attach           the attached record: always 0
  *   dude, dude_name  the portrait's sprite and the name of its file
  *   f70              the last item, where Up wraps round to
  *   style            the text style
@@ -96,30 +96,13 @@ typedef struct {
 DosItem * Popup_find_item(i16 key, DosPopup *p);
 i16 font_height(DosFont *c);
 i16 hotkey_of(u8 *s);
-i16 pop(char *key);
-i16 pop2(char *key, i16 sel);
-i16 pop2f(char *key, i16 sel, i16 nation);
-i16 pop2i(char *key, i16 sel, i16 tribe);
-i16 pop2m(char *key, i16 sel, i16 dude);
-void pop_clear(void);
-i16 pop_get(i16 n);
-void pop_set(i16 bit, i16 on);
-i16 popf(char *key, i16 nation);
-i16 popi(char *key, i16 tribe);
-i16 popk(char *key);
-i16 popm(char *key, i16 dude);
-DosItem *popup_add_check(DosPopup *p, char *s, i16 key, i16 on);
-DosAttach *popup_add_cursor(DosPopup *p, void *a, i16 b);
 DosEdit *popup_add_entry(DosPopup *p, char *label, char *init, i16 len);
 DosItem *popup_add_item(DosPopup *p, char *s, i16 key);
-DosSprite *popup_add_sprite(DosPopup *p, SpriteSeries *sheet, i16 idx, char *label, i16 key);
 DosLine *popup_add_string(DosPopup *p, char *s);
 i16 popup_ask(char *txt, char *key, char *dflt, i16 max);
-i16 popup_ask_number(char *txt, char *key, i16 dflt);
 void popup_big_sprite(DosPopup *p);
 i16 popup_box(char *file, char *key, i16 sel);
 void popup_box_draw(DosPopup *p, i16 x, i16 y, i16 w, i16 h);
-void popup_country(i16 slot, i16 flag, i16 nation);
 DosPopup *popup_create(i16 size, DosFont *font);
 i16 popup_draw(DosPopup *p);
 void popup_draw_edits(i16 full, DosPopup *p);
@@ -131,21 +114,12 @@ void popup_dude_myr(DosPopup *p);
 void popup_dude_tribe(DosPopup *p);
 i16 popup_exec(DosPopup *p);
 void popup_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 sx, i16 sy, i16 c, char color, char color2, i16 d, i16 e);
-void popup_grey(DosPopup *p, i16 key, i16 on);
 void popup_help_draw(DosPopup *p);
-void popup_hilite(DosPopup *p, i16 key, i16 on);
 void popup_init(DosFont *font, i16 size);
 i16 popup_layout(DosPopup *p);
 void popup_load_dude(DosPopup *p);
-void popup_num(i16 slot, i32 v);
-void popup_off(void);
 void popup_parse_string(char *src, char *dst);
 i16 popup_read_check(DosPopup *p, i16 key);
-void popup_read_colors(void);
-void popup_release_all_grey(DosPopup *p);
-void popup_say(i16 slot, i16 word);
-void popup_say_string(i16 slot, char *s);
-void popup_set_active_item(DosPopup *p, i16 key);
 void popup_set_active_sprite(DosPopup *p, DosSprite *spr);
 void popup_set_dude_name(char *name, DosPopup *p);
 void popup_set_font(TextStyle *st, DosFont *font, i16 spacing, i16 color, i16 hi_color, i16 alt_color, i16 c8, i16 ca);
@@ -184,7 +158,6 @@ extern i16 popup_hiliting;
 extern i16 popup_indian;
 extern i16 popup_messenger;
 extern i16 popup_no_draw;
-extern i16 popup_number;
 extern i16 popup_pal;
 extern i16 popup_select_color_0;
 extern i16 popup_select_color_1;

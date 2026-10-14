@@ -3,7 +3,7 @@
  * The strings are kept end to end, each with its NUL, in one arena (strings_heap, a memory
  * block named "$STRING"). strings_store adds one and returns its number, counting from 0;
  * strings(n) finds string n by walking the n before it. Nothing is ever removed. The editor
- * makes the store at startup (strings_init); nothing calls strings_shrink.
+ * makes the store at startup (strings_init).
  */
 #include <string.h>
 #include "msc.h"
@@ -24,11 +24,6 @@ void strings_init(i32 size)
 {
     heap_create(9, &strings_heap, size, "$STRING");
     num_strings = 0;
-}
-/* Gives the store's unused space back to the memory pool; the store cannot grow after this. */
-void strings_shrink(void)
-{
-    heap_shrink(&strings_heap);
 }
 /* Copies s into the store and returns its number. A full store ends the program with an
  * error report (heap_get). */

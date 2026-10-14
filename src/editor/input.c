@@ -51,9 +51,7 @@ i32 cursor_clock;                        /* when the map cursor next blinks */
 i16 event_wait(void)
 {
     i16 running;
-    i32 now;
     i16 key;
-    i32 time;
 
     running = 1;
     key = 0;

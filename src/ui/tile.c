@@ -24,8 +24,6 @@
 /* tile_allocate -- allocate a sheet of n tiles (n * 256 bytes); 0 when memory runs out */
 char *tile_allocate(i16 n)
 {
-    char *p;
-    i32 size;
 
     return mem_get((i32)n << 8);
 }

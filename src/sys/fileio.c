@@ -4,13 +4,13 @@
  * the run-time (port/msc_runtime.c) looks them up in the game directory.
  *
  *   - Names: fileio_add_ext, fileio_new_ext and fileio_join_path build file names, always in
- *     upper case. env_get_path turns a data file's name into the path to open, env_open opens
- *     it, and fileio_exist (env_exist) tells whether it can be opened.
+ *     upper case. env_get_path turns a data file's name into the path to open, and env_open
+ *     opens it.
  *   - Blocks: fileio_fread_f and fileio_fwrite_f read and write blocks of any size. They take
  *     the stream's buffering off and go straight to the file handle, in chunks of at most
  *     0xf000 bytes.
- *   - Text lines: fileio_fix_lf_input and fileio_fix_lf_output take off and put back a line's
- *     '\n'; fileio_purge_trailing_spaces and fileio_purge_all_spaces trim spaces and tabs.
+ *   - Text lines: fileio_fix_lf_input takes off a line's '\n'; fileio_purge_trailing_spaces
+ *     and fileio_purge_all_spaces trim spaces and tabs.
  *   - env_catint appends a number with leading zeros.
  */
 #include "msc.h"
@@ -58,15 +58,6 @@ char * fileio_fix_lf_input(char *s)
     if (p)
         *p = 0;
     return p;
-}
-/* Appends "\n" to s. */
-void fileio_fix_lf_output(char *s)
-{
-    char *t;
-
-    t = s + msc__fstrlen(s);
-    *t++ = '\n';
-    *t = 0;
 }
 
 /* Nonzero makes fileio_fread_f read through fread and a 256-byte buffer instead of taking the
@@ -142,8 +133,6 @@ i32 fileio_fwrite_f(void *data, i32 size, i32 n, MSC_FILE *fp)
     char *p = data;
     i32 total;
     i32 done;
-    i16 unused_1, unused_2, unused_3, unused_4, unused_5;
-    i16 unused_6, unused_7, unused_8, unused_9, unused_10;
     i32 written;
     u16 got;
     u16 chunk;
@@ -278,37 +267,8 @@ MSC_FILE *env_open(char *name, char *mode)
     env_get_path(path, name);
     return msc_fopen(path, mode);
 }
-/* The length of fp's file in bytes. */
-i32 env_get_file_size(MSC_FILE *fp)
-{
-    return msc_filelength(fp->_file);
-}
 
-i16 env_search_mode = 0;                /* not read by anything in the editor */
 i16 env_special_path = 0;               /* nonzero: data files are under env_path (never set) */
 
 char env_path[60];                      /* the data files' directory, with env_special_path */
 
-/* Whether a data file can be opened: -1 when its path (env_get_path) opens for reading, 0 when
- * it does not. The name is copied first, cut to 79 characters. */
-i16 fileio_exist(char *name)
-{
-    char copy[80], path[0x51];
-    i16 h;
-    u16 i;
-    for (i = 0; i < sizeof copy - 1 && name[i]; i++)
-        copy[i] = name[i];
-    copy[i] = 0;
-    env_get_path(path, copy);
-    h = msc_open(path, 0);
-    if (h < 0)
-        return 0;
-    msc_close(h);
-    return -1;
-}
-
-/* fileio_exist under its other name. */
-i16 env_exist(char *name)
-{
-    return fileio_exist(name);
-}

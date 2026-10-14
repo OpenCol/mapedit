@@ -31,7 +31,6 @@ void sort_insertion(i16 n, i16 *vals, i32 *keys)
     i16 koffj;
     i32 key7;
     i16 flag6;
-    i16 ul;
     i16 bytesj;
     i16 i8;
     i16 voff;

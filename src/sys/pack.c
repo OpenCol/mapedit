@@ -155,7 +155,6 @@ i16 pack_a_packet(i16 method, i16 kind)
 
 /* The packer's state. */
 i16 pack_mode = 0;                        /* the compression type handed to the packers */
-char pack_zip_enabled = 0;                /* never set: the PKWARE codecs are not installed */
 char pack_pfab_enabled = 0;               /* -1 once pack_enable_pfab has run */
 i16 pack_strategy = 1;                    /* 1: the FAB codecs; otherwise implode/explode */
 FFPACK pack_implode_routine = 0;          /* PKWARE implode (never installed) */
@@ -173,19 +172,11 @@ FFIO pack_read_routine;                   /* the installed reader */
 FFIO pack_write_routine;                  /* the installed writer */
 i32 pack_write_count;                    /* bytes the writer has written */
 
-/* A caller-supplied work buffer for pack_data and a function it calls when it is done with it,
- * set together by pack_set_special_buffer; when the buffer is null pack_data allocates its own.
- * The buffer is a data block despite its function-pointer type. The editor never sets them. */
+/* A caller-supplied work buffer for pack_data and a function it calls when it is done with it;
+ * when the buffer is null pack_data allocates its own. The buffer is a data block despite its
+ * function-pointer type. Nothing sets them. */
 void (*pack_special_buffer)(void) = 0;
 void (*pack_special_function)(void) = 0;
-
-/* pack_set_special_buffer -- installs a work buffer and a done-hook for pack_data (see above);
- * nulls restore the default. */
-void pack_set_special_buffer(void (*a)(void), void (*b)(void))
-{
-    pack_special_buffer = a;
-    pack_special_function = b;
-}
 
 /* pack_data -- packs, unpacks or copies `bytes` bytes from src to dst.
  *   method     0 compress, 1 expand, anything else copy unchanged;
@@ -308,13 +299,6 @@ out:
     } else
         io_call_hook();
     return *count;
-}
-
-/* far_to_near -- in 1994, the offset half of a far pointer. Port: pointers have no segment, so
- * this returns the pointer's low 16 bits, which is what callers hand on as the offset. */
-u16 far_to_near(void *p)
-{
-    return (u16)(uintptr_t)p;
 }
 
 /* io_call_hook -- calls pack_special_function, if one is set. */

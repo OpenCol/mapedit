@@ -16,7 +16,7 @@
 #pragma pack(push, 2)
 typedef struct {                /* a directory entry: 10 bytes in the file */
     char type;                  /* the packing method: 0 stored, 1 FAB */
-    char flag;                  /* set by loader_set_priority; not read */
+    char flag;                  /* the entry's flag byte; not read */
     i32 size;                   /* bytes when unpacked */
     i32 packed;                 /* bytes in the file */
 } FFEntry;
@@ -39,6 +39,5 @@ typedef struct {
 i16 loader_open(char *how, i16 mode, FileIO *fh, char *name);
 i16 loader_close(FileIO *fh);
 i32 loader_read(i32 size, void *buf, i32 count, FileIO *fh);
-void loader_set_priority(i16 flag, FileIO *fh);
 
 #endif

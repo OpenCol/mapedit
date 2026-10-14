@@ -8,9 +8,9 @@
  * bits first, each row starting on a new byte. The two bits pick one of the four colours in
  * font_colors; a colour of FFh is transparent (the destination is left as it is).
  *
- * The editor loads its fonts once at startup (font_load) into the font pointers below, sets
- * the colours with font_set_colors, measures strings with font_string_width and draws them
- * with font_write.
+ * The editor loads its two fonts once at startup (font_load) into font_inter and menu_font,
+ * sets the colours with font_set_colors, measures strings with font_string_width and draws
+ * them with font_write.
  */
 #include <string.h>
 
@@ -75,13 +75,9 @@ void *font_load(char *name)
     return result;
 }
 
-/* The loaded fonts. The editor loads font_inter (FONTINTR) and menu_font (FONTTINY,
- * declared elsewhere); the others stay 0. */
+/* The interface font, loaded from FONTINTR. The other font, menu_font (FONTTINY), is in
+ * theme.c. */
 void *font_inter = 0;                 /* the interface font */
-void *font_main = 0;
-void *font_conv = 0;
-void *font_menu = 0;
-void *font_misc = 0;
 
 /* Returns the width in pixels of string s: the sum of its characters' widths, plus `spacing`
  * after each character that has a width and is not the last. Returns 0 for an empty string.

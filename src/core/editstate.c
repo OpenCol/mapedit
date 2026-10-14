@@ -24,8 +24,6 @@
 
 i16 map_changes = 0;        /* the map has changed since it was loaded or saved */
 
-i16 small_map_needs_update = 0;     /* unused */
-
 i16 fill_radius = 0;        /* the brush: paints a (2r + 1)-square block, r = 0-2 */
 
 i16 map_selected = 0;       /* the command line named the map to edit (M:file) */
@@ -52,8 +50,6 @@ char selected_right_mouse_change = 0;
 
 void *map_undo_memory = 0;  /* the undo buffer: a copy of the terrain plane */
 
-i16 map_undo_ems_handle = -1;       /* unused */
-
 i16 cursor_x;               /* the cursor square */
 
 i16 cursor_y;
@@ -64,11 +60,7 @@ i16 cursor_on;              /* the blinking cursor square is drawn at the moment
  * into the undo buffer. Only the terrain is saved; features and continents are not. */
 void make_undo(void)
 {
-    i16 result;
-    i32 size;
-    i16 n;
 
-    result = -1;
     if (undo_available) {
         msc__fmemcpy(map_undo_memory, map, 0x2ee0);
         undo_active = 1;
@@ -79,11 +71,7 @@ void make_undo(void)
  * restores the same state again. */
 void perform_undo(void)
 {
-    i16 result;
-    i32 size;
-    i16 n;
 
-    result = -1;
     if (undo_active)
         msc__fmemcpy(map, map_undo_memory, 0x2ee0);
 }

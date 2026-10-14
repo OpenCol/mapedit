@@ -3,9 +3,8 @@
  * Defined in sys/text.c and sys/strings.c (strings*). A text file is divided into sections,
  * each opened by an "@NAME" line. One file is open at a time and read forward: text_open
  * finds a section, text_get reads its next line into text_buffer and text_item_get takes the
- * line's comma-separated items one by one, which text_item_number, text_item_binary and
- * text_item_string read as a number, binary digits or a string for the string store.
- * text_search reads one line of a section in one call.
+ * line's comma-separated items one by one, which text_item_number and text_item_string read
+ * as a number or as a string for the string store.
  *
  * The string store keeps the names and labels read from the text files end to end in one
  * arena; strings_store adds one and returns its number, and strings(n) finds it again.
@@ -16,18 +15,13 @@
 #include "msc.h"
 
 void strings_init(i32 size);
-void strings_shrink(void);
 i16 strings_store(char *s);
 void text_close(void);
 char *text_get(void);
-u8 text_item_binary(void);
 char *text_item_get(void);
 i16 text_item_number(void);
 i16 text_item_string(void);
-void text_next_line(void);
 i16 text_open(char *name, char *key);
-i16 text_search(char *name, char *key, i16 n);
-i16 text_string(void);
 
 extern i16 num_strings;         /* strings in the store */
 extern Arena strings_heap;      /* the store: the strings, end to end */

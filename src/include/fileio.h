@@ -9,10 +9,8 @@
 
 #include "msc.h"
 
-i16 fileio_exist(char *name);
 void fileio_purge_trailing_spaces(char *s);
 char * fileio_fix_lf_input(char *s);
-void fileio_fix_lf_output(char *s);
 i32 fileio_fread_f(void *data, i32 size, i32 n, MSC_FILE *fp);
 i32 fileio_fwrite_f(void *data, i32 size, i32 n, MSC_FILE *fp);
 void fileio_add_ext(char *name, char *ext);

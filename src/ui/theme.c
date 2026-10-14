@@ -26,8 +26,6 @@ u8 shadow_color = 0x2f;              /* glyph pixels of value 3 */
 
 u8 select_color = 0x8a;              /* the bar behind the selected item */
 
-u8 notice_color = 0x95;              /* not in COLORS and not read by the editor */
-
 u8 border0 = 0x86;                   /* the popup frame's outer box */
 
 u8 border1 = 0x80;                   /* its inner top and right lines */
@@ -35,8 +33,6 @@ u8 border1 = 0x80;                   /* its inner top and right lines */
 u8 border2 = 0x8a;                   /* its inner left and bottom lines */
 
 DosFont *menu_font = 0;                     /* the small font (FONTTINY) of menus and panels */
-
-char label[50];                           /* unused */
 
 /* Sets the popup library's colours, border, backdrop tile (scr_back) and palette flag from
  * the editor's colours above. */

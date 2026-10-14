@@ -26,8 +26,7 @@
  * The renderer is shared with the game. Resources and Lost City Rumours never appear in the
  * editor (both follow from a seed that is 0 here); the colony view (map_colony_mode), the
  * simplified terrain view (map_view_base_terrain) and map_high_memory_mode (a map too big
- * for the planes, which map_check refuses) are never entered; range_scan, nb_mask_p1,
- * draw_map_icon2, generate_colony_map, map_init and show_map_gradually are not called.
+ * for the planes, which map_check refuses) are never entered.
  */
 #include <stdlib.h>
 
@@ -134,7 +133,6 @@ i16 coast_scan(void)
     i16 j;
     u8 ter;
     i16 k;
-    i16 dummy;
 
     scan_flags = scan_index = 0;
     for (i = 0; i < 4; i++)
@@ -166,32 +164,6 @@ i16 coast_scan(void)
 
     }
     gen_map_tile = terrain_fix_2(gen_base_tile);
-    return scan_index;
-}
-/* Adds n to scan_index when the terrain byte at offset off from the scan square lies in
- * scan_greater..scan_less. */
-void range_count(i16 off, i16 n)
-{
-    u8 c;
-
-    c = scan_map[off];
-    if (c >= scan_greater && c <= scan_less)
-        scan_index += n;
-}
-/* The orthogonal neighbours whose terrain byte lies in lo..hi, as a direction mask (N 8,
- * S 4, W 2, E 1); 0 when the zoom is above maxzoom. */
-i16 range_scan(char lo, char hi, i16 maxzoom)
-{
-    scan_index = 0;
-    if (map_scale > maxzoom)
-        goto out;
-    scan_greater = lo;
-    scan_less = hi;
-    range_count(-map_area_size_x, 8);
-    range_count(map_area_size_x, 4);
-    range_count(-1, 2);
-    range_count(1, 1);
-out:
     return scan_index;
 }
 /* The orthogonal neighbours whose terrain byte has a bit of mask set, as a direction mask
@@ -273,26 +245,6 @@ i16 nb_land_seam(i16 a, i16 maxzoom)
 out:
     return n;
 }
-/* The orthogonal neighbours whose feature byte (plane 1) has a bit of mask set, as a
- * direction mask; 0 when the zoom is above maxzoom. */
-i16 nb_mask_p1(i16 mask, i16 maxzoom)
-{
-    i16 n;
-
-    n = 0;
-    if (map_scale > maxzoom)
-        goto out;
-    if (scan_feature[-map_area_size_x] & mask)
-        n += 8;
-    if (scan_feature[map_area_size_x] & mask)
-        n += 4;
-    if (scan_feature[-1] & mask)
-        n += 2;
-    if (scan_feature[1] & mask)
-        n++;
-out:
-    return n;
-}
 /* All eight neighbours whose feature byte has a bit of mask set: bit i for direction i of
  * move_x/move_y (N, NE, E ... NW). 0 when the zoom is above maxzoom. */
 i16 nb8_mask_p1(i16 mask, i16 maxzoom)
@@ -343,17 +295,6 @@ void draw_map_tile(i16 tile)
     else
         tile_draw_scale(s, tile, &scr_orig, gen_tile_x, gen_tile_y, map_scale);
 }
-/* draw_map_icon, drawing only onto pixels that are 0. */
-void draw_map_icon2(i16 icon)
-{
-    void *s;
-
-    s = tiles;
-    if (map_sprite_scale >= 100)
-        sprite_draw_black(icon, s, &scr_orig, g_icon_dx + gen_tile_x - 8, g_icon_dy + gen_tile_y - 15);
-    else
-        sprite_draw_scaled_black(icon, s, &scr_orig, gen_tile_x, gen_tile_y, map_sprite_scale);
-}
 /* draw_map_tile, drawing only onto pixels that are 0: the tile shows through the holes an
  * icon has left (a seam's or a coast's). */
 void draw_map_tile2(i16 tile)
@@ -385,7 +326,6 @@ void draw_seams(i16 hidden_only, i16 no_scan, i16 always)
 {
     i16 i_h;
     i16 dx_e;
-    u8 feat_b;
     i16 out_k;
     i16 dy_g;
     u8 t;
@@ -423,7 +363,6 @@ void draw_seams(i16 hidden_only, i16 no_scan, i16 always)
         t = scan_map[off_l] & 0x1f;
         if (t >= 0x18) ; else t &= 7;
         cls_i = terrain_fix_2(t);
-        feat_b = scan_feature[off_l];
         site_f = scan_site[off_l];
         hid = (map_player_mask != 0 && !(map_player_mask & site_f)) || out_k ? 1 : 0;
         if (hidden_only != 0 && hid != 0)
@@ -727,35 +666,14 @@ void generate_terrain_map(i16 nation)
     }
     generate_terrain_map_region(map_corner_x, map_corner_y, map_view_size_x, map_view_size_y, nation);
 }
-/* Renders the view in colony mode `mode` (the game's colony screen). */
-void generate_colony_map(i16 nation, i16 mode)
-{
-    map_colony_mode = mode;
-    generate_terrain_map(nation);
-    map_colony_mode = 0;
-}
-/* Clears the owner of every square (owner -1). */
-void map_init(void)
-{
-    i16 x;
-    i16 y;
-    i16 spare;
-    i16 dummy;
-
-    for (y = 0; y < map_file.h; y++)
-        for (x = 0; map_file.w > x; x++)
-            owner_set(x, y, -1);
-}
 
 /* The renderer's state: where it is and what the current square holds. */
-u8 scan_greater;               /* range_scan's lower bound */
 u8 *scan_feature;          /* the current square in the feature plane (1) */
 i16 gen_tile_x;                           /* the current square's centre column in scr_orig */
 i16 gen_tile_y;                           /* the current square's bottom row in scr_orig */
 u8 gen_feature_tile;           /* the current square's feature byte */
 u8 gen_base_tile;              /* its terrain byte (a coast's: the land it is drawn on) */
 i16 gen_variation;                        /* alternates along each row; not read */
-u8 scan_less;                  /* range_scan's upper bound */
 u8 *scan_site;             /* the current square in the site plane (3) */
 u8 map_player_mask;            /* the viewing nation's site-plane bit; 0 sees everything */
 u8 gen_map_tile;               /* the terrain that shows: terrain_fix_2(gen_base_tile) */
@@ -763,7 +681,7 @@ u8 scan_flags;                 /* coast_scan's land neighbours, a bit per direct
 u8 *scan_map;              /* the current square in the terrain plane (0) */
 i16 scan_x;                               /* the current square */
 i16 scan_y;
-u8 scan_index;                 /* a neighbour count (coast_scan) or mask (range_scan) */
+u8 scan_index;                 /* coast_scan's count of land neighbours */
 u8 gen_site_tile;              /* the current square's site byte */
 
 /* Redraws the squares (x, y, w, h) of the view: clips them, renders them for nation -1,
@@ -788,14 +706,6 @@ void draw_map_2(void)
     show_mini(1, -1);
 }
 
-/* Clips a corner pair, (*x0, *y0) and (*x1, *y1) inclusive, to the view's squares. */
-void conform_to_view(i16 *x0, i16 *y0, i16 *x1, i16 *y1)
-{
-    *x0 = max(*x0, map_corner_x);
-    *y0 = max(*y0, map_corner_y);
-    *x1 = min(*x1, map_corner_x2);
-    *y1 = min(*y1, map_corner_y2);
-}
 /* Clips the region (*x, *y, *w, *h) to the view's squares; an empty result has w or h 0. */
 void conform_to_view_size(i16 *x, i16 *y, i16 *w, i16 *h)
 {
@@ -853,37 +763,6 @@ void show_map_region(i16 x, i16 y, i16 w, i16 h)
     mouse_video_update(px, py, px, py, pw, ph);
 }
 
-/* Reveals the view: copies it from the work screen to the display a square at a time, in
- * the pseudo-random order of a 16-bit Galois LFSR (taps B400h) run for 65,536 steps, each
- * value below the number of squares naming a square. A small view (180 squares or fewer)
- * waits a 600 Hz tick between squares. Zeroes the 600 Hz counter first.
- * Port: the original is inline assembly; this is its C equivalent. */
-void show_map_gradually(void)
-{
-    u16 lfsr = 1, total, pos, count = 0;
-    i32 oldt = 0;
-    total = (u16)(map_view_size_y * map_view_size_x);
-    timer_600_low = 0;
-    for (;;) {
-        lfsr = (u16)((lfsr & 1) ? (lfsr >> 1) ^ 0xb400 : lfsr >> 1);
-        pos = (u16)(lfsr - 1);
-        if (pos < total) {
-            i16 col = (i16)(pos % (u16)map_view_size_x), row = (i16)(pos / (u16)map_view_size_x);
-            i16 sx = (i16)((col + map_tile_inset_x) * map_tile_size_x);
-            i16 sy = (i16)((row + map_tile_inset_y) * map_tile_size_y + 8);
-            mouse_video_update(sx, sy, sx, sy, map_tile_size_x, map_tile_size_y);
-            if (total <= 0xb4) {
-                if (oldt != 0)
-                    while (timer_read_600() - oldt < 1)
-                        ;
-                oldt = timer_read_600();
-            }
-        }
-        if (++count == 0)
-            break;
-    }
-}
-
 /* Redraws the whole screen: clears it, then draws the menu bar, the map with the minimap,
  * and the info window. */
 void main_screen_refresh(void)
@@ -900,12 +779,8 @@ void main_screen_refresh(void)
  * (icon 0x13 + map_scale) over it if the cursor is now on, and shows the square. */
 void cursor_update(void)
 {
-    i16 cx;
     i16 sx;
-    i16 cy;
     i16 sy;
-    i16 miny;
-    i16 maxx;
 
     info_window_draw();
     cursor_on = !cursor_on;

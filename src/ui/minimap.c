@@ -68,11 +68,6 @@ void get_tile_colors(void)
     terrain_colors[TERRAIN_MOUNTAINS] = get_a_color(0x21);
     terrain_colors[TERRAIN_HILLS] = get_a_color(0x31);
 }
-/* The minimap needs no memory of its own: returns 0 (success). */
-i16 allocate_mini(void)
-{
-    return 0;
-}
 /* Places the minimap: its top-left square 28 columns left of and 19 rows above the view's
  * centre, kept inside the map's border. */
 void generate_mini(void)
@@ -91,14 +86,10 @@ void generate_mini(void)
 void blast_mini_region(i16 x, i16 y, i16 cols, i16 rows, i16 viewer, i16 white)
 {
     u8 *p0;
-    u8 *p1;
     u8 *p3;
-    u8 *p2;
     u8 *dst;
     u8 terrain;
     u8 colour;
-    u8 feature;
-    u8 t2;
     u8 site;
     i16 mapw;
     i16 portw;
@@ -111,17 +102,13 @@ void blast_mini_region(i16 x, i16 y, i16 cols, i16 rows, i16 viewer, i16 white)
     else
         mask = 0;
     p0 = map_loc(x, y);
-    p1 = feature_loc(x, y);
     p3 = site_loc(x, y);
-    p2 = continent_loc(x, y);
     dst = buffer_pointer(&scr_work, x - mini_x + 0xfc, y - mini_y + 9);
     mapw = map_file.w;
     portw = scr_work.w;
     for (row = 0; row < rows; row++) {
         for (col = 0; col < cols; col++) {
             terrain = *p0++;
-            t2 = *p2++;
-            feature = *p1++;
             site = *p3++;
             if (white) {
                 colour = 15;
@@ -141,8 +128,6 @@ void blast_mini_region(i16 x, i16 y, i16 cols, i16 rows, i16 viewer, i16 white)
             *dst++ = colour;
         }
         p0 += mapw - cols;
-        p1 += mapw - cols;
-        p2 += mapw - cols;
         p3 += mapw - cols;
         dst += portw - cols;
     }
@@ -151,29 +136,6 @@ void blast_mini_region(i16 x, i16 y, i16 cols, i16 rows, i16 viewer, i16 white)
 void blast_mini(i16 viewer)
 {
     blast_mini_region(mini_x, mini_y, 0x38, 0x27, viewer, 0);
-}
-/* Redraws the squares (x, y, w, h) on the minimap, clipped to what it shows, and the view's
- * rectangle over them; with `update` set, copies those squares to the screen (the rectangle's
- * other sides only reach the screen with a later update). Re-places the minimap first, but
- * draws only the region, so a minimap that has moved shows the change only there. */
-void show_mini_region(i16 x, i16 y, i16 w, i16 h, i16 update, i16 viewer, i16 white)
-{
-    i16 x0;
-    i16 y0;
-
-    generate_mini();
-    x0 = max(x, mini_x);
-    w = max(min(x + w - 1, mini_x + 55) - x0 + 1, 0);
-    y0 = max(y, mini_y);
-    h = max(min(y + h - 1, mini_y + 38) - y0 + 1, 0);
-    if (w == 0 || h == 0)
-        return;
-    blast_mini_region(x0, y0, w, h, viewer, white);
-    buffer_draw_box(max(mini_x, map_corner_x) - mini_x + 0xfc, max(mini_y, map_corner_y) - mini_y + 9,
-               min(mini_x + 55, map_corner_x2) - mini_x + 0xfc, scr_work,
-               min(mini_y + 38, map_corner_y2) - mini_y + 9, 15);
-    if (update)
-        mouse_video_update(x0 - mini_x + 0xfc, y0 - mini_y + 9, x0 - mini_x + 0xfc, y0 - mini_y + 9, w, h);
 }
 /* Redraws the whole minimap: re-places it, fills its corner of the screen with the backdrop
  * tile (or black without one), draws its frame, the squares as `viewer` sees them and the

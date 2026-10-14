@@ -3,8 +3,9 @@
  * In 1994, timer_install reprograms the PIT to divisor 7A8h (1193182 / 1960 = 608.8
  * interrupts a second) and takes INT 8. Its handler counts every interrupt in timer_600_low;
  * every tenth it counts timer_60_low (60.9 a second) and runs the low-priority routine
- * (TIMER_ACTIVATE_LOW_PRIORITY), and every thirtieth it chains to the BIOS's handler, whose
- * tick (and INT 1Ch: keys.c's keypad mouse) then runs 20.3 times a second instead of 18.2.
+ * TIMER_LOW_ROUTINE when TIMER_LOW_PRIORITY is set (nothing sets either), and every thirtieth
+ * it chains to the BIOS's handler, whose tick (and INT 1Ch: keys.c's keys_tick) then runs 20.3
+ * times a second instead of 18.2.
  * The handler's sound steps are not reproduced: the editor plays no sound.
  *
  * The port has no interrupts. timer_sync() brings everything up to the host clock -- the
@@ -43,47 +44,13 @@ i32 timer_read(void)
     timer_sync();   /* Port */
     return *timer_address;
 }
-/* timer_read_dos -- the BIOS tick count, whether or not the timer is installed. Port: always
- * 18.2 Hz (bios_sync derives it from the host clock); in 1994 it ran at 20.3 Hz while the
- * timer was installed. Unused. */
-i32 timer_read_dos(void)
-{
-    timer_sync();   /* Port */
-    return *(i32 *)(msc_bda + 0x006c);
-}
-/* timer_read_600 -- the 608.8 Hz count. */
-i32 timer_read_600(void)
-{
-    timer_sync();   /* Port */
-    return timer_600_low;
-}
-/* timer_read_60 -- the 60.9 Hz count. Unused (timer_read returns the same count). */
-i32 timer_read_60(void)
-{
-    timer_sync();   /* Port */
-    return timer_60_low;
-}
-/* timer_hack -- installs the timer, polls the sound driver, resets it and removes the timer
- * again. Unused. */
-void timer_hack(void)
-{
-    timer_install();
-    sound_manager();
-    sound_driver_null();
-    timer_remove();
-}
-
-/* Unused. */
-i16 timer_rate = 20;
-i16 timer_service_active = 0;
 
 /* The counters and the handler's state. */
 i32 timer_600_low;                      /* every interrupt: 608.8 Hz */
 i32 timer_60_low;                       /* every tenth: 60.9 Hz */
 i16 TIMER_SOUND_ON, TIMER_NOISE_ON;     /* the sound flags; set, never read */
-i16 TIMER_LOW_PRIORITY, TIMER_LOW_SEMAPHORE, TIMER_LOW_STACKING, TIMER_LOW_DEFERRED;
-void (*TIMER_LOW_ROUTINE)(void);        /* run every tenth interrupt when TIMER_LOW_PRIORITY */
-
+i16 TIMER_LOW_PRIORITY, TIMER_LOW_SEMAPHORE;
+void (*TIMER_LOW_ROUTINE)(void);        /* run every tenth interrupt when TIMER_LOW_PRIORITY; never set */
 
 static u16 divisor;                     /* 0: the BIOS's 65536 */
 static int installed;
@@ -127,8 +94,8 @@ void timer_sync(void)
     if (installed) {
         uint64_t now = host_ms(), due;
         if (timer_600_low != last_600) {
-            /* the program set the counter itself (show_map_gradually zeroes it): count on
-             * from there */
+            /* something other than this loop set the counter: count on from its new
+             * value */
             base_ms = now;
             base_count = (u32)timer_600_low;
         }
@@ -176,21 +143,6 @@ void timer_remove(void)
     installed = 0;
 }
 
-/* TIMER_SET_SOUND_FLAG -- turns the handler's sound steps on or off. */
-void TIMER_SET_SOUND_FLAG(i16 on)
-{
-    TIMER_SOUND_ON = on;
-    TIMER_NOISE_ON = 0;
-}
-
-/* TIMER_ACTIVATE_LOW_PRIORITY -- installs routine to run at 60.9 Hz; null removes it. */
-void TIMER_ACTIVATE_LOW_PRIORITY(void (*routine)(void))
-{
-    TIMER_LOW_ROUTINE = routine;
-    TIMER_LOW_SEMAPHORE = TIMER_LOW_STACKING = TIMER_LOW_DEFERRED = 0;
-    TIMER_LOW_PRIORITY = routine != 0;
-}
-
 /* timer_idle -- the port's: a UI loop has nothing to do until the next input or tick. The
  * 1994 loops polled flat out, which a DOS machine could afford; a millisecond's sleep keeps
  * them responsive at a fraction of the CPU. */
@@ -199,6 +151,3 @@ void timer_idle(void)
     host_idle(1);
 }
 
-/* The copy-protection flag: the port has none. */
-void TIMER_SET_COPY_PROTECT(i16 on) { (void)on; }
-i16 TIMER_GET_COPY_PROTECT(void) { return 0; }

@@ -1,4 +1,4 @@
-/* mouse.h -- the mouse: the driver, the software cursor, strokes, the keypad as a mouse.
+/* mouse.h -- the mouse: the driver, the software cursor, strokes.
  *
  * Defined in sys/mouse.c. mouse_init starts the mouse with the cursor hidden; mouse_show and
  * mouse_hide nest. The cursor is a 16 x 16 image the library draws itself onto the screen,
@@ -8,27 +8,14 @@
  *
  * The UI loops read the mouse once a round: mouse_begin_cycle takes the position and the
  * buttons and derives the stroke state below (a stroke runs from a button going down to all
- * buttons coming up), and mouse_end_cycle closes the round. mouse_keypad_move is how the
- * keypad (keys.h) moves the cursor. The double-click entry points do nothing in the port.
+ * buttons coming up), and mouse_end_cycle closes the round. mouse_keypad_move is how
+ * keys_tick (keys.h) moves the cursor for the keypad. The double-click entry points do nothing in the port.
  */
 #ifndef MAPEDIT_MOUSE_H
 #define MAPEDIT_MOUSE_H
 
 #include "msc.h"
 
-void MOUSE_BEGIN_DOUBLE(i16 a, i16 b, i16 c, i16 d);
-void MOUSE_CHANGE_CURSOR_BEGIN(void);
-void MOUSE_CHANGE_CURSOR_END(void);
-void MOUSE_DISABLE_SCALE(void);
-void MOUSE_END_DOUBLE(void);
-void MOUSE_FORCE(i16 x, i16 y);
-i16 MOUSE_GET_VIDEO_MODE(void);
-void MOUSE_HARD_CURSOR_MODE(i16 mode, char *colors);
-void MOUSE_HORIZ_BOUND(i16 lo, i16 hi);
-void MOUSE_SCREEN_SWAP(i16 mode);
-void MOUSE_SET_HOTSPOT(i16 x, i16 y);
-void MOUSE_TIMING(void);
-void MOUSE_VERT_BOUND(i16 lo, i16 hi);
 void mouse_check_double(void);
 void mouse_double_freedom(i16 n);
 void mouse_freeze(void);
@@ -45,7 +32,6 @@ void mouse_show(void);
 void mouse_thaw(void);
 void mouse_begin_cycle(i16 check);
 void mouse_end_cycle(i16 release, i16 wait);
-i16 mouse_in_box(i16 x0, i16 y0, i16 x1, i16 y1);
 void mouse_init_cycle(void);
 void mouse_video_init(void);
 void mouse_video_update(i16 sx, i16 sy, i16 dx, i16 dy, i16 w, i16 h);

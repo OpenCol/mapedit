@@ -13,12 +13,8 @@
 
 void screen_dominant_mode(i16 mode);
 
-extern DosPort scr_depth;       /* unused */
-extern DosPort scr_main;        /* unused */
 extern DosPort scr_orig;        /* the map view as rendered, without overlays */
-extern DosPort scr_special;     /* unused */
 extern DosPort scr_video;       /* the screen */
-extern DosPort scr_walk;        /* unused */
 extern DosPort scr_work;        /* what goes to the screen: the map plus overlays */
 
 #endif

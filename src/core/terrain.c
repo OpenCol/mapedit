@@ -56,17 +56,6 @@ i16 terrain_is_ocean(i16 x, i16 y)
     return terrain == 0x19 || terrain == 0x1a;
 }
 
-/* Is the square's type a forest (8-23)? Like terrain_is_ocean it does not test the
- * coordinates, and it reads the low five bits even on a hilly square. */
-i16 terrain_is_forest(i16 x, i16 y)
-{
-    i16 terrain;
-
-    terrain = map_get(x, y);
-    terrain = (u8)(terrain & 0x1f);
-    return (terrain >= 8 && terrain < 0x10) || (terrain >= 0x10 && terrain < 0x18);
-}
-
 TerrainInfo terrain[29];    /* one row of NAMES.TXT per terrain type */
 
 /* The five OTHER_NAMES words of NAMES.TXT (string numbers); [0] is the word a forest's name
@@ -94,7 +83,6 @@ void load_terrain(register i16 n)
 void load_data(void)
 {
     char name[16] = "names";
-    char labels[16] = "labels";
     i16 i;
     TerrainInfo *p;
     i16 *q;

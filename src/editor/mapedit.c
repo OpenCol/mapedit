@@ -50,11 +50,9 @@
 #include "records.h"
 
 /* Settings of the game's engine that the editor keeps but does not use: editor_main clears
- * mads_mode and file_set, and nothing reads any of the four. */
+ * mads_mode and file_set, and nothing reads either. */
 i16 mads_mode = 0;
 i16 file_set = 0;
-i16 load_error = 0;
-void *game_menu = 0;
 
 /* Builds the menu bar from MAPMENU.TXT: the titles Editor (bar id 1), View (2), Map (6) and
  * Help (7, placed at the right), their items in the file's order with the command ids

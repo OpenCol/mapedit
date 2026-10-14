@@ -49,7 +49,6 @@ i16 map_find_continents(void)
     i16 lo;
     i16 i1;
     i16 x1;
-    i16 unused4;
     i16 hi6;
     i16 d2;
     i16 cid5;
@@ -63,7 +62,6 @@ i16 map_find_continents(void)
     u8 *dst4;
 
     overflow = 0;
-    unused4 = 0;
     sizes = sprite_base;
     lab = (u16 *)(sizes + 0x4000);
     buffer_fill(0, scr_continent);

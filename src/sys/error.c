@@ -54,8 +54,6 @@ char error_string[80] = "";                     /* an extra line the error repor
  * buffer held (no caller asks for that). */
 i16 error_read_line(char *dest, char *name, i16 n)
 {
-    i16 unused;
-    i16 pad;
     char line[36];
     i16 err;
     i16 k;
@@ -87,12 +85,10 @@ done:
 void error_dump_file(char *name)
 {
     char line[80];
-    i16 err;
     i16 loop;
     i16 k;
     MSC_FILE *handle;
 
-    err = -1;
     handle = env_open(name, "rt");
     if (handle != NULL) {
         loop = -1;
@@ -118,13 +114,11 @@ void error_dump_file(char *name)
  * texts come from ERRORS.DB and MODULES.DB, the numbers when a text is missing. */
 void error_report(i16 code, i16 level, i16 module, i32 data1, i32 data2)
 {
-    volatile i16 unused;
     char d1[12];
     char d2[12];
     char emsg[40];
     char mname[40];
 
-    unused = 0;
     if (error_abort <= level) {
         msc_itoa(code, emsg, 10);
         msc_itoa(module, mname, 10);

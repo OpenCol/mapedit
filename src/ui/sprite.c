@@ -370,8 +370,8 @@ static IconRec *frame(SpriteSeries *sheet, i16 n)
  * at (x, y), clipped to the port. Only the columns inside the clip are drawn, and only they
  * move the destination; a row cut short by the clip skips its remaining bytes up to its FFh.
  * The clip arithmetic, that of a mirrored frame included, follows the original step for
- * step. With `under` set (sprite_draw_black) a pixel is written only where the destination
- * is still 0, under what is drawn already; the destination moves either way. */
+ * step. With `under` set a pixel is written only where the destination is still 0, under
+ * what is drawn already; the destination moves either way. Every caller passes 0. */
 static void draw(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, int under)
 {
     i16 dir = 1, maxx1 = (i16)(port->w - 1), maxy = (i16)(port->h - 1);
@@ -512,16 +512,11 @@ void sprite_draw(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y)
     draw(icon, sheet, port, x, y, 0);
 }
 
-/* Draws a frame only onto pixels that are 0. */
-void sprite_draw_black(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y)
-{
-    draw(icon, sheet, port, x, y, 1);
-}
-
 /* Draws a frame shrunk to `scale` percent. One table over the frame's larger dimension,
  * used for both rows and columns, keeps a source row or column when an accumulator (from
  * 50, plus scale each step) reaches 100. The output is centred on x and its bottom row is y.
- * Dropped pixels move only the source; kept ones are clipped and drawn as draw's are.
+ * Dropped pixels move only the source; kept ones are clipped and drawn as draw's are (`under`
+ * included; every caller passes 0).
  * Port: the table has 320 entries and is filled only that far. */
 static void draw_scaled(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale, int under)
 {
@@ -672,8 +667,3 @@ void sprite_draw_scaled(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16
     draw_scaled(icon, sheet, port, x, y, scale, 0);
 }
 
-/* Draws a frame shrunk to scale percent, only onto pixels that are 0. */
-void sprite_draw_scaled_black(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale)
-{
-    draw_scaled(icon, sheet, port, x, y, scale, 1);
-}

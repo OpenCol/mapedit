@@ -72,7 +72,6 @@ void selection_screen_display(void)
     i16 y;
     i16 j;
     i16 base;
-    i16 mark;
     i16 tile;
     i16 hilite;
 
@@ -84,12 +83,10 @@ void selection_screen_display(void)
             y = r * 0x11 + 1;
             switch (r) {
             case 0:
-                mark = 0;
                 base = 0;
                 tile = j;
                 break;
             default:
-                mark = 0;
                 base = 8;
                 tile = j;
                 if (j == 1)
@@ -231,7 +228,6 @@ void parse_spot(i16 n)
 i16 selection_mouse(void)
 {
     i16 running;
-    i16 a;
 
     running = 1;
     if (mouse_any_stroke)

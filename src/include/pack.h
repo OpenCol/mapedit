@@ -41,7 +41,6 @@ u16 pack_write_file(void *data, u16 *n);
 i16 pack_a_packet(i16 method, i16 kind);
 i16 pack_raw_copy(void);
 i32 pack_data(i16 method, i16 from_file, i16 to_file, i32 bytes, void *src, void *dst);
-void pack_set_special_buffer(void (*a)(void), void (*b)(void));
 void pack_enable_pfab(void);
 
 extern char *pack_read_memory_ptr;
@@ -65,11 +64,9 @@ extern i16 pack_strategy;                /* 1: the FAB codec; else implode/explo
 extern i32 pack_write_count;
 extern FFIO pack_write_routine;
 extern i32 pack_write_size;
-extern char pack_zip_enabled;            /* never set: no PKWARE codec */
-/* a work buffer and a hook for pack_data, from pack_set_special_buffer; never set */
+/* a work buffer and a hook for pack_data; never set */
 extern void (*pack_special_buffer)(void);
 extern void (*pack_special_function)(void);
-u16 far_to_near(void *p);
 void io_call_hook(void);
 u16 pack_read_memory(void *data, u16 *n);
 u16 pack_write_memory(void *data, u16 *n);

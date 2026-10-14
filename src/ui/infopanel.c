@@ -89,7 +89,6 @@ void info_terrain_2(i16 n, i16 *x, i16 *y)
 void info_window_draw(void)
 {
     char tmp[0x50];
-    i16 type;
     i16 x;
     i16 y;
     i16 flag;
@@ -109,7 +108,6 @@ void info_window_draw(void)
     write_string("Terrain at cursor:", x, y);
     y += menu_font->height + 1;
     under = map_get(cursor_x, cursor_y);
-    type = (u8)(under & 0x1f);
     info_terrain(terrain_type(under), &x, &y);
     if (under & 0x40) {
         if (under & 0x80)

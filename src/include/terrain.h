@@ -54,7 +54,7 @@
 #define MAP0_MOUNTAINS      0x80    /* with MAP0_HILLY: mountains rather than hills */
 #define MAP0_MAJOR_RIVER    0x80    /* the same bit with MAP0_RIVER: a major river, not a minor */
 
-/* ---- plane 1 (feature): a bitfield written through feature_set -------------------------- */
+/* ---- plane 1 (feature): a bitfield (feature_get, feature_loc) --------------------------- */
 #define MAP1_UNIT           0x01    /* a unit stands here */
 #define MAP1_SETTLEMENT     0x02    /* a colony or a village, which also counts as a road */
 #define MAP1_DEPLETED       0x04    /* the square's resource is used up (resource_at) */

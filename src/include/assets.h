@@ -11,10 +11,8 @@
 #include "msc.h"
 extern void *cursor;            /* CURSOR's sprite series (loaded, never drawn) */
 extern void *icons;             /* ICONS: the map's cursor square at each zoom */
-extern void *buildings;         /* unused */
 extern DosPort *main_tile;      /* the tile backgrounds are filled with */
 extern DosPort scr_back;        /* the 32 x 24 wood backdrop tile (WOODTILE) */
-extern DosPort scr_slide;       /* unused */
 void *load_terrain_series(char *name);
 i16 load_terrain_tiles(void);
 

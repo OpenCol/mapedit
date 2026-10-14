@@ -1,23 +1,21 @@
-/* palette.c -- the palette: allocating colours, shadows, the stock colours, the DAC, cycling.
+/* palette.c -- the palette: allocating colours to sprite series, shadows, the DAC.
  *
  * master_palette holds the 256 colours the editor shows, three bytes each (red, green, blue,
- * 0..3Fh, as the VGA's DAC takes them). The file has five parts:
+ * 0..3Fh, as the VGA's DAC takes them). The file has three parts:
  *
  * The palette manager shares master_palette among sprite series. An allocation is a "flag",
  * a number 0..31, and color_status holds a 32-bit word per entry with a bit per flag using
- * the entry; a free entry's word is 0. Three bits have fixed meanings, so pal_init reserves
- * their flags: bit 0 a stock colour (the reserved ranges at the bottom and top), bit 1 a
- * colour one series needs to itself, bit 31 locked (pal_lock). pal_allocate takes a free
- * flag (flag_used says which are taken), gives each colour of a request list (a PalList) an
- * entry -- an existing entry of the same or the nearest colour, or a free one it fills --
- * marks those entries with the flag's bit and returns the flag; pal_deallocate releases it.
+ * the entry; a free entry's word is 0. Two bits have fixed meanings: bit 0 a stock colour
+ * (the reserved ranges at the bottom and top), bit 1 a colour one series needs to itself.
+ * pal_allocate takes a free flag (flag_used says which are taken), gives each colour of a
+ * request list (a PalList) an entry -- an existing entry of the same or the nearest colour,
+ * or a free one it fills -- marks those entries with the flag's bit and returns the flag.
  * A shadow (Shadow) is up to three colours of a list that take fixed places. Nothing in the
- * editor calls pal_init: until it runs, both search limits are 0 and no flag is reserved.
- * Every change is reported to a callback (pal_manager_update), which the editor never
- * installs.
+ * editor sets the search limits or the reserved ranges: both limits stay 0 and no flag is
+ * reserved. Every allocation is reported to a callback (pal_manager_update), which the
+ * editor never installs.
  *
- * The stock palettes: pal_interface (the sixteen interface colours), pal_white (four greys),
- * pal_grey (a grey ramp) and pal_load_2 (a 768-byte palette file such as VICEROY.PAL).
+ * pal_load_2 reads a 768-byte palette file such as VICEROY.PAL.
  *
  * The DAC (mcga_*): the original writes the VGA's colour registers a chunk at a time, each
  * chunk after the start of a vertical retrace, so that colour changes never tear; a palette
@@ -26,10 +24,6 @@
  * (host_set_dac): it waits for the next 70 Hz frame the same way, so fades last as long as
  * they did, and reports a fast machine, as the measurement would on anything later than a
  * 386: every colour in one retrace.
- *
- * Colour cycling: cycle_init takes up to eight ranges of entries and a copy of
- * master_palette; cycle_colors, called on the clock, turns each range whose time has come
- * and writes the cycled colours to the DAC.
  */
 #include <string.h>
 
@@ -58,7 +52,7 @@ typedef union { i32 l; struct { u8 b0, b1, b2, b3; } b; } ColorStatus;   /* unus
 typedef void (*PalFn)(void);
 
 /* Calls the manager callback fn, when there is one, with pal_manager_active set to code
- * for the duration: 1 reset, 2 allocated, 3 allocation failed, 4 released.
+ * for the duration: 2 allocated, 3 allocation failed (pal_allocate's two outcomes).
  * Port: fn is a 32-bit value, as the original's far pointer was; it is always 0 here. */
 void pal_call_manager(i32 fn, i16 code)
 {
@@ -67,122 +61,6 @@ void pal_call_manager(i32 fn, i16 code)
         (*(PalFn *)&fn)();
         pal_manager_active = 0;
     }
-}
-
-/* Resets the palette manager: every entry free, the search limits the whole palette, the
- * sixteen interface colours loaded into master_palette (the first time only), `bottom`
- * entries from 0 and `top` entries from 255 down marked stock, every flag released but 0 and
- * 1, nothing locked. Tells the manager (code 1). */
-void pal_init(i16 bottom, i16 top)
-{
-    i16 i;
-    i32 *p;
-
-    palette_low_search_limit = 0;
-    palette_high_search_limit = 0x100;
-    for (p = color_status; p < color_status + 256; p++)
-        *p = 0;
-    if (palette_ever_initialized == 0) {
-        pal_interface(master_palette);
-        palette_ever_initialized = -1;
-    }
-    if (bottom > 0) {
-        color_status[0] = 1;
-        for (i = 0; i < (bottom - 1) * 2; i++)
-            ((i16 *)color_status)[i + 2] = ((i16 *)color_status)[i];
-    }
-    if (top > 0) {
-        color_status[255] = 1;
-        for (i = 0; i < (top - 1) * 2; i++)
-            ((i16 *)color_status)[511 - 2 - i] = ((i16 *)color_status)[511 - i];
-    }
-    for (i = 0; i < 32; i++)
-        flag_used[i] = 0;
-    flag_used[1] = flag_used[0] = -1;
-    palette_reserved_bottom = bottom;
-    palette_reserved_top = top;
-    pal_manager_colors = palette_locked = 0;
-    pal_call_manager(pal_manager_update, 1);
-}
-
-/* Locks the palette: takes flag 31 and sets bit 31 on every entry in use, so that
- * pal_deallocate frees none of them. Reports error -5 when flag 31 is already taken by an
- * allocation (and locks anyway). */
-void pal_lock(void)
-{
-    i16 i;
-
-    if (flag_used[31] != 0 && palette_locked == 0)
-        error_report(-5, 2, 3, 0x20L, 1L);
-    flag_used[31] = palette_locked = -1;
-    for (i = 0; i < 256; i++)
-        if (color_status[i] != 0)
-            color_status[i] |= 0x80000000L;
-}
-
-/* Unlocks the palette: clears bit 31 on every entry. The original then releases flag 32,
- * one past flag_used, so flag 31 stays taken; the word it clears is map_view_size_x. */
-void pal_unlock(void)
-{
-    i16 i;
-
-    if (palette_locked) {
-        for (i = 0; i < 256; i++)
-            color_status[i] &= 0x7fffffffL;
-        /* Port: flag_used[32] is map_view_size_x in the original's memory; cleared by name */
-        extern i16 map_view_size_x;
-        palette_locked = map_view_size_x = 0;
-    }
-}
-
-/* Releases allocation `flag` (1..31; others are ignored): clears its bit from every entry,
- * frees the entries left with bit 1 alone, and tells the manager (code 4) if the flag was
- * taken. Always returns 0. */
-i16 pal_deallocate(i16 flag)
-{
-    i32 mask;
-    i16 i;
-
-    if (flag < 32 && flag > 0) {
-        mask = ~(1L << flag);
-        for (i = 0; i < 256; i++) {
-            color_status[i] &= mask;
-            if (color_status[i] == 2L)
-                color_status[i] = 0;
-        }
-        if (flag_used[flag] != 0) {
-            flag_used[flag] = 0;
-            pal_call_manager(pal_manager_update, 4);
-        }
-    }
-    return 0;
-}
-
-/* Merges the n allocations in `list` into `flag`: every entry used by one of them loses
- * their bits and takes flag's; the listed flags are released and `flag` is taken. */
-void pal_compact(i16 flag, i16 n, i16 *list)
-{
-    i32 keep;
-    i32 bits;
-    i32 bit;
-    i16 i;
-
-    keep = -1L;
-    bits = 0;
-    for (i = 0; i < n; i++) {
-        bit = 1L << list[i];
-        keep ^= bit;
-        bits |= bit;
-        flag_used[list[i]] = 0;
-    }
-    bit = 1L << flag;
-    for (i = 0; i < 256; i++) {
-        if (bits & color_status[i]) {
-            color_status[i] &= keep;
-            color_status[i] |= bit;
-        }
-    }
-    flag_used[flag] = -1;
 }
 
 /* Sorts a shadow's list indices by the brightness of their colours (magic_hash_color),
@@ -218,12 +96,6 @@ void pal_init_shadow(Shadow *sh, PalList *list)
             i++;
         } while (i < list->n);
     }
-}
-
-/* Makes sh the shadow pal_allocate places shadow colours by. */
-void pal_activate_shadow(Shadow *sh)
-{
-    master_shadow = sh;
 }
 
 /* Returns the first free flag, or -10 after reporting error -5 when all 32 are taken. */
@@ -288,7 +160,6 @@ typedef struct { u8 r, g, b; } Rgb;
 i16 pal_allocate(i16 flags, PalList *list, Shadow *sh)
 {
     i16 best2;
-    i16 mask25;
     i16 nfree3;
     i16 lo8;
     i16 bestidx;
@@ -296,7 +167,6 @@ i16 pal_allocate(i16 flags, PalList *list, Shadow *sh)
     u8 kindsl[0x100];
     i16 exact;
     i16 kk;
-    char *orderpj;
     i16 cond11;
     i16 i2k;
     i16 exactshadowk;
@@ -308,12 +178,8 @@ i16 pal_allocate(i16 flags, PalList *list, Shadow *sh)
     i16 i;
     i32 mask2l;
     i16 flag;
-    i16 fixedval8;
-    i16 unused232;
     i16 allocflag8;
-    i16 spare2;
     i16 useshadowj;
-    u8 *pal;
     i16 maxcol9;
     i16 found1;
     i16 m;
@@ -323,8 +189,6 @@ i16 pal_allocate(i16 flags, PalList *list, Shadow *sh)
     register i16 c;
     register i16 ei;
 
-    orderpj = buf;
-    pal = master_palette;
     maxcol9 = (flags & 0x800) ? 0x100 : 0xfc;
     if (flags & 0x4000) {
         lo8 = 0;
@@ -340,7 +204,6 @@ i16 pal_allocate(i16 flags, PalList *list, Shadow *sh)
         goto out;
     flagbit4 = 1L << flag;
     exact = flags & 0x8000;
-    mask25 = flags & 0x8400;
     useshadowj = (sh != 0) ? 1 : 0;
     exactshadowk = 0;
     if (useshadowj) {
@@ -364,11 +227,6 @@ i16 pal_allocate(i16 flags, PalList *list, Shadow *sh)
             kindsl[i] |= 0x20;
     }
     sort_insertion_8(list->n, orderk, kindsl);
-    if (flags & 0x4000)
-        fixedval8 = -1;
-    else
-        fixedval8 = -2;
-    unused232 = -1;
     for (i2k = 0; i2k < list->n; i2k++) {
         found1 = 0;
         bestidx = -1;
@@ -477,17 +335,15 @@ out:
 
 /* The palette manager's state. */
 Shadow *master_shadow = 0;                     /* the shadow pal_allocate uses, or 0 */
-i16 palette_locked = 0;                            /* -1 between pal_lock and pal_unlock */
-i16 palette_ever_initialized = 0;                  /* -1 once the interface colours are loaded */
 i32 pal_manager_update = 0;                       /* the manager callback, or 0 (never set) */
 i16 pal_manager_active = 0;                        /* the code during a callback, else 0 */
 i16 pal_manager_colors = 0;                        /* colours in the last allocation request */
 i16 palette_high_search_limit;                     /* pal_allocate searches below this entry */
 i16 palette_low_search_limit;                      /* ... and from this one */
 i16 flag_used[32];                                 /* -1 for each allocation flag taken */
-i16 palette_reserved_top;                          /* stock entries at the top (pal_init) */
+i16 palette_reserved_top;                          /* stock entries at the top (never set) */
 u8 master_palette[0x300];               /* the 256 colours shown, r g b each */
-i16 palette_reserved_bottom;                       /* stock entries at the bottom (pal_init) */
+i16 palette_reserved_bottom;                       /* stock entries at the bottom (never set) */
 i32 color_status[256];                            /* each entry's status bits (see the top) */
 
 /* Returns the squared distance of two colours: each component difference taken as a signed
@@ -500,88 +356,6 @@ i16 pal_get_hash(u8 *b, u8 *a)
         sum = (i16)(sum + (i16)d * d);
     }
     return sum;
-}
-
-/* Fills entries 0..15 of palette pal with the sixteen interface colours, the EGA's: entry
- * 4r + 2g + b has those components at 2Ah (entries 0..7, the others 0) or at 3Fh (8..15, the
- * others 15h); entry 6 then gets green 15h, which makes it brown. */
-void pal_interface(char *pal)
-{
-    i16 idx;
-    i16 g;
-    i16 base;
-    i16 r;
-    i16 lo;
-    i16 level;
-    i16 b;
-    i16 lo2;
-    i16 k;
-
-    base = 0;
-    for (k = 0, lo2 = 0; lo2 < 0x2a; k++, lo2 += 0x15) {
-        lo = lo2;
-        level = k < 1 ? 0x2a : 0x3f;
-        for (r = 0; r < 2; r++) {
-            for (g = 0; g < 2; g++) {
-                for (b = 0; b < 2; b++) {
-                    idx = base + b;
-                    pal[idx * 3] = r ? level : lo;
-                    pal[idx * 3 + 1] = g ? level : lo;
-                    pal[idx * 3 + 2] = b ? level : lo;
-                }
-                base += 2;
-            }
-        }
-    }
-    pal[0x13] = 0x15;
-}
-
-/* Fills entries 0..3 of palette pal with four greys: black, 15h, 2Ah and white (3Fh). */
-void pal_white(char *pal)
-{
-    char levels[4];
-    i16 i;
-
-    levels[0] = 0;
-    levels[1] = 0x15;
-    levels[2] = 0x2a;
-    levels[3] = 0x3f;
-    for (i = 0; i < 4; i++)
-        pal[i * 3 + 2] = pal[i * 3 + 1] = pal[i * 3] = levels[i];
-}
-
-/* Fills `count` entries of palette pal from `start` with a grey ramp from level lo up to
- * hi, which the last entry reaches; a Bresenham accumulator decides where the level steps.
- * hi must not be below lo: the accumulator is compared unsigned. */
-void pal_grey(i16 start, i16 count, char *pal, i16 lo, i16 hi)
-{
-    i16 acc;
-    i16 level;
-    char *saved;
-    i16 left;
-    i16 step;
-    i16 n1;
-    char *p;
-
-    acc = 0;
-    level = lo;
-    step = hi - lo;
-    if (count > 0) {
-        p = pal + start * 3;
-        n1 = count - 1;
-        left = count;
-        do {
-            p[2] = p[1] = p[0] = level;
-            if (count > 1) {
-                acc += step;
-                while ((u16)acc >= (u16)n1) {
-                    level++;
-                    acc += 1 - count;
-                }
-            }
-            p += 3;
-        } while (--left);
-    }
 }
 
 /* Reads a 768-byte palette file (env_open: the game folder) into pal. Returns 0 when it was
@@ -604,14 +378,10 @@ i16 pal_load_2(char *name, char *pal)
 
 /* The DAC's state. */
 i16 mcga_retrace_computed = 0;                   /* set once the retrace has been measured */
-u16 mcga_retrace_ticks = 0;                 /* a frame in PIT ticks (unused by the port) */
 i16 mcga_retrace_max_colors = 256;               /* colours the DAC takes per retrace */
 i16 mcga_retrace_max_bytes = 768;                /* bytes written per retrace: 3 a colour */
 i16 mcga_palette_update = 0;                     /* nonzero while a DAC transfer runs */
 i16 mcga_palette_fast = 1;                       /* the original's fast write (one rep outsb) */
-
-/* Unused: the original's screen shake seed. MCGA_SHAKE is in video.c and does not shake. */
-static i16 shake_seed = 1234;
 
 /* Returns the brightness of an RGB triple: 38 r + 76 g + 14 b (the weights sum to 128), in
  * 16 bits. */
@@ -621,80 +391,10 @@ i16 magic_hash_color(const void *color)
     return (i16)(u16)(38u * rgb[0] + 76u * rgb[1] + 14u * rgb[2]);
 }
 
-/* Colour cycling's state. */
-ColorCycle cycle_list;                   /* the ranges: count, pos, start entry, speed */
-i32 cycle_timing[8];                    /* when each range last turned (timer_read) */
-i16 total_cycle_colors;                  /* the ranges' counts summed */
-i16 cycling_threshold;                   /* cycle_colors works once in this many calls */
-i16 cycling_active = 0;                  /* nonzero: cycle_colors runs */
-u8 cycling_palette[0x300];    /* the palette being cycled */
+/* The colour-cycling switch. Popups clear it while they load a portrait or set the palette,
+ * then restore it; nothing else uses it. */
+i16 cycling_active = 0;
 
-/* Starts colour cycling (or only sets it up, with `on` 0): copies the ranges and
- * master_palette, stamps every range with the current time, and sets cycling_threshold to
- * 3, or 0 when the ranges hold 16 colours or fewer. */
-void cycle_init(ColorCycle *ranges, i16 on)
-{
-    i32 now;
-    i16 i;
-
-    now = timer_read();
-    for (i = 0; i < 8; i++)
-        cycle_timing[i] = now;
-    msc__fmemcpy(&cycle_list, ranges, 0x22);
-    msc__fmemcpy(cycling_palette, master_palette, 0x300);
-    total_cycle_colors = 0;
-    for (i = 0; i < cycle_list.n; i++) {
-        total_cycle_colors += cycle_list.r[i].count;
-        cycle_list.r[i].pos = 0;
-    }
-    cycling_threshold = 3;
-    if (total_cycle_colors <= 16)
-        cycling_threshold = 0;
-    cycling_active = on;
-}
-
-i16 cycling_delay = 0;                   /* calls of cycle_colors since the last turn */
-static u8 cycle_rgb[3];       /* unused: the original's rotation buffer */
-
-/* One step of colour cycling, called on the clock. While cycling is on, once in
- * cycling_threshold calls (every call when it is 0) and when no DAC transfer is running,
- * every range whose speed (in timer ticks) has passed turns by one colour, its last moving
- * to its front. If any turned, total_cycle_colors entries from the first range's start go
- * to the DAC: the ranges are taken to be contiguous. */
-void cycle_colors(void)
-{
-    i32 now;
-    i16 i, changed = 0;
-    if (cycling_active == 0)
-        return;
-    if (++cycling_delay < cycling_threshold)
-        return;
-    if (mcga_palette_update != 0)
-        return;
-    now = timer_read();
-    for (i = 0; i < cycle_list.n; i++) {
-        CycleRange *r = &cycle_list.r[i];
-        if (r->speed + cycle_timing[i] <= now) {
-            i16 cnt = r->count, start = r->start;
-            u16 pos = r->pos;
-            cycle_timing[i] = now;
-            changed = -1;
-            if (cnt > 1) {
-                u8 *p = cycling_palette + start * 3, last[3];
-                memcpy(last, p + (cnt - 1) * 3, 3);
-                memmove(p + 3, p, (size_t)(cnt - 1) * 3);
-                memcpy(p, last, 3);
-                pos++;
-                if (pos >= (u16)cnt)
-                    pos = 0;
-            }
-            r->pos = (u8)pos;
-        }
-    }
-    if (changed)
-        mcga_setpal_range(cycle_list.r[0].start, total_cycle_colors, (char *)cycling_palette);
-    cycling_delay = 0;
-}
 
 /* Waits for the next vertical retrace to begin: the next 70 Hz frame. */
 void mcga_retrace(void)
@@ -735,35 +435,6 @@ void mcga_setpal(char *pal)
     mcga_palette_update = 1;
     dac_write(0, (const u8 *)pal, 0x300, (u16)mcga_retrace_max_bytes);
     mcga_palette_update = 0;
-}
-
-/* Writes `count` colours from `first` to the DAC, read from palette pal at the same place. */
-void mcga_setpal_range(i16 first, i16 count, char *pal)
-{
-    mcga_palette_update = -1;
-    dac_write(first, (const u8 *)pal + first * 3, (u16)(count * 3), (u16)mcga_retrace_max_bytes);
-    mcga_palette_update = 0;
-}
-
-/* Reads the DAC's 256 colours into pal. The original reads 64 bytes per retrace; the port
- * waits as many retraces, then reads them at once. */
-void mcga_getpal(char *pal)
-{
-    u16 i;
-    mcga_palette_update = 1;
-    for (i = 0; i < 0x300 / 0x40; i++)
-        mcga_retrace();
-    host_get_dac(0, 256, (u8 *)pal);
-    mcga_palette_update = 0;
-}
-
-/* Writes `count` colours from `first` and returns how many timer (PIT) ticks it took, which
- * the original used to measure the DAC. The port's DAC takes none. */
-i16 mcga_time_palette_swap(i16 first, i16 count, char *pal)
-{
-    host_set_dac(first, count, (const u8 *)pal + first * 3);
-    host_vram_touched();
-    return 0;
 }
 
 /* Decides how much of the palette is written per retrace. The original times retraces and

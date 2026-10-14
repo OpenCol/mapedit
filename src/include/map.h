@@ -19,7 +19,7 @@
  *   ui/mapview.c        the view's geometry; drawing the terrain, coasts, rivers and seams
  *   ui/minimap.c        the minimap
  *   ui/tile.c           16 x 16 terrain tiles
- *   ui/write.c          building strings from words and numbers, and drawing text
+ *   ui/write.c          adding a space or a stored word to a string, and drawing text
  */
 #ifndef MAPEDIT_MAP_H
 #define MAPEDIT_MAP_H
@@ -43,33 +43,20 @@ void tile_draw_mask(char *tiles, i16 t, DosPort *port, i16 x, i16 y);
 void tile_draw_scale(char *tiles, i16 t, DosPort *port, i16 x, i16 y, i16 shift);
 void tile_draw_scale_mask(char *tiles, i16 t, DosPort *port, i16 x, i16 y, i16 shift);
 /* core/map.c: a square's byte in each plane, and what stands on it */
-u8 continent_at(i16 x, i16 y);
 u8 continent_get(i16 x, i16 y);
-u8 *continent_loc(i16 x, i16 y);
-void continent_set(i16 x, i16 y, i16 c);
 u8 feature_get(i16 x, i16 y);
 u8 *feature_loc(i16 x, i16 y);
-void feature_set(i16 x, i16 y, i16 mask, i16 on);
-i16 is_anything(i16 x, i16 y);
-i16 is_city(i16 x, i16 y);
-i16 is_colony(i16 x, i16 y);
-i16 is_unit(i16 x, i16 y);
 i16 is_village(i16 x, i16 y);
-i16 land_region_at(i16 x, i16 y);
 i16 lost_city_at(i16 x, i16 y);
 u8 map_get(i16 x, i16 y);
 u8 *map_loc(i16 x, i16 y);
 i16 on_colony_map(i16 dx, i16 dy, i16 mode);
 i16 on_map(i16 x, i16 y);
-i16 on_screen(i16 x, i16 y);
 char owner_of(i16 x, i16 y);
-void owner_set(i16 x, i16 y, i16 n);
 i16 resource_at(i16 x, i16 y);
-u8 site_get(i16 x, i16 y);
 u8 *site_loc(i16 x, i16 y);
 u8 terrain_fix_2(i16 t);
 /* ui/mapview.c: the view and drawing the map */
-void conform_to_view(i16 *x0, i16 *y0, i16 *x1, i16 *y1);
 void conform_to_view_size(i16 *x, i16 *y, i16 *w, i16 *h);
 void show_map(void);
 void show_map_region(i16 x, i16 y, i16 w, i16 h);
@@ -91,25 +78,18 @@ i16 write_map_file(void);
 i16 coast_scan(void);
 void compute_view_parameters(void);
 void draw_map_icon(i16 icon);
-void draw_map_icon2(i16 icon);
 void draw_map_tile(i16 tile);
 void draw_map_tile2(i16 tile);
 void draw_seams(i16 hidden_only, i16 no_scan, i16 always);
 void draw_square(i16 hidden);
-void generate_colony_map(i16 nation, i16 mode);
 void generate_terrain_map(i16 nation);
 void generate_terrain_map_region(i16 x, i16 y, i16 w, i16 h, i16 nation);
 i16 is_land_seam(i16 unused, i16 off);
-void map_init(void);
 i16 nb8_mask_p1(i16 mask, i16 maxzoom);
 i16 nb_land_seam(i16 a, i16 maxzoom);
 i16 nb_mask_p0(i16 mask, i16 maxzoom);
-i16 nb_mask_p1(i16 mask, i16 maxzoom);
 i16 nb_match_p0(i16 val, i16 maxzoom);
-void range_count(i16 off, i16 n);
-i16 range_scan(char lo, char hi, i16 maxzoom);
 /* ui/minimap.c */
-i16 allocate_mini(void);
 void blast_mini(i16 viewer);
 void blast_mini_region(i16 x, i16 y, i16 cols, i16 rows, i16 viewer, i16 white);
 void generate_mini(void);
@@ -118,57 +98,26 @@ u8 get_a_color_2(i16 tile);
 void get_tile_colors(void);
 void new_mini(void);
 void show_mini(i16 update, i16 viewer);
-void show_mini_region(i16 x, i16 y, i16 w, i16 h, i16 update, i16 viewer, i16 white);
 /* core/terrain.c */
 i16 terrain_at(i16 x, i16 y);
-i16 terrain_is_forest(i16 x, i16 y);
 i16 terrain_is_ocean(i16 x, i16 y);
 i16 terrain_type(i16 b);
 /* ui/tile.c */
 char *tile_allocate(i16 n);
 i16 tile_id(i16 t);
-/* ui/write.c: strings built from words and numbers; text drawn on the work screen */
-void brace_off(char *buf);
-void brace_on(char *buf);
-void close_string(char *buf);
-void colon_string(char *buf);
-void comma_string(char *buf);
-void minus_string(char *buf);
-void open_string(char *buf);
-void percent_string(char *buf);
-void period_string(char *buf);
-void plus_string(char *buf);
-void say_binary(char *s, i16 number);
-void say_braced(char *buf, i16 word);
-void say_bucks(char *s, i32 number);
-void say_long(char *s, i32 number);
-void say_number(char *s, i16 number);
+/* ui/write.c: strings built from words; text drawn on the work screen */
 void say_string(char *buf, i16 word);
-void say_terrain(char *buf, i16 t);
 void space_string(char *buf);
-void spacer(char *buf, i16 n);
-i16 string_width(char *s);
-i16 string_width_2(char *s);
-void times_string(char *buf);
-void write_big_centered(char *s, i16 x, i16 w, i16 y, i16 color, i16 shadow);
-void write_big_in_color(char *s, i16 x, i16 y, i16 color, i16 shadow);
-i16 write_big_right(char *s, i16 x, i16 y, i16 color, i16 shadow);
-void write_big_string(char *s, i16 x, i16 y);
-void write_centered(char *s, i16 x, i16 w, i16 y, i16 color);
-i16 write_in_color(char *s, i16 x, i16 y, i16 color);
 i16 write_right(char *s, i16 x, i16 y, i16 color);
 i16 write_string(char *s, i16 x, i16 y);
 
-/* x and y steps to the neighbours: 4 orthogonal, 8 around, 20 within two (core/compass.c) */
+/* x and y steps to the neighbours: 4 orthogonal, 8 around (core/compass.c) */
 extern i8 card_x[6];
 extern i8 card_y[6];
 extern i8 move_x[10];
 extern i8 move_y[10];
-extern i8 radius_x[22];
-extern i8 radius_y[22];
 extern u8 *continent;            /* the continent plane: region | owner << 4 */
 extern u8 *feature;              /* the feature plane (MAP1_*) */
-extern char land_moves[270];     /* unused */
 extern u8 *map;                  /* the terrain plane */
 extern i16 map_area_base_x;
 extern i16 map_area_base_y;
@@ -210,10 +159,8 @@ extern DosPort scr_continent;
 extern DosPort scr_feature;
 extern DosPort scr_map;
 extern DosPort scr_site;
-extern char sea_moves[270];      /* unused */
 extern u8 *site;                 /* the sight plane: 0x10 << nation where it has seen */
 extern void *terrain_1;          /* the terrain tile sheet */
-extern void *terrain_2;          /* unused */
 extern void *tiles;              /* the map icon sheet: hills, rivers, resources */
 extern void *tiles2;
 /* the terrain renderer's current square (ui/mapview.c) */
@@ -227,9 +174,7 @@ extern i16 gen_variation;
 extern u8 map_player_mask;
 extern u8 *scan_feature;
 extern u8 scan_flags;
-extern u8 scan_greater;
 extern u8 scan_index;
-extern u8 scan_less;
 extern u8 *scan_map;
 extern u8 *scan_site;
 extern i16 scan_x;
@@ -242,6 +187,5 @@ extern i16 terrain_names[5];     /* Forest, River, Major River, Minor River, Une
 void load_terrain(i16 n);
 void load_data(void);
 void forest_fix(void);
-void show_map_gradually(void);
 
 #endif

@@ -304,7 +304,6 @@ void buffer_tile(DosPort dst, DosPort src, i16 x, i16 y, i16 w, i16 h, i16 sx, i
     i16 oy4;        /* the source row of this band (the phase, then 0) */
     i16 cy;         /* the top of this band */
     i16 u27;        /* x + w, before it is copied to right */
-    i16 u18;        /* unused */
     i16 ox7;        /* the horizontal phase */
     i16 bottom9;    /* y + h */
     i16 right;      /* x + w */

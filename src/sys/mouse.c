@@ -39,13 +39,6 @@
 #include "video.h"
 #pragma pack(2)   /* records on 2-byte boundaries, as the 1994 compiler laid them out */
 
-/* mouse_in_box -- 1 when the mouse is inside the box (x0, y0)-(x1, y1), edges included. */
-i16 mouse_in_box(i16 x0, i16 y0, i16 x1, i16 y1)
-{
-    if (x0 <= mouse_x && x1 >= mouse_x && y0 <= mouse_y && y1 >= mouse_y)
-        return 1;
-    return 0;
-}
 /* mouse_init_cycle -- starts a UI loop: forgets the old position and takes a button already
  * down as a stroke in progress, so that it starts no new one. */
 void mouse_init_cycle(void)
@@ -156,7 +149,7 @@ static char arrow[256];         /* the cursor image, 16 x 16 */
 static char buffers[512];
 #define under    (buffers)
 #define composed (buffers + 256)
-static i16 hot_x, hot_y;        /* the hot spot */
+static i16 hot_x, hot_y;        /* the hot spot; never set, so (0, 0) */
 static i8 frozen, moved;        /* mouse_freeze: moves recorded, and whether one happened */
 static i16 pending_x, pending_y;
 static i8 busy;                 /* the handler is running */
@@ -363,29 +356,10 @@ i16 mouse_init(i16 on, i16 mode)
     return mouse_driver;
 }
 
-/* MOUSE_SET_HOTSPOT -- the image pixel (0-15 each way) that sits on the mouse position. */
-void MOUSE_SET_HOTSPOT(i16 x, i16 y)
-{
-    hot_x = (i16)(x & 15);
-    hot_y = (i16)(y & 15);
-}
-
-/* MOUSE_TIMING -- waits for the BIOS clock to tick (18.2 a second). */
-void MOUSE_TIMING(void)
-{
-    u32 t = host_ms() * 182u / 10000u;
-    while (host_ms() * 182u / 10000u == t)
-        host_sleep(1);
-}
-
-i16 MOUSE_GET_VIDEO_MODE(void) { return MOUSE_VIDEO_MODE; }
-
 /* The original's "double" entry points have nothing to do in the port: mouse_double_freedom
- * stores its argument, the others are empty. */
+ * stores its argument, mouse_check_double is empty. */
 void mouse_double_freedom(i16 n) { double_freedom = n; }
 void mouse_check_double(void) { }
-void MOUSE_BEGIN_DOUBLE(i16 a, i16 b, i16 c, i16 d) { (void)a; (void)b; (void)c; (void)d; }
-void MOUSE_END_DOUBLE(void) { }
 
 /* mouse_freeze -- holds the cursor still: moves are recorded until mouse_thaw. */
 void mouse_freeze(void)
@@ -409,25 +383,6 @@ void mouse_thaw(void)
     }
 }
 
-/* MOUSE_FORCE -- puts the cursor, and the host's pointer, at (x, y). */
-void MOUSE_FORCE(i16 x, i16 y)
-{
-    if (MOUSE_KNOWN_MODE)
-        mouse_freeze();
-    else
-        mouse_hide();
-    MOUSE_X_TEMP = x;
-    MOUSE_Y_TEMP = y;
-    if (mouse_driver)
-        host_mouse_warp(x, y);
-    if (!MOUSE_KNOWN_MODE)
-        mouse_show();
-    else {
-        event(x, y);
-        mouse_thaw();
-    }
-}
-
 /* mouse_get_status -- stores the cursor's position in *x, *y and returns the buttons down (bit
  * 0 left, bit 1 right): the host's, and any the keypad holds down. */
 i16 mouse_get_status(i16 *x, i16 *y)
@@ -439,30 +394,6 @@ i16 mouse_get_status(i16 *x, i16 *y)
     *y = MOUSE_Y_TEMP;
     return (i16)(b | MOUSE_FORCE_BUTTON);
 }
-
-/* MOUSE_HORIZ_BOUND / MOUSE_VERT_BOUND -- the driver's limits. Port: the host keeps the
- * pointer on the 320 x 200 screen already. */
-void MOUSE_HORIZ_BOUND(i16 lo, i16 hi) { (void)lo; (void)hi; }
-void MOUSE_VERT_BOUND(i16 lo, i16 hi) { (void)lo; (void)hi; }
-
-/* MOUSE_CHANGE_CURSOR_BEGIN / _END -- bracket a change of the cursor image; END redraws it. */
-void MOUSE_CHANGE_CURSOR_BEGIN(void)
-{
-    if (MOUSE_KNOWN_MODE && MOUSE_SHOWING == 0)
-        mouse_freeze();
-}
-
-void MOUSE_CHANGE_CURSOR_END(void)
-{
-    if (MOUSE_KNOWN_MODE && MOUSE_SHOWING == 0) {
-        overlay();
-        copy(screen_at, composed + image_off, rows, cols, 16, 320);
-        host_vram_touched();
-        mouse_thaw();
-    }
-}
-
-void MOUSE_DISABLE_SCALE(void) { }
 
 /* mouse_set_work_buffer -- the work buffer the view port shows, and its width. */
 void mouse_set_work_buffer(char *bits, i16 w)
@@ -550,11 +481,8 @@ void mouse_refresh_done(void)
         copy(saved_work, saved_under, saved_rows, saved_cols, 16, work_w);
 }
 
-/* MOUSE_HARD_CURSOR_MODE and MOUSE_SCREEN_SWAP serve text modes and a second screen: no-ops. */
-void MOUSE_HARD_CURSOR_MODE(i16 mode, char *colors) { (void)mode; (void)colors; }
-void MOUSE_SCREEN_SWAP(i16 mode) { (void)mode; }
-
-/* mouse_keypad_move -- the keypad mouse (keys.c) moves the cursor through the event handler. */
+/* mouse_keypad_move -- keys_tick's keypad step (keys.c) moves the cursor through the event
+ * handler. */
 void mouse_keypad_move(i16 x, i16 y)
 {
     event(x, y);

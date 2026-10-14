@@ -52,9 +52,7 @@ typedef struct {
 
 SpriteSeries *sprite_series_load(char *name, i16 flags);
 void sprite_draw(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y);
-void sprite_draw_black(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y);
 void sprite_draw_scaled(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale);
-void sprite_draw_scaled_black(i16 icon, SpriteSeries *sheet, DosPort *port, i16 x, i16 y, i16 scale);
 
 extern i16 sprite_error;        /* why the last sprite_series_load failed */
 extern char *put_palette;       /* where a series without a colour list puts its palette */

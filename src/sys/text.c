@@ -7,9 +7,8 @@
  *     file name looks for the next section further on in the file already open.
  *   - text_get reads the next line into text_buffer, trimmed, with each '_' made a space.
  *   - text_item_get takes the next comma-separated item from that line (text_pointer marks the
- *     place); text_item_number, text_item_binary and text_item_string read it as a number, a
- *     binary number, or a string for the string store (strings.c).
- *   - text_search reads one line of a section and closes the file.
+ *     place); text_item_number and text_item_string read it as a number, or as a string for
+ *     the string store (strings.c).
  *
  * Lines are at most 79 characters; fgets splits a longer one, the rest becoming the next line.
  */
@@ -139,58 +138,11 @@ i16 text_item_number(void)
 {
     return stoi(text_item_get());
 }
-/* Skips the rest of the line: text_item_get gives nothing more until text_get. */
-void text_next_line(void)
-{
-    text_pointer = text_buffer + msc_strlen(text_buffer);
-}
-/* Reads the next line and puts it in the string store; returns its number there. At the end
- * of the file it stores an empty string. */
-i16 text_string(void)
-{
-    text_get();
-    return strings_store(text_buffer);
-}
 /* Puts the next item in the string store; returns its number there. */
 i16 text_item_string(void)
 {
     text_item_get();
     return strings_store(text_item);
-}
-/* The next item read as binary digits ("0101" is 5), up to its first character that is not
- * '0' or '1'. Only the last 8 digits count. */
-u8 text_item_binary(void)
-{
-    u8 v;
-    char *p;
-
-    v = 0;
-    text_item_get();
-    p = text_item;
-    while (*p == '0' || *p == '1') {
-        v <<= 1;
-        if (*p == '1')
-            v++;
-        p++;
-    }
-    return v;
-}
-/* Leaves line n (from 0) of the section `key` of the file `name` in text_buffer and closes
- * the file. Returns 0 when the section was found, otherwise 1. Lines are counted on past the
- * section's end; when the file ends first, text_buffer is left empty. */
-i16 text_search(char *name, char *key, i16 n)
-{
-    i16 err;
-    i16 i;
-
-    err = 1;
-    if (text_open(name, key) == 0) {
-        for (i = 0; i <= n; i++)
-            text_get();
-        err = 0;
-    }
-    text_close();
-    return err;
 }
 
 char text_item[80];                       /* the item text_item_get read last */
