@@ -1,0 +1,47 @@
+# args: --undo 8
+# Port: the undo history. Three strokes, two Undos (Ctrl-Z), one Redo (Map > Redo, R), a view
+# move that is no stroke for Undo, one more Undo; then save
+wait 300
+key Return
+wait 1500
+key 6
+key 6
+key 6
+key Backspace
+wait 300
+key 8
+key 8
+key 8
+key 8
+key Space
+wait 300
+key 4
+key 4
+key Space
+wait 300
+key 4
+key 4
+key Space
+wait 300
+shot 01-three.bmp
+key ctrl+Z
+wait 300
+key ctrl+Z
+wait 500
+shot 02-undone-two.bmp
+key R
+wait 500
+shot 03-redone-one.bmp
+click 120 100
+wait 500
+key ctrl+Z
+wait 500
+shot 04-undone-again.bmp
+hold alt
+wait 150
+hold
+wait 300
+key S
+wait 500
+key Return
+wait 800

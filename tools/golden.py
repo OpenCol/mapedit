@@ -6,7 +6,8 @@
     python3 tools/golden.py --game DIR --port build-win/mapedit.exe --wine     # a Windows build
 
 Each session (tests/golden/*.txt, the host's script language: key, type, move, click, hold,
-wait, shot) runs headless on the script's own clock, so it shows the same screens every
+wait, shot) runs headless on the script's own clock, with the editor's options given on a
+line "# args: ..." (the port's improvements, port/main.c), if it has one, so it shows the same screens every
 time, in a fresh copy of the game directory. What it produces -- every `shot`, and every file
 it creates or changes in the game directory -- is hashed (SHA-256) and compared with
 tests/golden/expected.json. Only hashes are kept: the screens are renders of the game's art,
@@ -50,9 +51,10 @@ def run_session(path, game, port, keep, wine=None):
     if not any(l.strip() == 'exit' for l in text.splitlines()):
         text += '\nexit\n'
     open(script, 'w').write(text)
-    cmd, env = [port, '--headless', '--game', gdir, '--script', script], None
+    args = [w for l in text.splitlines() if l.startswith('# args:') for w in l[7:].split()]
+    cmd, env = [port, '--headless', '--game', gdir, '--script', script] + args, None
     if wine:                                    # a Windows build: paths on Wine's Z: drive
-        cmd = [wine, port, '--headless', '--game', 'Z:' + gdir, '--script', 'Z:' + script]
+        cmd = [wine, port, '--headless', '--game', 'Z:' + gdir, '--script', 'Z:' + script] + args
         env = dict(os.environ, WINEDEBUG='-all')
     p = subprocess.run(cmd, cwd=shots, capture_output=True, text=True, timeout=300, env=env)
     out = {}

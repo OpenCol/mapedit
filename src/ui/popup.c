@@ -1886,6 +1886,71 @@ i16 popup_ask(char *txt, char *key, char *dflt, i16 max)
     return r;
 }
 
+/* Port: adds text line s to the popup; a "^" line, which popup_wrap_lines draws as it is, is
+ * first broken at its spaces into "^" lines no wider than maxw pixels. */
+static void popup_add_wrapped(DosPopup *pop, char *s, i16 maxw)
+{
+    char line[0x100];
+    char cand[0x100];
+    char word[0x50];
+    i16 n;
+
+    if (s[0] != '^' || s[1] == '^') {
+        popup_add_string(pop, s);
+        return;
+    }
+    s++;
+    msc_strcpy(line, "^");
+    while (*s != 0) {
+        while (*s == ' ')
+            s++;
+        for (n = 0; s[n] != 0 && s[n] != ' ' && n < 0x4f; n++)
+            word[n] = s[n];
+        word[n] = 0;
+        s += n;
+        if (n == 0)
+            break;
+        msc_strcpy(cand, line);
+        if (cand[1] != 0)
+            msc_strcat(cand, " ");
+        msc_strcat(cand, word);
+        if (line[1] != 0 && style_text_width(&pop->style, cand + 1) > maxw) {
+            popup_add_string(pop, line);
+            msc_strcpy(line, "^");
+            msc_strcat(line, word);
+        } else
+            msc_strcpy(line, cand);
+    }
+    popup_add_string(pop, line);
+}
+
+/* Port: a popup of the port's own text, which MAPEDIT.TXT does not have: the text lines (with
+ * the sections' markup: ^, ^^, { }), wrapped to width pixels, a "^" line too (on lines of its
+ * own), then the items, numbered from 1, item sel preselected (0: none). Each list ends with a
+ * 0; items may be 0 for none. Returns popup_exec's result, or 0 when there is no memory. */
+i16 popup_lines(i16 width, char **lines, char **items, i16 sel)
+{
+    DosPopup *pop;
+    DosItem *it;
+    i16 i;
+    i16 r;
+
+    pop = popup_create(0x1000, popup_font);
+    if (pop == 0)
+        return 0;
+    popup_set_width(pop, width);
+    for (i = 0; lines[i] != 0; i++)
+        popup_add_wrapped(pop, lines[i], width - 8);
+    for (i = 0; items != 0 && items[i] != 0; i++) {
+        it = popup_add_item(pop, items[i], i + 1);
+        if (i + 1 == sel)
+            pop->sel_item = it;
+    }
+    r = popup_exec(pop);
+    mem_free(pop);
+    return r;
+}
+
 /* The module's uninitialised state. */
 char popup_text_buffer[80];             /* the last entry field's text */
 i16 king_frame;                         /* the King's animation frame (0: none) */

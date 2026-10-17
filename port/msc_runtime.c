@@ -15,6 +15,12 @@
  *     CR before each LF on output.
  *   - Integers are 16 bits wide where MSC's were: atoi wraps, itoa writes a 16-bit value.
  *
+ * Port: a second folder, the write root (msc_set_write_root), keeps the game folder as it is:
+ * every file is looked up there first and then in the game folder, every file written or
+ * created goes there (a file of the game folder opened for update is copied there first), a
+ * file is removed only from there, and a directory listing of the game folder shows both,
+ * the write root's file winning when both have one. Without it, everything is the game folder.
+ *
  * The host side is SDL3's (files, directories, path information), so the same code runs on
  * Windows, macOS and Linux. A directory is listed in name order, case ignored: DOS gave its
  * own order (the directory's), which no host file system keeps.
@@ -53,10 +59,16 @@
 /* ---- the file system ---------------------------------------------------------------------- */
 
 static char root[1024] = ".";
+static char wroot[1024] = "";   /* the write root, or "" */
 
 void msc_set_root(const char *dir)
 {
     snprintf(root, sizeof root, "%s", dir && *dir ? dir : ".");
+}
+
+void msc_set_write_root(const char *dir)
+{
+    snprintf(wroot, sizeof wroot, "%s", dir ? dir : "");
 }
 
 /* a directory's entries, sorted by name without regard to case (dot files left out) */
@@ -118,7 +130,7 @@ static int find_entry(const char *dir, const char *name, char *found, size_t cap
    root are skipped (the shipped game lived in C:\MPS\COLONIZE), the rest matched without
    regard to case. Returns 0 when the file exists, 1 when it does not (out holds the path to
    create), -1 when a directory on the way is missing. */
-static int host_path(const char *dos, char *out, size_t cap)
+static int host_path_in(const char *base, const char *dos, char *out, size_t cap)
 {
     char parts[16][64];
     int n = 0, i, k, missing = 0;
@@ -138,7 +150,7 @@ static int host_path(const char *dos, char *out, size_t cap)
     /* drop leading components until what is left is found (or only the name remains) */
     for (k = 0; k < n; k++) {
         char cur[1024];
-        snprintf(cur, sizeof cur, "%s", root);
+        snprintf(cur, sizeof cur, "%s", base);
         missing = 0;
         for (i = k; i < n; i++) {
             char found[256] = "";
@@ -157,8 +169,41 @@ static int host_path(const char *dos, char *out, size_t cap)
             return missing;
         }
     }
-    snprintf(out, cap, "%s/%s", root, n ? parts[n - 1] : "");
+    snprintf(out, cap, "%s/%s", base, n ? parts[n - 1] : "");
     return 1;
+}
+
+/* the host path to read a DOS name from: the write root's file, else the game folder's
+   (host_path_in's results) */
+static int host_path(const char *dos, char *out, size_t cap)
+{
+    if (wroot[0] && host_path_in(wroot, dos, out, cap) == 0)
+        return 0;
+    return host_path_in(root, dos, out, cap);
+}
+
+/* the host path to write a DOS name to: in the write root, when there is one; a file only the
+   game folder has is copied there first unless it is to be truncated. Returns as host_path_in
+   does for the path given back. */
+static int write_path(const char *dos, int truncate, char *out, size_t cap)
+{
+    char from[1024];
+    int r;
+    if (!wroot[0])
+        return host_path_in(root, dos, out, cap);
+    r = host_path_in(wroot, dos, out, cap);
+    if (r == 1 && host_path_in(root, dos, from, sizeof from) == 0) {
+        if (!truncate) {
+            size_t n = 0;
+            void *data = SDL_LoadFile(from, &n);
+            if (!data || !SDL_SaveFile(out, data, n))
+                r = -1;
+            else
+                r = 0;
+            SDL_free(data);
+        }
+    }
+    return r;
 }
 
 /* ---- handles ------------------------------------------------------------------------------ */
@@ -177,7 +222,11 @@ i16 msc_open(const char *name, i16 flags, ...)
     const char *mode;
     int h, acc = flags & 3, exists;
     SDL_IOStream *io;
-    host_path(name, path, sizeof path);
+    if (acc != 0 || (flags & (DOS_CREAT | DOS_TRUNC | DOS_APPEND))) {
+        if (write_path(name, (flags & DOS_TRUNC) != 0, path, sizeof path) < 0)
+            return -1;
+    } else
+        host_path(name, path, sizeof path);
     exists = SDL_GetPathInfo(path, NULL);
     if ((flags & DOS_CREAT) && (flags & DOS_EXCL) && exists)
         return -1;
@@ -529,7 +578,7 @@ i16 msc_fsetpos(MSC_FILE *f, const msc_fpos_t *pos) { return f ? rt_seek(f, *pos
 i16 msc_remove(const char *name)
 {
     char path[1024];
-    if (host_path(name, path, sizeof path) != 0)
+    if (host_path_in(wroot[0] ? wroot : root, name, path, sizeof path) != 0)
         return -1;
     return SDL_RemovePath(path) ? 0 : -1;
 }
@@ -601,7 +650,8 @@ i16 msc_sprintf(char *buf, const char *fmt, ...)
 
 /* ---- _dos_findfirst / _dos_findnext (INT 21h AH=4Eh/4Fh) ------------------------------------ */
 
-typedef struct { char dir[1024]; char pattern[16]; long index; u16 attrib; } FindState;
+/* dir2: a second directory listed with dir (the game folder beneath the write root), or "" */
+typedef struct { char dir[1024]; char dir2[1024]; char pattern[16]; long index; u16 attrib; } FindState;
 static FindState finds[8];
 
 static int wild_match(const char *pat, const char *name)
@@ -638,6 +688,25 @@ static u16 find_next_in(struct find_t *f, FindState *st)
     Listing l;
     long i;
     list_dir(st->dir, &l);
+    if (st->dir2[0]) {
+        Listing l2;
+        int j, k, n = l.n;
+        list_dir(st->dir2, &l2);
+        for (j = 0; j < l2.n; j++) {
+            for (k = 0; k < n && SDL_strcasecmp(l.names[k], l2.names[j]); k++)
+                ;
+            if (k < n)
+                continue;
+            if (l.n == l.cap) {
+                l.cap = l.cap ? l.cap * 2 : 64;
+                l.names = realloc(l.names, (size_t)l.cap * sizeof *l.names);
+            }
+            l.names[l.n++] = SDL_strdup(l2.names[j]);
+        }
+        list_free(&l2);
+        if (l.n)
+            qsort(l.names, (size_t)l.n, sizeof *l.names, by_name);
+    }
     for (i = st->index; i < l.n; i++) {
         char full[1300];
         SDL_PathInfo info;
@@ -647,8 +716,11 @@ static u16 find_next_in(struct find_t *f, FindState *st)
         if (!wild_match(st->pattern, e))
             continue;
         snprintf(full, sizeof full, "%s/%s", st->dir, e);
-        if (!SDL_GetPathInfo(full, &info))
-            continue;
+        if (!SDL_GetPathInfo(full, &info)) {
+            snprintf(full, sizeof full, "%s/%s", st->dir2, e);
+            if (!st->dir2[0] || !SDL_GetPathInfo(full, &info))
+                continue;
+        }
         is_dir = info.type == SDL_PATHTYPE_DIRECTORY;
         if (is_dir && !(st->attrib & _A_SUBDIR))
             continue;
@@ -682,8 +754,14 @@ u16 msc__dos_findfirst(char *spec, u16 attrib, struct find_t *f)
     if (dirpart[0]) {
         if (host_path(dirpart, st->dir, sizeof st->dir) < 0)
             return 3;                               /* path not found */
-    } else
+        st->dir2[0] = 0;
+    } else if (wroot[0]) {
+        snprintf(st->dir, sizeof st->dir, "%s", wroot);
+        snprintf(st->dir2, sizeof st->dir2, "%s", root);
+    } else {
         snprintf(st->dir, sizeof st->dir, "%s", root);
+        st->dir2[0] = 0;
+    }
     snprintf(st->pattern, sizeof st->pattern, "%s", name);
     st->index = 0;
     st->attrib = attrib;

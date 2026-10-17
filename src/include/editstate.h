@@ -3,7 +3,8 @@
  * Defined in core/editstate.c: the state the views show and the commands change. Map Tile
  * Select (ui/tilepicker.c) sets the selection, the paint commands (editor/edit.c) apply it,
  * and the info panel shows it. make_undo saves the terrain plane before an edit and
- * perform_undo puts it back: one level of undo.
+ * perform_undo puts it back: one level of undo. With the port's undo_levels option, undo_step
+ * goes back and forth through a history of all three saved planes instead.
  */
 #ifndef MAPEDIT_EDITSTATE_H
 #define MAPEDIT_EDITSTATE_H
@@ -26,5 +27,7 @@ extern i16 cursor_y;
 extern i16 cursor_on;                   /* the cursor square is drawn at the moment */
 void make_undo(void);
 void perform_undo(void);
+i16 undo_step(i16 redo);              /* port: the history (options.h) */
+void undo_reset(void);
 
 #endif

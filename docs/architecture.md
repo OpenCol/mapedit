@@ -8,7 +8,7 @@ editor   src/editor   the commands and the main loop        (the controller)
 ui       src/ui       drawing, widgets, the screens         (the views)
 core     src/core     the map, its files, the editing state (the model)
 sys      src/sys      files, memory, packing, input, the clock, the screen surfaces
-         port/        MSC 6's run-time (msc_*), the program's entry, the game folder
+         port/        MSC 6's run-time (msc_*), the program's entry, the game folder, PNG files
          platform/    SDL3: the window, the keyboard and mouse, the clock
 ```
 
@@ -34,6 +34,7 @@ a record read through bytes -- compiled silently.
 | `pack.c` | the stream plumbing around the codec |
 | `screen.c` | the screens the editor draws into (work, original, video) |
 | `sort.c`, `strings.c`, `text.c` | sorting; the string store; the text files (MAPEDIT.TXT, NAMES.TXT) |
+| `options.c` | the port's improvements, all off (`options.h`) |
 | `sound.c` | the three sound calls the editor makes (it plays nothing) |
 | `timer.c` | the 600 Hz and 60 Hz clocks; `timer_idle`, where the UI loops rest |
 | `video.c` | mode 13h: the screen and its address |
@@ -46,7 +47,7 @@ a record read through bytes -- compiled silently.
 | `mapfile.c` | `.MP` files: loading, saving, a blank map, the old forest codes (`forest_fix`) |
 | `terrain.c` | the terrain table from NAMES.TXT |
 | `continents.c` | Find Continents |
-| `editstate.c` | the cursor, the selection and how it paints, the brush, coast protection, undo |
+| `editstate.c` | the cursor, the selection and how it paints, the brush, coast protection, undo (and the port's undo history) |
 | `distance.c`, `compass.c` | minimax; the eight directions |
 | `game.c` | the game's records and empty stand-ins for game functions the shared modules call |
 
@@ -55,6 +56,7 @@ a record read through bytes -- compiled silently.
 | File | |
 | --- | --- |
 | `mapview.c` | the map view: geometry, terrain with coasts and seams, the reveal, the cursor square |
+| `mapimage.c` | port: the whole map drawn into a picture, for Export Map as PNG |
 | `minimap.c` | the minimap |
 | `infopanel.c` | the information window beside the map |
 | `tilepicker.c` | Map Tile Select |
@@ -70,13 +72,14 @@ a record read through bytes -- compiled silently.
 | `mapedit.c` | startup, the command line, the menu bar's commands, the file menu |
 | `input.c` | the main loop, keys, mouse strokes over the map and the minimap |
 | `edit.c` | painting, picking up, the brush, the cursor and the view (the commands that redraw) |
+| `checks.c` | port: the checks before saving |
 
 ## Checks
 
 | | needs the game | what it says |
 | --- | --- | --- |
 | `ctest` (self-tests, layers, declarations) | no | the run-time and host behave; the layers and declarations hold |
-| `tools/golden.py` (in `ctest` with `$MAPEDIT_GAME`) | yes | 14 sessions give the same screens and files as recorded |
+| `tools/golden.py` (in `ctest` with `$MAPEDIT_GAME`) | yes | 18 sessions give the same screens and files as recorded (the 4 `x_*` ones with the port's improvements on) |
 | `tests/oracle` (with `$MAPEDIT_EXE`) | the EXE | the C for the 1994 assembly computes what the original does |
 | `tools/m4.py` | yes, and DOSBox-X | the port saves the same files as the original under DOSBox-X |
 

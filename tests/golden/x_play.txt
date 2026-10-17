@@ -1,0 +1,19 @@
+# args: --play --check-save
+# Port: Editor > Play This Map. The map has changes: it asks to save, checks, saves and leaves
+wait 300
+key Return
+wait 1500
+key Space
+wait 300
+click 20 3
+wait 300
+shot 01-menu.bmp
+key G
+wait 500
+shot 02-ask.bmp
+key Return
+wait 800
+shot 03-checks.bmp
+key Up
+key Return
+wait 800

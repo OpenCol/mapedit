@@ -72,11 +72,19 @@ moves no mouse; the editor drives everything from the keyboard (the keypad is it
 Time is not matched: AUTOTYPE paces keys in real time, and nothing the editor writes to a
 file depends on the clock.
 
-## Improvements (M5), candidates
+## Improvements (M5)
 
+Done, each behind an option (`src/include/options.h`, the flags in README.md), the golden
+sessions `tests/golden/x_*.txt` recording each with its option on:
+- more undo levels (the original has one, of the terrain plane only), with Redo;
+- checks before saving: what the game changes in a map from the editor (the edge columns
+  become sea lane), and what the help warns of (one-square rivers, more than 15 land masses);
+- an export of the map as a PNG;
+- a separate folder for the maps written (the game directory only read);
+- Play This Map, for a program the editor is built into (OpenCol).
+
+Candidates:
 - window scaling and fullscreen; aspect-correct 4:3 presentation;
 - the mouse wheel for zoom (`Z`/`X`), dragging the view;
-- more undo levels (the original has one);
 - native open/save dialogs beside the original's file list;
-- maps larger than the original's 12,000-square limit, flagged as unreadable by the 1994 game;
-- an export of the map as a PNG.
+- maps larger than the original's 12,000-square limit, flagged as unreadable by the 1994 game.

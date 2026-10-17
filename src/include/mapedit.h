@@ -25,6 +25,7 @@ char *env_catint(char *s, i16 value, i16 digits);
 char *env_get_path(char *dst, char *name);
 MSC_FILE *env_open(char *name, char *mode);
 /* editor/mapedit.c */
+i16 checked_write_map(void);             /* port: write_map_file after the checks */
 i16 construct_mapedit_menu(void);
 void editor_main(i16 argc, char **argv);
 void execute_menu_event(i16 id);

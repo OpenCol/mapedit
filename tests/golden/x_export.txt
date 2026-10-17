@@ -1,0 +1,14 @@
+# args: --export-png .
+# Port: Editor > Export Map as PNG writes AMER2.png in the folder given (here ., the current one) and says where
+wait 300
+key Return
+wait 1500
+click 20 3
+wait 300
+shot 01-menu.bmp
+key E
+wait 1500
+shot 02-exported.bmp
+key Return
+wait 500
+shot 03-back.bmp

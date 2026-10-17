@@ -1,0 +1,46 @@
+# args: --check-save
+# Port: the checks before saving. Land painted in the column next to the west edge; Save
+# lists it and asks; "Do not save" (the default) keeps the file, then "Save anyway" saves
+wait 300
+key Return
+wait 1500
+key 6
+key 6
+key 6
+key Backspace
+wait 300
+type 4444444444
+wait 1500
+type 4444444444
+wait 1500
+type 4444444444
+wait 1500
+key 4
+wait 300
+key Space
+wait 300
+shot 01-west-edge.bmp
+hold alt
+wait 150
+hold
+wait 300
+key S
+wait 500
+key Return
+wait 800
+shot 02-checks.bmp
+key Return
+wait 500
+shot 03-not-saved.bmp
+hold alt
+wait 150
+hold
+wait 300
+key S
+wait 500
+key Return
+wait 800
+key Up
+key Return
+wait 800
+shot 04-saved.bmp

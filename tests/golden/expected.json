@@ -68,6 +68,32 @@
   "shot 02-picked.bmp": "5d6d61de72f1962660aea24e88e95bd073708619778dd8089b783321931b1675",
   "shot 03-painted.bmp": "734f4e8f29ca2979156436fdc75fab7f251d5d650f184b0c6a0f47035c077956"
  },
+ "x_checks": {
+  "file AMER2.MP": "39de2e136e402a1d8627ceb962fc70435d7c5d85c1ac64e8ed579ff58da4d52a",
+  "shot 01-west-edge.bmp": "3949b16b0e30bf4281e5d80a63e41d813075f165a8f0f45e322c63d4eaabf9df",
+  "shot 02-checks.bmp": "ce09dc45f708787be46d8b92f347a20519231f2fe966564307bb4618598c28b5",
+  "shot 03-not-saved.bmp": "8fe646825f5c8644b2abcdaf231f2a126aaca221c08e368d1a3756b8bdb0b02b",
+  "shot 04-saved.bmp": "3949b16b0e30bf4281e5d80a63e41d813075f165a8f0f45e322c63d4eaabf9df"
+ },
+ "x_export": {
+  "shot 01-menu.bmp": "8146c6c13721aa0f434f8d30b4324948413bb9cd0d61c1f915ff782d16bb660b",
+  "shot 02-exported.bmp": "6e39c7a5c776df9b39bcd43c80ec6fd5aad9ce877e6a6e6c7169c71d29ba95ac",
+  "shot 03-back.bmp": "2aaf44cd2f027236adccace0981f8dc3ae6379759cfe74b23bd52c132e10daa4",
+  "shot AMER2.png": "8e84f2e4c18c2a324bc4475ddffd8f592f36c6d716746cad0441a2a10f0d7abd"
+ },
+ "x_play": {
+  "file AMER2.MP": "b8da2dfb86fd359b804df2c66e193beaa0a2b78a1cfcc77b73d9edaf606cf39a",
+  "shot 01-menu.bmp": "db6bd0c458fb4c7cd24598b969bace4af8f27d421df3387302a21cffb6413df0",
+  "shot 02-ask.bmp": "254f060e6e42014ab4be806fdc0508d0942b0a4170b14114f0f8e31ea09f6b05",
+  "shot 03-checks.bmp": "2c8a9039da715478d66491ee559769cd1496ae34e8bc32c43206a579d6c130f6"
+ },
+ "x_undo": {
+  "file AMER2.MP": "07191862956322e4c5aba5df3051d2536e5ccd96ff71d2812da02e7add72a2b2",
+  "shot 01-three.bmp": "1f411987d1050b4496a68229ad85267d781889e784fc216b859580a8d1ef475f",
+  "shot 02-undone-two.bmp": "05b3601c4256b950194d61bdedfae64e26336310c92b6dc643991390945cb5af",
+  "shot 03-redone-one.bmp": "43c245efae2a21232e1ec7698bc45b52aa859349ccb0fc5c1d3952e5cd1a6f03",
+  "shot 04-undone-again.bmp": "5db327a6e6303a29fda2b27e9bdfd05268d98b175681a7b29985b52fe0869eb1"
+ },
  "zoom": {
   "shot 01-f1.bmp": "c6e1273e6a8b0031087c164e1838de706ea38544359b10dff80409e7174d2db2",
   "shot 02-f2.bmp": "a9bfc43ee32ebb336a610b341a1ea9cdb9835706bafdfd78cedc583a8e287398",

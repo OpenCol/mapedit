@@ -17,6 +17,7 @@
 #pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "editstate.h"
 #include "assets.h"
+#include "checks.h"
 #include "edit.h"
 #include "error.h"
 #include "game.h"
@@ -34,10 +35,12 @@
 #include "machine.h"
 #include "map.h"
 #include "mapedit.h"
+#include "mapimage.h"
 #include "mcga.h"
 #include "mem.h"
 #include "menu.h"
 #include "mouse.h"
+#include "options.h"
 #include "pack.h"
 #include "pal.h"
 #include "popup.h"
@@ -54,10 +57,18 @@
 i16 mads_mode = 0;
 i16 file_set = 0;
 
+/* The port's menu items (options.h), which MAPMENU.TXT does not have. The menu code may
+ * shift an item's text in place, so each is an array, not a string literal. */
+static char item_export[] = "~Export Map as PNG";
+static char item_play[] = "Play This Map in ~Game";
+static char item_redo[] = "~Redo Last Change";
+
 /* Builds the menu bar from MAPMENU.TXT: the titles Editor (bar id 1), View (2), Map (6) and
  * Help (7, placed at the right), their items in the file's order with the command ids
  * execute_menu_event takes, and "" items as separators. Sets menu_bar. Returns 0, or 1 when
- * a section of MAPMENU.TXT is missing (the bar is then left half built). */
+ * a section of MAPMENU.TXT is missing (the bar is then left half built).
+ * Port: the options add Export Map as PNG (0x70) and Play This Map (0x71) after Create Map,
+ * and Redo (0x72) after Undo. */
 i16 construct_mapedit_menu(void)
 {
     i16 result;
@@ -72,6 +83,10 @@ i16 construct_mapedit_menu(void)
         menu_add_item(menu_bar, 1, text_get(), 0x13);
         menu_add_item(menu_bar, 1, text_get(), 0x1b);
         menu_add_item(menu_bar, 1, text_get(), 0x14);
+        if (editor_options.export_png)
+            menu_add_item(menu_bar, 1, item_export, 0x70);
+        if (editor_options.play)
+            menu_add_item(menu_bar, 1, item_play, 0x71);
         menu_add_item(menu_bar, 1, "", 0);
         menu_add_item(menu_bar, 1, text_get(), 0x1f);
         if (text_open("mapmenu", "view"))
@@ -96,6 +111,8 @@ i16 construct_mapedit_menu(void)
         menu_add_item(menu_bar, 6, text_get(), 0x4a);
         menu_add_item(menu_bar, 6, "", 0);
         menu_add_item(menu_bar, 6, text_get(), 0x4e);
+        if (editor_options.undo_levels)
+            menu_add_item(menu_bar, 6, item_redo, 0x72);
         if (text_open("mapmenu", "help"))
             goto out;
         menu_add_bar_item(menu_bar, text_get(), 7, 1);
@@ -202,6 +219,87 @@ void memory_check(void)
     popup_box("DEBUG", "MEMORY", 0);
 }
 
+/* Port: saves the map after the checks before saving (options.h, save_checks): -1 when the
+ * player chose not to save, else write_map_file's result (0 saved, 1 failed). */
+i16 checked_write_map(void)
+{
+    if (!save_checks_pass())
+        return -1;
+    return write_map_file();
+}
+
+/* Port: Export Map as PNG (options.h, export_png): writes the picture, redraws the screen and
+ * says where the file went, the path broken after a slash wherever a line would be long. */
+static void export_command(void)
+{
+    static char where[512], parts[12][40];
+    char *text[16];
+    i16 n = 0, k = 0, i = 0, len;
+
+    if (export_map_png(where, sizeof where)) {
+        main_screen_refresh();
+        text[0] = "The picture of the map could not be written.";
+        text[1] = 0;
+        popup_lines(190, text, 0, 0);
+        return;
+    }
+    main_screen_refresh();
+    text[n++] = "^^{Map exported}";
+    text[n++] = "^The picture of the map is in";
+    while (where[i] && k < 12) {
+        len = 0;
+        parts[k][len++] = '^';
+        while (where[i] && len < 39) {
+            parts[k][len++] = where[i++];
+            if ((where[i - 1] == '/' || where[i - 1] == '\\') && len > 26)
+                break;
+        }
+        parts[k][len] = 0;
+        text[n++] = parts[k++];
+    }
+    text[n] = 0;
+    popup_lines(220, text, 0, 0);
+}
+
+/* Port: Play This Map (options.h, play). The game reads map names of up to eight letters. A
+ * map with changes is saved first, after a question and the checks. Returns 1 with the map's
+ * file name in editor_options.play_map, for the editor to be left; 0 to stay. */
+static i16 play_command(void)
+{
+    static char ask[0x60];
+    static char *ask_text[] = {ask, "", 0};
+    static char *ask_items[] = {"Save and play", "Cancel", 0};
+    static char *long_text[] = {"The game reads map names of up to eight letters. Save the map under a "
+                                "shorter name first (Save Map As).", 0};
+    char *dot;
+    i16 r;
+
+    fileio_new_ext(map_name, map_name, "MP");
+    dot = msc_strchr(map_name, '.');
+    if (dot == 0 || dot - map_name > 8 || dot == map_name) {
+        popup_lines(190, long_text, 0, 0);
+        return 0;
+    }
+    if (map_changes) {
+        msc_strcpy(popup_subst_string[0], map_name);
+        msc_strupr(popup_subst_string[0]);
+        msc_sprintf(ask, "Save %s and play it?", popup_subst_string[0]);
+        if (popup_lines(190, ask_text, ask_items, 1) != 1)
+            return 0;
+        r = checked_write_map();
+        if (r < 0)
+            return 0;
+        if (r) {
+            popup_box("MAPEDIT", "ERROR", 0);
+            return 0;
+        }
+        map_changes = 0;
+    }
+    msc_strcpy(editor_options.play_map, map_name);
+    msc_strupr(editor_options.play_map);
+    return 1;
+}
+
 /* Carries out the menu command with item id `id`:
  *   Editor  0x1a Save (after the SAVE popup's first choice), 0x13 Save As (asks for a name of
  *           up to 14 characters; the extension becomes .MP, and map_name changes even when
@@ -219,10 +317,14 @@ void memory_check(void)
  * codes (forest_fix) and re-centres; a failed load shows ERROR. Exit leaves at once when the
  * map is unchanged, else after the EXIT popup (its second choice saves first, its first
  * leaves without saving). Undo restores the snapshot, if one was taken, and redraws; it does
- * nothing when there is no undo buffer. A failed save shows ERROR and keeps map_changes. */
+ * nothing when there is no undo buffer. A failed save shows ERROR and keeps map_changes.
+ * Port: the saves go through the checks before saving (checked_write_map); with the undo
+ * history, Undo and Redo (0x72) step through it and mark the map changed, and Load and Create
+ * forget it; 0x70 exports the map as a PNG and 0x71 plays it (options.h). */
 void execute_menu_event(i16 id)
 {
     register i16 r;
+    char old_name[80];
 
     switch (id) {
     case 0x1a:
@@ -230,7 +332,10 @@ void execute_menu_event(i16 id)
         msc_strupr(popup_subst_string[0]);
         if (popup_box("MAPEDIT", "SAVE", 0) != 1)
             goto out;
-        if (write_map_file()) {
+        r = checked_write_map();
+        if (r < 0)
+            goto out;
+        if (r) {
             popup_box("MAPEDIT", "ERROR", 0);
             goto out;
         }
@@ -241,9 +346,13 @@ void execute_menu_event(i16 id)
         msc_strupr(popup_subst_string[0]);
         if (popup_ask("MAPEDIT", "SAVEAS", popup_subst_string[0], 0xe))
             goto out;
+        msc_strcpy(old_name, map_name);
         msc_strcpy(map_name, popup_text_buffer);
         fileio_new_ext(map_name, map_name, "MP");
-        if (write_map_file())
+        r = checked_write_map();
+        if (r < 0)
+            msc_strcpy(map_name, old_name);
+        else if (r)
             popup_box("MAPEDIT", "ERROR", 0);
         else
             map_changes = 0;
@@ -254,8 +363,8 @@ void execute_menu_event(i16 id)
         r = !map_changes;
         if (!r)
             r = popup_box("MAPEDIT", "CREATENOW", 0) == 1 ? 1 : 0;
-        if (r)
-            create_me();
+        if (r && create_me() == 0)
+            undo_reset();
         cursor_x = map_center_x = map_file.w >> 1;
         cursor_y = map_center_y = map_file.h >> 1;
         new_mini();
@@ -277,6 +386,7 @@ void execute_menu_event(i16 id)
             goto out;
         }
         forest_fix();
+        undo_reset();
         cursor_x = map_center_x = map_file.w >> 1;
         cursor_y = map_center_y = map_file.h >> 1;
         new_mini();
@@ -291,7 +401,10 @@ void execute_menu_event(i16 id)
         }
         r = popup_box("MAPEDIT", "EXIT", 0);
         if (r == 2) {
-            if (write_map_file()) {
+            r = checked_write_map();
+            if (r < 0)
+                goto out;
+            if (r) {
                 popup_box("MAPEDIT", "ERROR", 0);
                 goto out;
             }
@@ -332,6 +445,13 @@ void execute_menu_event(i16 id)
         info_window_draw();
         break;
     case 0x4e:
+        if (editor_options.undo_levels) {
+            if (undo_step(0)) {
+                map_changes = 1;
+                main_screen_refresh();
+            }
+            break;
+        }
         if (undo_available) {
             if (undo_active)
                 perform_undo();
@@ -356,6 +476,19 @@ void execute_menu_event(i16 id)
     case 0x6a:
         memory_check();
         break;
+    case 0x70:
+        export_command();
+        break;
+    case 0x71:
+        if (play_command())
+            game.game_in_progress = 0;
+        break;
+    case 0x72:
+        if (undo_step(1)) {
+            map_changes = 1;
+            main_screen_refresh();
+        }
+        break;
     }
 out:;
 }
@@ -371,7 +504,7 @@ typedef struct { i16 name; char f2; char f3; char f4; char pad[2]; char v[9]; } 
  * file's header (the test of (u16)map_force < 0 is never true). Then the map is loaded, its
  * old forest codes converted (forest_fix), or created (create_me), and the cursor and the
  * view go to its centre. Returns 0 when ready, 1 to quit; a failed load leaves map_error in
- * exit_value. */
+ * exit_value. Port: the undo history of an earlier session is forgotten. */
 i16 start_new_game(void)
 {
     register i16 result;
@@ -399,6 +532,7 @@ i16 start_new_game(void)
             }
             forest_fix();
         }
+        undo_reset();
         cursor_x = map_center_x = map_file.w >> 1;
         cursor_y = map_center_y = map_file.h >> 1;
         result = 0;
@@ -576,13 +710,14 @@ void flag_parse(char **p)
  * of flags, every letter of it passed to flag_parse (so flags may be run together: -cm:FILE);
  * an argument starting with ? prints the options and quits without editing (-? does not).
  * Other arguments are ignored. Enables the FAB codec for the art, runs the editor, and
- * prints "Exit value: n" when it failed. */
+ * prints "Exit value: n" when it failed. Port: clears editor_options.play_map first. */
 void editor_main(i16 argc, char **argv)
 {
     register i16 i;
     char *s;
 
     pack_enable_pfab();
+    editor_options.play_map[0] = 0;
     mads_mode = 0;
     file_set = 0;
     for (i = 1; i < argc; i++) {

@@ -117,6 +117,7 @@ void popup_fill(i16 x, i16 y, i16 w, DosPort port, i16 h, i16 sx, i16 sy, i16 c,
 void popup_help_draw(DosPopup *p);
 void popup_init(DosFont *font, i16 size);
 i16 popup_layout(DosPopup *p);
+i16 popup_lines(i16 width, char **lines, char **items, i16 sel);   /* port: the port's own text */
 void popup_load_dude(DosPopup *p);
 void popup_parse_string(char *src, char *dst);
 i16 popup_read_check(DosPopup *p, i16 key);

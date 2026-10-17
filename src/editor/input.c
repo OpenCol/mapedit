@@ -25,6 +25,7 @@
 #include "machine.h"
 #include "map.h"
 #include "mapedit.h"
+#include "options.h"
 #include "mapview.h"
 #include "menu.h"
 #include "mouse.h"
@@ -101,7 +102,8 @@ i16 mouse_area(void)
  *   - Enter and Space paint the brush at the cursor (taking an undo snapshot first);
  *   - Esc, Ctrl-Q, Ctrl-X, Alt-Q and Alt-X leave as the Exit command does: at once when the
  *     map is unchanged, else after the EXIT popup (its second choice saves first, its first
- *     leaves without saving, anything else stays).
+ *     leaves without saving, anything else stays);
+ *   - port, with the undo history (options.h): Ctrl-Z is Undo and Ctrl-Y Redo.
  * Returns 1 when the key was one of these, else 0. */
 i16 parse_main_keys(void)
 {
@@ -142,13 +144,21 @@ i16 parse_main_keys(void)
             msc_strupr(popup_subst_string[0]);
             r = popup_box("MAPEDIT", "EXIT", 0);
             if (r == 2) {
-                if (write_map_file())
+                r = checked_write_map();
+                if (r > 0)
                     popup_box("MAPEDIT", "ERROR", 0);
-                else
+                else if (r == 0)
                     game.game_in_progress = 0;
             } else if (r == 1)
                 game.game_in_progress = 0;
         }
+        break;
+    case 0x1a:
+    case 0x19:
+        if (editor_options.undo_levels)
+            execute_menu_event(mykey == 0x1a ? 0x4e : 0x72);
+        else
+            result = 0;
         break;
     case '1':
     case 0x14f:

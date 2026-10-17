@@ -76,6 +76,20 @@ same input, it shows the same screens and writes byte-identical `.MP` files. Gat
 ([docs/plan.md](docs/plan.md)) measures that against the original running under DOSBox-X.
 Improvements come after it, each behind an option.
 
+## Improvements
+
+Each is off unless asked for on the command line, so the editor stays the 1994 program by
+default (`src/include/options.h` has the details):
+
+| | |
+| --- | --- |
+| `--undo N` | Undo goes back through the last N changes (the original keeps one, of the terrain only), Map > Redo Last Change (R) goes forward again; Ctrl-Z and Ctrl-Y |
+| `--check-save` | before a save: Find Continents runs, and a popup lists what the game would change or mind (no land, more than 15 land masses or seas, land in the columns the game makes sea lane, one-square rivers) and asks whether to save anyway |
+| `--export-png [DIR]` | Editor > Export Map as PNG (E): the whole map at full zoom, in DIR or the current folder |
+| `--improved` | all three, with 64 steps of Undo |
+| `--save-dir DIR` | maps are written to DIR; the game directory is then only read (DIR's files first) |
+| `--play` | Editor > Play This Map in Game (G), for a program that starts the editor: the map is saved and the editor ends, printing `play NAME.MP` |
+
 ## License
 
 See [NOTICE.md](NOTICE.md). The platform layer and tools are MIT licensed. The imported

@@ -1,12 +1,20 @@
 /* main.c -- the port's entry: the host, the game directory, then the 1994 editor's main.
  *
  *     mapedit [--game DIR | --choose-game] [--scale N] [--aspect] [--script FILE] [--headless]
+ *             [--save-dir DIR] [--improved | --undo N --check-save --export-png [DIR]] [--play]
  *             [editor options: -c, -m:FILE]
  *
  * DIR is the player's Colonization for DOS directory (the one holding VICEROY.EXE); by
  * default $MAPEDIT_GAME, else found or asked for (game_dir.c; --choose-game asks again).
  * The editor reads its art, fonts and texts there and writes its maps there, as it did. --script plays a session
  * (platform/host_sdl.c has the commands); --headless opens no window.
+ *
+ * The improvements (src/include/options.h), all off unless given: --undo N keeps N steps of
+ * Undo and Redo, --check-save checks the map before it is saved, --export-png adds Export Map
+ * as PNG (written to DIR, else the current folder); --improved is all three, with 64 steps.
+ * --save-dir DIR writes maps to DIR instead of the game directory, which is then only read.
+ * --play offers Play This Map, for a program that starts the editor: chosen, the editor ends
+ * and prints "play NAME.MP".
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,13 +25,15 @@
 #include "msc.h"
 #include "host.h"
 #include "game_dir.h"
+#include "options.h"
 
 void msc_set_root(const char *dir);
+void msc_set_write_root(const char *dir);
 
 int main(int argc, char **argv)
 {
     HostOptions opt;
-    const char *game = getenv("MAPEDIT_GAME");
+    const char *game = getenv("MAPEDIT_GAME"), *save_dir = NULL;
     char *args[16];
     int n = 0, i, choose = 0;
     memset(&opt, 0, sizeof opt);
@@ -43,6 +53,25 @@ int main(int argc, char **argv)
             opt.headless = 1;
         else if (!strcmp(argv[i], "--choose-game"))
             choose = 1;
+        else if (!strcmp(argv[i], "--save-dir") && i + 1 < argc)
+            save_dir = argv[++i];
+        else if (!strcmp(argv[i], "--undo") && i + 1 < argc) {
+            int n = atoi(argv[++i]);
+            editor_options.undo_levels = (i16)SDL_clamp(n, 0, 1000);
+        }
+        else if (!strcmp(argv[i], "--check-save"))
+            editor_options.save_checks = 1;
+        else if (!strcmp(argv[i], "--export-png")) {
+            editor_options.export_png = 1;
+            if (i + 1 < argc && argv[i + 1][0] != '-')
+                editor_options.export_dir = argv[++i];
+        } else if (!strcmp(argv[i], "--play"))
+            editor_options.play = 1;
+        else if (!strcmp(argv[i], "--improved")) {
+            editor_options.undo_levels = 64;
+            editor_options.save_checks = 1;
+            editor_options.export_png = 1;
+        }
         else if (!strncmp(argv[i], "-psn_", 5))
             ;                           /* macOS's process serial number, from Finder */
         else if (n < 15)
@@ -69,7 +98,11 @@ int main(int argc, char **argv)
         }
     }
     msc_set_root(game);
+    if (save_dir)
+        msc_set_write_root(save_dir);
     editor_main((i16)n, args);         /* the editor leaves through exit() itself, mostly */
+    if (editor_options.play_map[0])
+        printf("play %s\n", editor_options.play_map);
     host_quit();
     return 0;
 }
