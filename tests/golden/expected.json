@@ -81,6 +81,17 @@
   "shot 03-back.bmp": "2aaf44cd2f027236adccace0981f8dc3ae6379759cfe74b23bd52c132e10daa4",
   "shot AMER2.png": "8e84f2e4c18c2a324bc4475ddffd8f592f36c6d716746cad0441a2a10f0d7abd"
  },
+ "x_newmap": {
+  "shot 01-start.bmp": "bad131b3c9d130b41aa9488c3f17ac62e14527f2228d79c6edb5579a72a756f7",
+  "shot 02-load-list.bmp": "02c7604cd61bf61070d17d02f1a69ada7df6486bb828826e46e24522923fcf40",
+  "shot 03-generate.bmp": "47906c6f0419cc6c41f48e51657097126dbc263a95cb9092635ce51a59553c92",
+  "shot 04-stepped.bmp": "b7ddeca88a183124f608639df36f93ba8cebbdc8073300f0247b1e4542514d73",
+  "shot 05-name.bmp": "e4ca259627ffeb1b559a7e9401413e4b8c69ab2781b612b7d37c4b396fc8dcaa",
+  "shot 06-generated.bmp": "65ff15c5e19a9212f71058611e1bbd057130435c0b87184ae451a15b72557ef9",
+  "shot 07-create-ask.bmp": "34e0384a28434d5cacf290c895deed4d2195ca6030462282f2201561520dfbd3",
+  "shot 08-create-menu.bmp": "5dc7dc87eef267859dd35f4ac35713287c11466ea51543530ef4419ec5145771",
+  "shot 09-empty.bmp": "9ac75ee25063a161f989f841cc1d752e869b1bac4023a6ec0810676f0214ca93"
+ },
  "x_play": {
   "file AMER2.MP": "b8da2dfb86fd359b804df2c66e193beaa0a2b78a1cfcc77b73d9edaf606cf39a",
   "shot 01-menu.bmp": "db6bd0c458fb4c7cd24598b969bace4af8f27d421df3387302a21cffb6413df0",

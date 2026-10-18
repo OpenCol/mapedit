@@ -13,6 +13,8 @@
  * mapfile.c reads and writes the map files (.MP); this file only chooses them: map_name is
  * the current one, and file_menu offers the ones in the game folder.
  */
+#include <stdlib.h>
+
 #include "msc.h"
 #pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
 #include "editstate.h"
@@ -300,6 +302,99 @@ static i16 play_command(void)
     return 1;
 }
 
+/* Port: Generate random map (options.h, generate_map). The four rows of the game's CUSTOMIZE
+ * New World screen, each choice remembered from the last map made; choosing a row (or its key:
+ * M, F, T, C) steps its choice. Then the new map's name (NEWNAME, as Create Map asks it), and the program around
+ * the editor makes the map; it replaces the one being edited only when that worked. Returns 0
+ * with the new map in the planes (map_changes set), 1 when cancelled or failed. */
+static i16 generate_command(void)
+{
+    static i16 choice[4] = {1, 1, 1, 1};
+    static char *row[4] = {"Land ~Mass", "Land ~Form", "~Temperature", "~Climate"};
+    static char *word[4][3] = {{"Small", "Moderate", "Large"}, {"Archipelago", "Normal", "Continents"},
+                               {"Cool", "Temperate", "Warm"}, {"Arid", "Normal", "Wet"}};
+    static char *text[] = {"^^{Generate random map}", "^^As the game makes a New World", "", 0};
+    static char items[4][0x30];
+    static char *list[] = {items[0], items[1], items[2], items[3], "", "~Generate", "Cancel", 0};
+    static char *failed[] = {"The map could not be generated.", 0};
+    u8 *terrain;
+    u8 *cont;
+    char name[0x50];
+    i16 r = 1;
+    i16 sel = 6;
+    i16 i;
+
+    for (;;) {
+        for (i = 0; i < 4; i++)
+            msc_sprintf(items[i], "%s:|%s", row[i], word[i][choice[i]]);
+        sel = popup_lines(190, text, list, sel);
+        if (sel >= 1 && sel <= 4)
+            choice[sel - 1] = (choice[sel - 1] + 1) % 3;
+        else if (sel == 6)
+            break;
+        else
+            return 1;
+    }
+    if (popup_ask("MAPEDIT", "NEWNAME", "UNTITLED.MP", 0x14) != 0)
+        return 1;
+    msc_strcpy(name, popup_text_buffer);
+    fileio_new_ext(name, name, "MP");
+    terrain = malloc(2 * 0x3a * 0x48);
+    if (terrain == 0)
+        return 1;
+    cont = terrain + 0x3a * 0x48;
+    if (editor_options.generate_map(choice, terrain, cont, 0x3a, 0x48) == 0
+        && create_blank_map(0x3a, 0x48) == 0) {
+        msc__fmemcpy(map, terrain, 0x3a * 0x48);
+        msc__fmemcpy(continent, cont, 0x3a * 0x48);
+        set_plane_ports();
+        forest_fix();
+        msc_strcpy(map_name, name);
+        map_changes = 1;
+        r = 0;
+    } else
+        popup_lines(190, failed, 0, 0);
+    free(terrain);
+    return r;
+}
+
+/* Port: the new-map menu (options.h, new_map_menu): New empty map (Create Map's name and blank
+ * ocean map), Load existing map (MAPTOLOAD's file list; a map that does not load shows
+ * ERROR), Generate random map (generate_command, when the program around the editor makes
+ * maps). The choice is asked again after a step is cancelled or fails. at_start: the editor is
+ * starting, so the title is shown. Returns 0 with a map ready (the caller centres the view),
+ * 1 when the menu is cancelled. */
+static i16 new_map_menu(i16 at_start)
+{
+    static char *start_text[] = {"^^{COLONIZATION MAP EDITOR}", "^^Copyright (C) 1994 by Microprose Software", "",
+                                 "^^What map shall we edit?", 0};
+    static char *create_text[] = {"^^{Create Map}", "", 0};
+    static char *items[] = {"~New empty map", "~Load existing map", "~Generate random map", 0};
+    static char *items2[] = {"~New empty map", "~Load existing map", 0};
+    i16 r;
+
+    for (;;) {
+        r = popup_lines(220, at_start ? start_text : create_text, editor_options.generate_map ? items : items2, 1);
+        if (r == 1) {
+            if (create_me() == 0)
+                return 0;
+        } else if (r == 2) {
+            if (file_menu("MAPEDIT", "MAPTOLOAD", "*.MP") >= 0) {
+                msc_strcpy(map_name, file_select);
+                if (load_map_file() == 0) {
+                    forest_fix();
+                    return 0;
+                }
+                popup_box("MAPEDIT", "ERROR", 0);
+            }
+        } else if (r == 3) {
+            if (generate_command() == 0)
+                return 0;
+        } else
+            return 1;
+    }
+}
+
 /* Carries out the menu command with item id `id`:
  *   Editor  0x1a Save (after the SAVE popup's first choice), 0x13 Save As (asks for a name of
  *           up to 14 characters; the extension becomes .MP, and map_name changes even when
@@ -320,7 +415,8 @@ static i16 play_command(void)
  * nothing when there is no undo buffer. A failed save shows ERROR and keeps map_changes.
  * Port: the saves go through the checks before saving (checked_write_map); with the undo
  * history, Undo and Redo (0x72) step through it and mark the map changed, and Load and Create
- * forget it; 0x70 exports the map as a PNG and 0x71 plays it (options.h). */
+ * forget it; 0x70 exports the map as a PNG and 0x71 plays it; with the new-map menu, Create
+ * offers New empty map, Load existing map and Generate random map (options.h). */
 void execute_menu_event(i16 id)
 {
     register i16 r;
@@ -363,7 +459,7 @@ void execute_menu_event(i16 id)
         r = !map_changes;
         if (!r)
             r = popup_box("MAPEDIT", "CREATENOW", 0) == 1 ? 1 : 0;
-        if (r && create_me() == 0)
+        if (r && (editor_options.new_map_menu ? new_map_menu(0) : create_me()) == 0)
             undo_reset();
         cursor_x = map_center_x = map_file.w >> 1;
         cursor_y = map_center_y = map_file.h >> 1;
@@ -504,12 +600,24 @@ typedef struct { i16 name; char f2; char f3; char f4; char pad[2]; char v[9]; } 
  * file's header (the test of (u16)map_force < 0 is never true). Then the map is loaded, its
  * old forest codes converted (forest_fix), or created (create_me), and the cursor and the
  * view go to its centre. Returns 0 when ready, 1 to quit; a failed load leaves map_error in
- * exit_value. Port: the undo history of an earlier session is forgotten. */
+ * exit_value. Port: the undo history of an earlier session is forgotten; with the new-map
+ * menu (options.h) it chooses, instead of the file list, after the planes are allocated. */
 i16 start_new_game(void)
 {
     register i16 result;
 
     result = 1;
+    if (editor_options.new_map_menu && map_selected == 0 && create_me_now == 0) {
+        map_file.w = 0x3a;
+        map_file.h = 0x48;
+        map_force = result;
+        if (map_startup(result) || new_map_menu(1))
+            return result;
+        undo_reset();
+        cursor_x = map_center_x = map_file.w >> 1;
+        cursor_y = map_center_y = map_file.h >> 1;
+        return 0;
+    }
     if (map_selected == 0 && create_me_now == 0) {
         if (file_menu("MAPEDIT", "MAPTOEDIT", "*.MP") < 0)
             create_me_now = result;

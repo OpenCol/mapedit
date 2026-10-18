@@ -17,6 +17,13 @@
  *   play         Editor > Play This Map: saves the map if it has changes and leaves the
  *                editor with its file name in play_map, for the program around it to start a
  *                game on it (editor/mapedit.c).
+ *   new_map_menu the editor starts with a choice -- New empty map, Load existing map, and
+ *                Generate random map when generate_map is set -- instead of the file list,
+ *                and Editor > Create Map offers the same (editor/mapedit.c).
+ *   generate_map the program around the editor makes maps: given the four choices of the
+ *                game's CUSTOMIZE New World screen (Land Mass, Land Form, Temperature,
+ *                Climate, each 0-2), it fills a w x h terrain plane and continent plane as
+ *                the game makes a New World. Returns 0, or nonzero when it could not.
  */
 #ifndef MAPEDIT_OPTIONS_H
 #define MAPEDIT_OPTIONS_H
@@ -34,6 +41,8 @@ typedef struct {
     const char *export_fallback;
     i16 play;
     char play_map[16];          /* out: the map to play, or "" */
+    i16 new_map_menu;
+    i16 (*generate_map)(const i16 *choice, u8 *terrain, u8 *continent, i16 w, i16 h);
 } EditorOptions;
 #pragma pack(pop)
 

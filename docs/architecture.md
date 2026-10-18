@@ -79,7 +79,7 @@ a record read through bytes -- compiled silently.
 | | needs the game | what it says |
 | --- | --- | --- |
 | `ctest` (self-tests, layers, declarations) | no | the run-time and host behave; the layers and declarations hold |
-| `tools/golden.py` (in `ctest` with `$MAPEDIT_GAME`) | yes | 18 sessions give the same screens and files as recorded (the 4 `x_*` ones with the port's improvements on) |
+| `tools/golden.py` (in `ctest` with `$MAPEDIT_GAME`) | yes | 19 sessions give the same screens and files as recorded (the 5 `x_*` ones with the port's improvements on) |
 | `tests/oracle` (with `$MAPEDIT_EXE`) | the EXE | the C for the 1994 assembly computes what the original does |
 | `tools/m4.py` | yes, and DOSBox-X | the port saves the same files as the original under DOSBox-X |
 

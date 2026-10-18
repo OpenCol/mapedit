@@ -81,7 +81,9 @@ sessions `tests/golden/x_*.txt` recording each with its option on:
   become sea lane), and what the help warns of (one-square rivers, more than 15 land masses);
 - an export of the map as a PNG;
 - a separate folder for the maps written (the game directory only read);
-- Play This Map, for a program the editor is built into (OpenCol).
+- Play This Map, for a program the editor is built into (OpenCol);
+- a new-map menu (New empty map, Load existing map, Generate random map with the four choices
+  of the game's CUSTOMIZE New World screen, the generator given by the program around it).
 
 Candidates:
 - window scaling and fullscreen; aspect-correct 4:3 presentation;

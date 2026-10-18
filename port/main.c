@@ -1,7 +1,8 @@
 /* main.c -- the port's entry: the host, the game directory, then the 1994 editor's main.
  *
  *     mapedit [--game DIR | --choose-game] [--scale N] [--aspect] [--script FILE] [--headless]
- *             [--save-dir DIR] [--improved | --undo N --check-save --export-png [DIR]] [--play]
+ *             [--save-dir DIR] [--improved | --undo N --check-save --export-png [DIR] --new-map-menu]
+ *             [--play]
  *             [editor options: -c, -m:FILE]
  *
  * DIR is the player's Colonization for DOS directory (the one holding VICEROY.EXE); by
@@ -11,7 +12,10 @@
  *
  * The improvements (src/include/options.h), all off unless given: --undo N keeps N steps of
  * Undo and Redo, --check-save checks the map before it is saved, --export-png adds Export Map
- * as PNG (written to DIR, else the current folder); --improved is all three, with 64 steps.
+ * as PNG (written to DIR, else the current folder), --new-map-menu starts with New empty map /
+ * Load existing map (also on Create Map); --improved is all four, with 64 steps. (Generate
+ * random map needs the game's generator: OpenCol; --test-generator offers it with a stand-in that
+ * draws one rectangle of land, sized and coloured by the choices, for the tests.)
  * --save-dir DIR writes maps to DIR instead of the game directory, which is then only read.
  * --play offers Play This Map, for a program that starts the editor: chosen, the editor ends
  * and prints "play NAME.MP".
@@ -26,6 +30,26 @@
 #include "host.h"
 #include "game_dir.h"
 #include "options.h"
+
+/* --test-generator: Generate random map's stand-in for the game's generator (options.h): ocean,
+ * sea lane in the two outer columns each side, and a rectangle of land in the middle whose size
+ * follows Land Mass and whose terrain follows Temperature (tundra, plains, savannah) */
+static i16 test_generator(const i16 *choice, u8 *terrain, u8 *continent, i16 w, i16 h)
+{
+    static const u8 land[3] = {0, 2, 5};
+    int x, y, rx = 6 + 4 * choice[0], ry = 8 + 5 * choice[0];
+    for (y = 0; y < h; y++)
+        for (x = 0; x < w; x++) {
+            u8 t = 0x19;
+            if (x < 2 || x >= w - 2)
+                t = 0x1a;
+            else if (x >= w / 2 - rx && x < w / 2 + rx && y >= h / 2 - ry && y < h / 2 + ry)
+                t = land[choice[2]];
+            terrain[y * w + x] = t;
+            continent[y * w + x] = 0;
+        }
+    return 0;
+}
 
 void msc_set_root(const char *dir);
 void msc_set_write_root(const char *dir);
@@ -65,12 +89,17 @@ int main(int argc, char **argv)
             editor_options.export_png = 1;
             if (i + 1 < argc && argv[i + 1][0] != '-')
                 editor_options.export_dir = argv[++i];
-        } else if (!strcmp(argv[i], "--play"))
+        } else if (!strcmp(argv[i], "--new-map-menu"))
+            editor_options.new_map_menu = 1;
+        else if (!strcmp(argv[i], "--test-generator"))
+            editor_options.generate_map = test_generator;
+        else if (!strcmp(argv[i], "--play"))
             editor_options.play = 1;
         else if (!strcmp(argv[i], "--improved")) {
             editor_options.undo_levels = 64;
             editor_options.save_checks = 1;
             editor_options.export_png = 1;
+            editor_options.new_map_menu = 1;
         }
         else if (!strncmp(argv[i], "-psn_", 5))
             ;                           /* macOS's process serial number, from Finder */

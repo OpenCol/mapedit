@@ -1,0 +1,39 @@
+# args: --new-map-menu --test-generator
+# Port: the new-map menu at the start (New empty map, Load existing map, Generate random map);
+# Load's list cancelled back to it; Generate with Land Mass and Temperature stepped (M, T; the test
+# stand-in for the game's generator); then Editor > Create Map offers the same menu
+wait 300
+shot 01-start.bmp
+key L
+wait 500
+shot 02-load-list.bmp
+key Escape
+wait 500
+key G
+wait 500
+shot 03-generate.bmp
+key M
+wait 300
+key T
+wait 500
+shot 04-stepped.bmp
+key G
+wait 500
+shot 05-name.bmp
+key Return
+wait 1500
+shot 06-generated.bmp
+click 20 3
+wait 300
+click 40 39
+wait 500
+shot 07-create-ask.bmp
+key Up
+key Return
+wait 500
+shot 08-create-menu.bmp
+key N
+wait 500
+key Return
+wait 1500
+shot 09-empty.bmp
