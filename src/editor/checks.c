@@ -3,14 +3,15 @@
  * The game does not play a map from the editor exactly as it was drawn. When it starts a game
  * on one, it makes the two outermost columns on each side sea lane and the top and bottom rows
  * arctic, numbers the continents again and clears the feature plane. The editor's help adds
- * that rivers must be at least two squares long, and that more than 15 land masses (or seas)
- * may confuse the computer players. Before a save, save_checks_pass runs Find Continents (so
- * the saved map has its continents numbered, as the help asks) and looks for:
+ * that rivers must be at least two squares long. Before a save, save_checks_pass runs Find
+ * Continents (so the saved map has its continents numbered, as the help asks) and looks for:
  *   - a map with no land;
- *   - more than 15 land masses, or more than 15 seas (Find Continents's two warnings);
  *   - land in the columns next to the left and right edges, which the game makes sea lane;
  *   - a river square with no river in any of the eight squares around it.
- * What it finds is listed in one popup that asks whether to save anyway.
+ * What it finds is listed in one popup that asks whether to save anyway. Find Continents's own
+ * warnings (more than 15 land masses or seas) are not among them: the game's New World
+ * generator makes such maps as a matter of course (its lakes are seas); Map > Find Continents
+ * still gives them.
  */
 #include "msc.h"
 #pragma pack(2)   /* records packed on 2-byte boundaries, as the 1994 compiler did */
@@ -38,14 +39,14 @@ i16 save_checks_pass(void)
     static char lines[6][0x80];
     char *text[8];
     static char *items[] = {"Save anyway", "Do not save", 0};
-    i16 n = 0, land = 0, edge = 0, lone = 0, flags = 0, x, y;
+    i16 n = 0, land = 0, edge = 0, lone = 0, x, y;
     u8 b;
 
     if (!editor_options.save_checks)
         return 1;
     sprite_base = mem_get(0xfde8L);
     if (sprite_base != 0) {
-        flags = map_find_continents();
+        map_find_continents();
         mem_free(sprite_base);
         sprite_base = 0;
     }
@@ -65,10 +66,6 @@ i16 save_checks_pass(void)
     text[n++] = "^^{Before saving}";
     if (land == 0)
         text[n++] = "^The map has no land.";
-    if (flags & 1)
-        text[n] = "^More than 15 land masses: the computer players may find their way less well.", n++;
-    if (flags & 2)
-        text[n] = "^More than 15 seas: the computer players may find their way less well.", n++;
     if (edge) {
         msc_sprintf(lines[n], "^%d land square%s in the columns next to the left and right edges: the game "
                     "makes those columns sea lane.", edge, edge == 1 ? "" : "s");

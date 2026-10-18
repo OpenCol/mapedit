@@ -84,7 +84,7 @@ default (`src/include/options.h` has the details):
 | | |
 | --- | --- |
 | `--undo N` | Undo goes back through the last N changes (the original keeps one, of the terrain only), Map > Redo Last Change (R) goes forward again; Ctrl-Z and Ctrl-Y |
-| `--check-save` | before a save: Find Continents runs, and a popup lists what the game would change or mind (no land, more than 15 land masses or seas, land in the columns the game makes sea lane, one-square rivers) and asks whether to save anyway |
+| `--check-save` | before a save: Find Continents runs, and a popup lists what the game would change or mind (no land, land in the columns the game makes sea lane, one-square rivers) and asks whether to save anyway |
 | `--export-png [DIR]` | Editor > Export Map as PNG (E): the whole map at full zoom, in DIR or the current folder |
 | `--new-map-menu` | the editor starts with New empty map / Load existing map (and Generate random map where the program around it has the game's generator: OpenCol), instead of the file list; Editor > Create Map offers the same |
 | `--improved` | all four, with 64 steps of Undo |

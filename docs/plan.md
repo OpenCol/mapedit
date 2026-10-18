@@ -78,7 +78,7 @@ Done, each behind an option (`src/include/options.h`, the flags in README.md), t
 sessions `tests/golden/x_*.txt` recording each with its option on:
 - more undo levels (the original has one, of the terrain plane only), with Redo;
 - checks before saving: what the game changes in a map from the editor (the edge columns
-  become sea lane), and what the help warns of (one-square rivers, more than 15 land masses);
+  become sea lane), and what the help warns of (one-square rivers);
 - an export of the map as a PNG;
 - a separate folder for the maps written (the game directory only read);
 - Play This Map, for a program the editor is built into (OpenCol);
